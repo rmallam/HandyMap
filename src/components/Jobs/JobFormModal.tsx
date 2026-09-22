@@ -107,10 +107,11 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[2000] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/50 backdrop-blur-sm overflow-y-auto animate-in fade-in duration-150 text-slate-900">
+    <div className="fixed inset-0 z-[3000] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/70 backdrop-blur-md overflow-y-auto animate-in fade-in duration-150 text-slate-900">
       <div className="bg-white border-t sm:border border-slate-200 rounded-t-[32px] sm:rounded-3xl w-full max-w-lg max-h-[92dvh] flex flex-col shadow-2xl overflow-hidden pb-[env(safe-area-inset-bottom,0px)]">
         {/* Mobile Drag Indicator Bar */}
         <div className="w-12 h-1.5 bg-slate-300 rounded-full mx-auto my-2.5 sm:hidden shrink-0" />
+
 
         {/* Header */}
         <div className="p-4 sm:p-5 border-b border-slate-200/80 flex items-center justify-between shrink-0">

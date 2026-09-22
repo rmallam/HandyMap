@@ -26,14 +26,14 @@ export const BottomNav: React.FC<BottomNavProps> = ({
     },
     {
       id: 'route' as const,
-      label: 'Optimal Route',
+      label: 'Route',
       icon: Navigation,
       badge: hasActiveRoute ? '⚡' : null,
       badgeColor: 'bg-blue-600 text-white'
     },
     {
       id: 'jobs' as const,
-      label: 'Jobs & Quotes',
+      label: 'Jobs',
       icon: ClipboardList,
       badge: remindersCount > 0 ? remindersCount : null,
       badgeColor: 'bg-red-500 text-white'
@@ -53,6 +53,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
       badgeColor: ''
     }
   ];
+
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 h-[calc(4rem+env(safe-area-inset-bottom,0px))] pb-[env(safe-area-inset-bottom,0px)] bg-white/95 backdrop-blur-xl border-t border-slate-200/90 z-40 px-2 sm:px-6 flex items-center justify-around select-none shadow-[0_-2px_6px_rgba(0,0,0,0.03)]">

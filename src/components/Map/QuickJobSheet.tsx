@@ -53,7 +53,7 @@ export const QuickJobSheet: React.FC<QuickJobSheetProps> = ({
   const defaultSmsMsg = `Hi ${job.clientName}, this is Alex from Apex Handyman. I'm reviewing your request for ${job.title}. When is a good time for me to stop by for the quote?`;
 
   return (
-    <div className="fixed sm:absolute bottom-[calc(4.5rem+env(safe-area-inset-bottom,0px))] left-2 right-2 sm:left-auto sm:right-6 sm:w-96 z-[1000] pointer-events-auto transition-all animate-sheet-up">
+    <div className="fixed sm:absolute bottom-[calc(4.5rem+env(safe-area-inset-bottom,0px))] left-2 right-2 sm:left-auto sm:right-6 sm:w-96 z-30 pointer-events-auto transition-all animate-sheet-up">
       <div className="bg-white/98 backdrop-blur-xl border border-slate-200 rounded-[28px] shadow-2xl p-4 sm:p-5 text-slate-900 flex flex-col gap-3 ring-1 ring-black/5">
         
         {/* Mobile Pull Handle Indicator */}

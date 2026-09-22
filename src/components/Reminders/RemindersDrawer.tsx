@@ -92,7 +92,7 @@ export const RemindersDrawer: React.FC<RemindersDrawerProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[2500] flex justify-end bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-150">
+    <div className="fixed inset-0 z-[3000] flex justify-end bg-slate-900/70 backdrop-blur-md animate-in fade-in duration-150">
       <div className="bg-white w-full max-w-lg h-full flex flex-col shadow-2xl border-l border-slate-200 text-slate-900 pb-[env(safe-area-inset-bottom,0px)] overflow-hidden">
         
         {/* Mobile Drag Pill */}

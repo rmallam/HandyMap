@@ -39,20 +39,23 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto animate-in fade-in duration-200">
-      <div className="bg-white rounded-3xl max-w-2xl w-full shadow-2xl border border-slate-200/90 overflow-hidden my-auto max-h-[90vh] flex flex-col">
+    <div className="fixed inset-0 z-[3000] bg-slate-900/70 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-y-auto animate-in fade-in duration-200">
+      <div className="bg-white rounded-t-[32px] sm:rounded-3xl max-w-2xl w-full shadow-2xl border-t sm:border border-slate-200/90 overflow-hidden max-h-[92dvh] flex flex-col pb-[env(safe-area-inset-bottom,0px)]">
+        {/* Mobile Pull Handle Indicator */}
+        <div className="w-12 h-1.5 bg-slate-300 rounded-full mx-auto my-2.5 sm:hidden shrink-0" />
+
         {/* Header */}
-        <div className="bg-slate-900 text-white p-5 sm:p-6 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-blue-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20 shrink-0">
-              <Building className="w-5 h-5 stroke-[2.2]" />
+        <div className="bg-slate-900 text-white p-4 sm:p-6 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-2.5 sm:gap-3">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-blue-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20 shrink-0">
+              <Building className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2.2]" />
             </div>
             <div>
-              <h2 className="text-lg sm:text-xl font-black tracking-tight flex items-center gap-2">
+              <h2 className="text-base sm:text-xl font-black tracking-tight flex items-center gap-2">
                 <span>Handyman Profile & Invoicing</span>
               </h2>
-              <p className="text-xs text-slate-300 mt-0.5">
-                Configure your trade identity, ABN, GST, rates, and EFT payment details.
+              <p className="text-[11px] sm:text-xs text-slate-300 mt-0.5">
+                Configure trade identity, ABN, GST, rates, and EFT payment details.
               </p>
             </div>
           </div>
@@ -64,6 +67,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
             <X className="w-5 h-5" />
           </button>
         </div>
+
 
         {/* Scrollable Form Body */}
         <form onSubmit={handleSubmit} className="p-5 sm:p-6 overflow-y-auto space-y-6 flex-1 text-slate-900">
