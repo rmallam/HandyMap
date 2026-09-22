@@ -165,17 +165,41 @@ export function calculateDistanceKm(
   return R * c;
 }
 
+/**
+ * Single Stop Live Navigation:
+ * Omitting origin causes Google Maps / Apple Maps to route from the user's ACTUAL LIVE DEVICE GPS location!
+ */
+export function buildLiveNavigationUrl(
+  destination: [number, number],
+  address?: string
+): string {
+  const destParam = address ? encodeURIComponent(address) : `${destination[0]},${destination[1]}`;
+  // Universal Google Maps navigation URL with live GPS origin
+  return `https://www.google.com/maps/dir/?api=1&destination=${destParam}&travelmode=driving`;
+}
+
+export function buildAppleMapsNavUrl(
+  destination: [number, number],
+  address?: string
+): string {
+  const destParam = address ? encodeURIComponent(address) : `${destination[0]},${destination[1]}`;
+  return `https://maps.apple.com/?daddr=${destParam}&dirflg=d`;
+}
+
+/**
+ * Multi-Stop Route Tour in Google Maps:
+ * Routes from current device location through all waypoints sequentially to the final stop.
+ */
 export function buildGoogleMapsRouteUrl(
-  start: [number, number],
+  start: [number, number] | null,
   stops: [number, number][]
 ): string {
-  if (stops.length === 0) return `https://www.google.com/maps/dir/?api=1&origin=${start[0]},${start[1]}`;
+  if (stops.length === 0) return 'https://www.google.com/maps';
   
-  const origin = `${start[0]},${start[1]}`;
-  const destination = `${stops[stops.length - 1][0]},${stops[stops.length - 1][1]}`;
+  const finalDest = `${stops[stops.length - 1][0]},${stops[stops.length - 1][1]}`;
   
   if (stops.length === 1) {
-    return `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}`;
+    return `https://www.google.com/maps/dir/?api=1&destination=${finalDest}&travelmode=driving`;
   }
   
   const waypoints = stops
@@ -183,14 +207,9 @@ export function buildGoogleMapsRouteUrl(
     .map(pt => `${pt[0]},${pt[1]}`)
     .join('|');
     
-  return `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}&waypoints=${encodeURIComponent(waypoints)}`;
-}
-
-export function buildAppleMapsRouteUrl(
-  start: [number, number],
-  destination: [number, number]
-): string {
-  return `http://maps.apple.com/?saddr=${start[0]},${start[1]}&daddr=${destination[0]},${destination[1]}`;
+  // If start is provided, include it; otherwise Google Maps uses device live location
+  const originParam = start ? `&origin=${start[0]},${start[1]}` : '';
+  return `https://www.google.com/maps/dir/?api=1${originParam}&destination=${finalDest}&waypoints=${encodeURIComponent(waypoints)}&travelmode=driving`;
 }
 
 export function buildSmsLink(phone: string, message: string): string {

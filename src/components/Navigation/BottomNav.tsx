@@ -53,7 +53,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 h-16 bg-white/95 backdrop-blur-xl border-t border-slate-200/90 z-40 px-2 sm:px-6 flex items-center justify-around select-none shadow-[0_-1px_3px_rgba(0,0,0,0.03)]">
+    <nav className="fixed bottom-0 left-0 right-0 h-[calc(4rem+env(safe-area-inset-bottom,0px))] pb-[env(safe-area-inset-bottom,0px)] bg-white/95 backdrop-blur-xl border-t border-slate-200/90 z-40 px-2 sm:px-6 flex items-center justify-around select-none shadow-[0_-2px_6px_rgba(0,0,0,0.03)]">
       {navItems.map(item => {
         const Icon = item.icon;
         const isActive = activeTab === item.id;
@@ -62,7 +62,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
           <button
             key={item.id}
             onClick={() => onSelectTab(item.id)}
-            className={`relative flex flex-col items-center justify-center py-1 px-3 sm:px-4 rounded-xl transition-all ${
+            className={`relative flex flex-col items-center justify-center py-1.5 px-3 sm:px-4 rounded-xl transition-all duration-150 active:scale-95 ${
               isActive
                 ? 'text-blue-600 font-bold'
                 : 'text-slate-500 hover:text-slate-800'

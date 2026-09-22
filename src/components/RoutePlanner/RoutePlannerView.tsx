@@ -4,6 +4,7 @@ import {
   STATUS_CONFIG,
   formatCurrency,
   buildGoogleMapsRouteUrl,
+  buildLiveNavigationUrl,
   buildSmsLink
 } from '../../utils/helpers';
 import {
@@ -49,15 +50,16 @@ export const RoutePlannerView: React.FC<RoutePlannerViewProps> = ({
   const activeJobs = jobs.filter(j => j.status === 'in_progress');
   const urgentJobs = jobs.filter(j => j.status === 'urgent');
 
+  // Master Google Maps Route omitting fixed origin so navigation begins from driver's live GPS
   const masterGoogleMapsUrl = activeRoute && activeRoute.stops.length > 0
     ? buildGoogleMapsRouteUrl(
-        activeRoute.startLocation.coordinates,
+        null,
         activeRoute.stops.map(s => s.job.coordinates)
       )
     : '#';
 
   return (
-    <div className="flex flex-col h-full bg-slate-50 overflow-y-auto pb-24 text-slate-900 p-4 sm:p-6 max-w-4xl mx-auto w-full">
+    <div className="flex flex-col h-full bg-slate-50 overflow-y-auto pb-[calc(6.5rem+env(safe-area-inset-bottom,0px))] text-slate-900 p-4 sm:p-6 max-w-4xl mx-auto w-full">
       {/* View Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <div>
@@ -233,7 +235,7 @@ export const RoutePlannerView: React.FC<RoutePlannerViewProps> = ({
             {activeRoute.stops.map((stop) => {
               const job = stop.job;
               const statusCfg = STATUS_CONFIG[job.status];
-              const singleStopNavUrl = buildGoogleMapsRouteUrl(currentLocation, [job.coordinates]);
+              const singleStopNavUrl = buildLiveNavigationUrl(job.coordinates, job.address);
               const onMyWaySms = `Hi ${job.clientName}, Alex from Apex Handyman here! I am on my way to your address (${job.address}) for our quote appointment. Est. arrival: ${stop.eta}.`;
 
               return (

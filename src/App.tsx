@@ -41,6 +41,20 @@ export function App() {
 
   // Load initial jobs from Supabase or localStorage
   useEffect(() => {
+    // Attempt automatic GPS location lock
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        pos => {
+          setCurrentLocation([pos.coords.latitude, pos.coords.longitude]);
+          setIsUsingGPS(true);
+        },
+        () => {
+          // Keep default Point Cook base coordinates if permission denied
+        },
+        { enableHighAccuracy: true, timeout: 6000 }
+      );
+    }
+
     async function initJobs() {
       if (isSupabaseConfigured) {
         const cloudJobs = await fetchJobsFromSupabase();

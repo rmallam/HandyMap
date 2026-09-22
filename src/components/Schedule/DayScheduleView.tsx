@@ -32,7 +32,7 @@ export const DayScheduleView: React.FC<DayScheduleViewProps> = ({
   });
 
   return (
-    <div className="flex flex-col h-full bg-slate-50 overflow-y-auto pb-24 text-slate-900 p-4 sm:p-6 max-w-4xl mx-auto w-full">
+    <div className="flex flex-col h-full bg-slate-50 overflow-y-auto pb-[calc(6.5rem+env(safe-area-inset-bottom,0px))] text-slate-900 p-4 sm:p-6 max-w-4xl mx-auto w-full">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>

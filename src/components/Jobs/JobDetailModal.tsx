@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Job, JobStatus, HandymanProfile, JobPhoto } from '../../types';
-import { STATUS_CONFIG, formatDateTime, buildGoogleMapsRouteUrl, buildSmsLink, buildWhatsAppLink } from '../../utils/helpers';
+import { STATUS_CONFIG, formatDateTime, buildLiveNavigationUrl, buildSmsLink, buildWhatsAppLink } from '../../utils/helpers';
 import { QuoteBuilder } from './QuoteBuilder';
 import { TimeTracker } from './TimeTracker';
 import {
@@ -45,7 +45,8 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
   const [photoTypeInput, setPhotoTypeInput] = useState<'assessment' | 'before' | 'after'>('assessment');
 
   const statusCfg = STATUS_CONFIG[job.status];
-  const googleNavUrl = buildGoogleMapsRouteUrl(currentLocation, [job.coordinates]);
+  // Direct live GPS navigation link (Google Maps / Apple Maps defaults to device location)
+  const googleNavUrl = buildLiveNavigationUrl(job.coordinates, job.address);
 
   const handleStatusChange = (newStatus: JobStatus) => {
     const updatedJob: Job = {
@@ -102,9 +103,12 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
   ];
 
   return (
-    <div className="fixed inset-0 z-[2000] flex items-center justify-center p-2 sm:p-4 bg-slate-900/50 backdrop-blur-sm overflow-y-auto animate-in fade-in duration-150">
-      <div className="bg-white border border-slate-200/90 rounded-3xl w-full max-w-3xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden my-auto text-slate-900">
+    <div className="fixed inset-0 z-[2000] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/50 backdrop-blur-sm overflow-y-auto animate-in fade-in duration-150">
+      <div className="bg-white border border-slate-200/90 rounded-t-[32px] sm:rounded-3xl w-full max-w-3xl max-h-[92dvh] flex flex-col shadow-2xl overflow-hidden text-slate-900 pb-[env(safe-area-inset-bottom,0px)]">
         
+        {/* Mobile Drag Indicator Bar */}
+        <div className="w-12 h-1.5 bg-slate-300 rounded-full mx-auto my-2.5 sm:hidden shrink-0" />
+
         {/* Top Header */}
         <div className="p-4 sm:p-5 border-b border-slate-200/80 flex items-start justify-between gap-4 bg-white shrink-0">
           <div className="flex flex-col gap-1">

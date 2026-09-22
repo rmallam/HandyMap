@@ -1,6 +1,12 @@
 import React from 'react';
 import { Job, RouteStop } from '../../types';
-import { STATUS_CONFIG, formatCurrency, calculateDistanceKm, buildGoogleMapsRouteUrl, buildSmsLink } from '../../utils/helpers';
+import {
+  STATUS_CONFIG,
+  formatCurrency,
+  calculateDistanceKm,
+  buildLiveNavigationUrl,
+  buildSmsLink
+} from '../../utils/helpers';
 import {
   X,
   Phone,
@@ -42,13 +48,17 @@ export const QuickJobSheet: React.FC<QuickJobSheetProps> = ({
     ) * 10
   ) / 10;
 
-  const googleNavUrl = buildGoogleMapsRouteUrl(currentLocation, [job.coordinates]);
+  // Uses device's LIVE GPS location as start origin in Google Maps / Apple Maps
+  const liveNavUrl = buildLiveNavigationUrl(job.coordinates, job.address);
   const defaultSmsMsg = `Hi ${job.clientName}, this is Alex from Apex Handyman. I'm reviewing your request for ${job.title}. When is a good time for me to stop by for the quote?`;
 
   return (
-    <div className="absolute bottom-20 sm:bottom-6 left-3 right-3 sm:left-auto sm:right-6 sm:w-96 z-[1000] pointer-events-auto transition-all animate-in slide-in-from-bottom duration-200">
-      <div className="bg-white/95 backdrop-blur-xl border border-slate-200/90 rounded-3xl shadow-2xl p-4 sm:p-5 text-slate-900 flex flex-col gap-3.5 ring-1 ring-black/5">
+    <div className="fixed sm:absolute bottom-[calc(4.5rem+env(safe-area-inset-bottom,0px))] left-2 right-2 sm:left-auto sm:right-6 sm:w-96 z-[1000] pointer-events-auto transition-all animate-sheet-up">
+      <div className="bg-white/98 backdrop-blur-xl border border-slate-200 rounded-[28px] shadow-2xl p-4 sm:p-5 text-slate-900 flex flex-col gap-3 ring-1 ring-black/5">
         
+        {/* Mobile Pull Handle Indicator */}
+        <div className="w-10 h-1 bg-slate-300 rounded-full mx-auto -mt-1 sm:hidden"></div>
+
         {/* Header row */}
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-2 flex-wrap">
@@ -87,20 +97,20 @@ export const QuickJobSheet: React.FC<QuickJobSheetProps> = ({
         </div>
 
         {/* Address & Distance */}
-        <div className="bg-slate-50/80 rounded-2xl p-3 border border-slate-200/80 flex items-center justify-between text-xs">
+        <div className="bg-slate-50/90 rounded-2xl p-3 border border-slate-200/80 flex items-center justify-between text-xs">
           <div className="flex items-start gap-2 max-w-[70%]">
             <MapPin className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
             <span className="text-slate-700 font-medium line-clamp-2">{job.address}</span>
           </div>
           <div className="text-right shrink-0">
             <p className="font-bold text-slate-900">{distanceKm} km</p>
-            <p className="text-[10px] text-slate-500">away from you</p>
+            <p className="text-[10px] text-slate-500">from you</p>
           </div>
         </div>
 
         {/* Quote / Cost Preview */}
         {job.quote ? (
-          <div className="flex items-center justify-between px-3.5 py-2.5 bg-purple-50/80 border border-purple-200/80 rounded-2xl text-xs">
+          <div className="flex items-center justify-between px-3.5 py-2 bg-purple-50/80 border border-purple-200/80 rounded-2xl text-xs">
             <span className="text-purple-900 font-semibold flex items-center gap-1.5">
               <Sparkles className="w-3.5 h-3.5 text-purple-600" />
               Quote #{job.quote.quoteNumber}
@@ -116,11 +126,11 @@ export const QuickJobSheet: React.FC<QuickJobSheetProps> = ({
           </div>
         ) : null}
 
-        {/* Action Buttons Grid */}
+        {/* Action Buttons Grid (48px Touch Targets) */}
         <div className="grid grid-cols-4 gap-2 pt-1">
           <a
             href={`tel:${job.clientPhone}`}
-            className="flex flex-col items-center justify-center p-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-800 transition active:scale-95 border border-slate-200/60"
+            className="flex flex-col items-center justify-center p-2.5 min-h-[52px] rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-800 transition active:scale-95 border border-slate-200/80"
             title="Call Client"
           >
             <Phone className="w-4 h-4 text-emerald-600" />
@@ -129,27 +139,28 @@ export const QuickJobSheet: React.FC<QuickJobSheetProps> = ({
 
           <a
             href={buildSmsLink(job.clientPhone, defaultSmsMsg)}
-            className="flex flex-col items-center justify-center p-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-800 transition active:scale-95 border border-slate-200/60"
+            className="flex flex-col items-center justify-center p-2.5 min-h-[52px] rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-800 transition active:scale-95 border border-slate-200/80"
             title="Send SMS"
           >
             <MessageSquare className="w-4 h-4 text-blue-600" />
             <span className="text-[10px] font-semibold mt-1">SMS</span>
           </a>
 
+          {/* Direct Live GPS Navigation link */}
           <a
-            href={googleNavUrl}
+            href={liveNavUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex flex-col items-center justify-center p-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-800 transition active:scale-95 border border-slate-200/60"
-            title="Open Turn-by-Turn Navigation"
+            className="flex flex-col items-center justify-center p-2.5 min-h-[52px] rounded-2xl bg-amber-50 hover:bg-amber-100 text-amber-900 transition active:scale-95 border border-amber-200"
+            title="Start Live Directions from Current Location"
           >
-            <Navigation2 className="w-4 h-4 text-amber-600" />
-            <span className="text-[10px] font-semibold mt-1">Directions</span>
+            <Navigation2 className="w-4 h-4 text-amber-600 fill-amber-600" />
+            <span className="text-[10px] font-bold mt-1">Directions</span>
           </a>
 
           <button
             onClick={() => onOpenFullJob(job)}
-            className="flex flex-col items-center justify-center p-2.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold transition active:scale-95 shadow-sm col-span-1"
+            className="flex flex-col items-center justify-center p-2.5 min-h-[52px] rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold transition active:scale-95 shadow-sm col-span-1"
             title="Open Full Job Details & Quote Builder"
           >
             <FileText className="w-4 h-4" />
@@ -160,7 +171,7 @@ export const QuickJobSheet: React.FC<QuickJobSheetProps> = ({
         {/* Primary CTA */}
         <button
           onClick={() => onOpenFullJob(job)}
-          className="w-full py-2.5 px-4 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold flex items-center justify-center gap-2 shadow-sm transition"
+          className="w-full py-3 px-4 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition active:scale-95"
         >
           <span>{job.quote ? 'Edit / Present Quote' : '⚡ Open Quote Builder'}</span>
           <ArrowRight className="w-3.5 h-3.5" />
