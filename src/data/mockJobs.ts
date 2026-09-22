@@ -3,13 +3,19 @@ import { Job, HandymanProfile } from '../types';
 export const DEFAULT_PROFILE: HandymanProfile = {
   name: 'Alex Miller',
   businessName: 'Apex Handyman & Property Maintenance',
+  abn: '83 912 405 618',
   phone: '0412 890 442',
   email: 'alex@apexhandyman.com.au',
   defaultHourlyRate: 85,
   baseAddress: 'Point Cook Town Centre, Main St, Point Cook VIC 3030',
   baseCoordinates: [-37.9175, 144.7492], // Point Cook Town Centre
   currencySymbol: '$',
-  taxRatePercent: 10.0 // Australian GST
+  taxRatePercent: 10.0, // Australian GST (10%)
+  accountName: 'Apex Handyman Pty Ltd',
+  bsb: '063-875',
+  accountNumber: '1048 9921',
+  bankName: 'Commonwealth Bank of Australia',
+  paymentTerms: 'Payment due within 7 days of invoice issue. Direct deposit EFT or on-site card tap.'
 };
 
 export const REAL_ESTATE_AGENCIES = [

@@ -138,6 +138,7 @@ export interface OptimizedRoute {
 export interface HandymanProfile {
   name: string;
   businessName: string;
+  abn: string; // Australian Business Number (e.g., "51 824 753 556")
   phone: string;
   email: string;
   defaultHourlyRate: number;
@@ -145,6 +146,13 @@ export interface HandymanProfile {
   baseCoordinates: [number, number];
   currencySymbol: string;
   taxRatePercent: number;
+  
+  // Banking / Direct Deposit Details for Invoices & Quotes
+  accountName?: string;
+  bsb?: string; // e.g. "063-000"
+  accountNumber?: string; // e.g. "1234 5678"
+  bankName?: string; // e.g. "Commonwealth Bank"
+  paymentTerms?: string; // e.g. "Payment due within 7 days of invoice issue date."
 }
 
 export type ReminderType =

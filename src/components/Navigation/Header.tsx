@@ -1,6 +1,6 @@
 import React from 'react';
 import { HandymanProfile } from '../../types';
-import { Wrench, Plus, MapPin, Map, List, Navigation, Bell } from 'lucide-react';
+import { Wrench, Plus, Map, List, Navigation, Bell, Building2, UserCog } from 'lucide-react';
 
 interface HeaderProps {
   profile: HandymanProfile;
@@ -12,6 +12,7 @@ interface HeaderProps {
   onTeleportLocation: () => void;
   onToggleViewMode: (tab: 'map' | 'jobs') => void;
   onOpenReminders?: () => void;
+  onOpenProfile?: () => void;
   isUsingGPS: boolean;
 }
 
@@ -24,26 +25,36 @@ export const Header: React.FC<HeaderProps> = ({
   onTeleportLocation,
   onToggleViewMode,
   onOpenReminders,
+  onOpenProfile,
   isUsingGPS
 }) => {
   return (
     <header className="h-[calc(4rem+env(safe-area-inset-top,0px))] pt-[env(safe-area-inset-top,0px)] bg-white/95 backdrop-blur-md border-b border-slate-200/90 px-3 sm:px-6 flex items-center justify-between gap-2 sm:gap-4 shrink-0 z-30 select-none shadow-[0_1px_3px_rgba(0,0,0,0.03)]">
       {/* Brand & Handyman info */}
-      <div className="flex items-center gap-2 sm:gap-3">
-        <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20 shrink-0">
+      <div 
+        onClick={onOpenProfile}
+        className="flex items-center gap-2 sm:gap-3 cursor-pointer group"
+        title="Click to edit Handyman Profile & ABN"
+      >
+        <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20 shrink-0 group-hover:scale-105 transition">
           <Wrench className="w-4 h-4 stroke-[2.2]" />
         </div>
 
         <div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1.5">
             <h1 className="font-black text-xs sm:text-sm text-slate-900 tracking-tight flex items-center gap-1">
               <span>HandyMap</span>
               <span className="text-[9px] uppercase font-black bg-blue-50 text-blue-700 border border-blue-200/60 px-1 py-0.2 rounded">
                 PRO
               </span>
             </h1>
+            {profile.abn && (
+              <span className="hidden sm:inline text-[9px] font-mono font-bold bg-amber-50 text-amber-800 border border-amber-200 px-1.5 py-0.2 rounded">
+                ABN: {profile.abn}
+              </span>
+            )}
           </div>
-          <p className="text-[10px] text-slate-500 font-medium truncate max-w-[120px] sm:max-w-none hidden xs:block">
+          <p className="text-[10px] text-slate-500 font-medium truncate max-w-[120px] sm:max-w-none hidden xs:block group-hover:text-blue-600 transition">
             {profile.businessName}
           </p>
         </div>
@@ -80,6 +91,17 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* Right Controls */}
       <div className="flex items-center gap-1.5 sm:gap-2">
+        {/* Profile / ABN Settings Button */}
+        {onOpenProfile && (
+          <button
+            onClick={onOpenProfile}
+            className="p-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 shadow-sm transition active:scale-95"
+            title="Edit Handyman Profile, ABN & Invoicing Settings"
+          >
+            <UserCog className="w-4 h-4 text-slate-600" />
+          </button>
+        )}
+
         {/* Reminders / Notification Bell Button */}
         {onOpenReminders && (
           <button
@@ -89,7 +111,7 @@ export const Header: React.FC<HeaderProps> = ({
                 ? 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100'
                 : remindersCount > 0
                 ? 'bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100'
-                : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 shadow-sm'
             }`}
             title={`${remindersCount} action reminders pending`}
           >
@@ -131,3 +153,4 @@ export const Header: React.FC<HeaderProps> = ({
     </header>
   );
 };
+

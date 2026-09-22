@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import confetti from 'canvas-confetti';
 import { Job, JobQuote, QuoteItem, HandymanProfile } from '../../types';
-import { formatCurrency } from '../../utils/helpers';
+import { formatCurrency, buildWhatsAppQuoteText, buildWhatsAppLink } from '../../utils/helpers';
 import { generateQuotePDF } from '../../services/pdfGenerator';
 import {
   Plus,
@@ -12,7 +12,10 @@ import {
   PenTool,
   RotateCcw,
   Layers,
-  FileCheck2
+  FileCheck2,
+  MessageSquare,
+  Building2,
+  CreditCard
 } from 'lucide-react';
 
 interface QuoteBuilderProps {
@@ -72,6 +75,17 @@ export const QuoteBuilder: React.FC<QuoteBuilderProps> = ({
       totalAmount: Math.round(totalAmount * 100) / 100
     }));
   }, [quote.items, quote.taxRatePercent, quote.discountAmount]);
+
+  // Handle WhatsApp 1-Click Quote Send
+  const handleSendWhatsAppQuote = () => {
+    const message = buildWhatsAppQuoteText(
+      { ...job, quote },
+      profile
+    );
+    const phoneToUse = job.isAgencyJob && job.realEstateAgentPhone ? job.realEstateAgentPhone : job.clientPhone;
+    const url = buildWhatsAppLink(phoneToUse, message);
+    window.open(url, '_blank');
+  };
 
   // Handle canvas drawing for on-site signature
   const startDrawing = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
@@ -204,6 +218,49 @@ export const QuoteBuilder: React.FC<QuoteBuilderProps> = ({
 
   return (
     <div className="flex flex-col gap-6 text-slate-900">
+      {/* Handyman Business Banner & ABN Header */}
+      <div className="bg-gradient-to-r from-slate-900 to-slate-800 text-white rounded-2xl p-4 border border-slate-700 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center justify-center font-bold text-sm shrink-0">
+            <Building2 className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h4 className="font-extrabold text-sm text-white">{profile.businessName}</h4>
+              {profile.abn && (
+                <span className="text-[10px] font-mono font-bold bg-amber-400/20 text-amber-300 border border-amber-400/40 px-2 py-0.5 rounded-md">
+                  ABN: {profile.abn}
+                </span>
+              )}
+            </div>
+            <p className="text-[11px] text-slate-300 mt-0.5">
+              {profile.name} • Rate: {formatCurrency(profile.defaultHourlyRate, profile.currencySymbol)}/hr • GST: {profile.taxRatePercent}%
+            </p>
+          </div>
+        </div>
+
+        {/* WhatsApp & PDF Direct Action Bar */}
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={handleSendWhatsAppQuote}
+            className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 transition shadow-sm active:scale-95"
+            title="Send formatted itemized quote on WhatsApp"
+          >
+            <MessageSquare className="w-3.5 h-3.5 fill-white/20" />
+            <span>Send WhatsApp Quote</span>
+          </button>
+
+          <button
+            onClick={() => generateQuotePDF(job, profile)}
+            className="px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold flex items-center gap-1.5 transition border border-white/20 shadow-sm active:scale-95"
+            title="Export clean PDF with ABN and bank deposit details"
+          >
+            <Download className="w-3.5 h-3.5 text-blue-300" />
+            <span>PDF</span>
+          </button>
+        </div>
+      </div>
+
       {/* Quote Status & Meta Header */}
       <div className="bg-white rounded-2xl p-4 border border-slate-200/90 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
         <div>
@@ -230,14 +287,6 @@ export const QuoteBuilder: React.FC<QuoteBuilderProps> = ({
 
         {/* Action Buttons */}
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => generateQuotePDF(job, profile)}
-            className="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold flex items-center gap-1.5 transition border border-slate-200 shadow-sm active:scale-95"
-          >
-            <Download className="w-3.5 h-3.5 text-blue-600" />
-            <span>Download PDF</span>
-          </button>
-
           {quote.status !== 'accepted' && (
             <button
               onClick={handleAcceptQuote}
@@ -249,6 +298,7 @@ export const QuoteBuilder: React.FC<QuoteBuilderProps> = ({
           )}
         </div>
       </div>
+
 
       {/* Itemized Line Items Table */}
       <div className="bg-white rounded-2xl border border-slate-200/90 p-4 shadow-sm">
@@ -348,17 +398,29 @@ export const QuoteBuilder: React.FC<QuoteBuilderProps> = ({
 
         {/* Calculation Summary Box */}
         <div className="mt-4 pt-4 border-t border-slate-200 flex flex-col sm:flex-row justify-between gap-4">
-          <div className="flex-1">
-            <label className="text-[11px] font-semibold text-slate-600 block mb-1">
-              Estimate Notes & Payment Terms
-            </label>
-            <textarea
-              rows={2}
-              value={quote.notes}
-              onChange={e => setQuote(prev => ({ ...prev, notes: e.target.value }))}
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-800 resize-none focus:border-blue-500 outline-none"
-              placeholder="Terms, exclusions, warranty details..."
-            />
+          <div className="flex-1 flex flex-col justify-between gap-2">
+            <div>
+              <label className="text-[11px] font-semibold text-slate-600 block mb-1">
+                Estimate Notes & Payment Terms
+              </label>
+              <textarea
+                rows={2}
+                value={quote.notes}
+                onChange={e => setQuote(prev => ({ ...prev, notes: e.target.value }))}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-800 resize-none focus:border-blue-500 outline-none"
+                placeholder="Terms, exclusions, warranty details..."
+              />
+            </div>
+
+            {/* EFT Direct Deposit Snapshot */}
+            {profile.bsb && profile.accountNumber && (
+              <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200/80 flex items-center gap-2 text-[11px] text-slate-600">
+                <CreditCard className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                <span>
+                  <strong className="text-slate-800">EFT Info:</strong> BSB: <code className="font-mono text-slate-900 font-bold">{profile.bsb}</code> • Acc: <code className="font-mono text-slate-900 font-bold">{profile.accountNumber}</code> • {profile.bankName || 'Direct Deposit'}
+                </span>
+              </div>
+            )}
           </div>
 
           <div className="sm:w-64 bg-slate-50 p-3.5 rounded-xl border border-slate-200 text-xs flex flex-col gap-2">

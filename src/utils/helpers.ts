@@ -1,4 +1,4 @@
-import { JobStatus, JobPriority, JobCategory } from '../types';
+import { JobStatus, JobPriority, JobCategory, Job, HandymanProfile } from '../types';
 
 export const STATUS_CONFIG: Record<
   JobStatus,
@@ -221,3 +221,76 @@ export function buildWhatsAppLink(phone: string, message: string): string {
   const cleanedPhone = phone.replace(/[^0-9]/g, '');
   return `https://wa.me/${cleanedPhone}?text=${encodeURIComponent(message)}`;
 }
+
+export function buildWhatsAppQuoteText(job: Job, profile: HandymanProfile): string {
+  const quote = job.quote;
+  const isInvoice = job.status === 'invoiced';
+  const docType = isInvoice ? 'TAX INVOICE' : 'SERVICE ESTIMATE & QUOTE';
+  const docRef = isInvoice
+    ? (job.jobNumber.startsWith('INV') ? job.jobNumber : `INV-${job.jobNumber}`)
+    : (quote?.quoteNumber || `QTE-${job.jobNumber}`);
+
+  let text = `👋 *Hi ${job.clientName},*\n\n`;
+  text += `Here is your official *${docType}* from *${profile.businessName}*:\n\n`;
+  text += `📄 *Ref #:* ${docRef}\n`;
+  if (profile.abn) {
+    text += `🏢 *ABN:* ${profile.abn}\n`;
+  }
+  text += `📍 *Job Location:* ${job.address}\n`;
+  text += `🔨 *Work:* ${job.title}\n\n`;
+
+  if (job.isAgencyJob && job.realEstateAgency) {
+    text += `🏢 *Agency Partner:* ${job.realEstateAgency}\n`;
+    if (job.workOrderNumber) text += `📋 *Work Order:* ${job.workOrderNumber}\n`;
+    if (job.realEstateAgentName) text += `👤 *Property Manager:* ${job.realEstateAgentName}\n\n`;
+  }
+
+  text += `📋 *Itemized Scope & Pricing:*\n`;
+  const items = quote?.items || [
+    {
+      id: 'qi-1',
+      type: 'labor' as const,
+      description: job.title,
+      quantity: 1,
+      unitPrice: profile.defaultHourlyRate,
+      total: profile.defaultHourlyRate
+    }
+  ];
+
+  items.forEach((item, index) => {
+    text += `${index + 1}. *${item.description}* (${item.type.toUpperCase()})\n`;
+    text += `   ${item.quantity} x ${formatCurrency(item.unitPrice, profile.currencySymbol)} = *${formatCurrency(item.total, profile.currencySymbol)}*\n`;
+  });
+
+  const subtotal = quote?.subtotal ?? profile.defaultHourlyRate;
+  const taxAmount = quote?.taxAmount ?? (subtotal * (profile.taxRatePercent / 100));
+  const discountAmount = quote?.discountAmount ?? 0;
+  const totalAmount = quote?.totalAmount ?? (subtotal + taxAmount - discountAmount);
+
+  text += `\n----------------------------\n`;
+  text += `Subtotal: ${formatCurrency(subtotal, profile.currencySymbol)}\n`;
+  if (discountAmount > 0) {
+    text += `Discount: -${formatCurrency(discountAmount, profile.currencySymbol)}\n`;
+  }
+  text += `GST (${profile.taxRatePercent}%): ${formatCurrency(taxAmount, profile.currencySymbol)}\n`;
+  text += `💰 *TOTAL AMOUNT: ${formatCurrency(totalAmount, profile.currencySymbol)}*\n`;
+  text += `----------------------------\n\n`;
+
+  if (profile.accountName && profile.bsb && profile.accountNumber) {
+    text += `🏦 *Direct Deposit (EFT) Payment Details:*\n`;
+    if (profile.bankName) text += `Bank: ${profile.bankName}\n`;
+    text += `Account Name: ${profile.accountName}\n`;
+    text += `BSB: ${profile.bsb}\n`;
+    text += `Account No: ${profile.accountNumber}\n`;
+    text += `Ref: ${docRef}\n\n`;
+  }
+
+  if (profile.paymentTerms) {
+    text += `📝 *Terms:* ${profile.paymentTerms}\n\n`;
+  }
+
+  text += `To confirm this quote or ask any questions, please reply directly here or call *${profile.name}* at *${profile.phone}*.\n\nThank you for choosing ${profile.businessName}!`;
+
+  return text;
+}
+

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Job, JobStatus, OptimizedRoute, HandymanProfile } from './types';
-import { loadJobs, saveJobs, loadProfile, resetToDemoData } from './services/storage';
+import { loadJobs, saveJobs, loadProfile, saveProfile, resetToDemoData } from './services/storage';
 import {
   isSupabaseConfigured,
   supabase,
@@ -25,10 +25,11 @@ import { StatsOverview } from './components/Dashboard/StatsOverview';
 import { JobDetailModal } from './components/Jobs/JobDetailModal';
 import { JobFormModal } from './components/Jobs/JobFormModal';
 import { RemindersDrawer } from './components/Reminders/RemindersDrawer';
+import { ProfileModal } from './components/Profile/ProfileModal';
 
 export function App() {
   const [jobs, setJobs] = useState<Job[]>([]);
-  const [profile] = useState<HandymanProfile>(loadProfile());
+  const [profile, setProfile] = useState<HandymanProfile>(loadProfile());
   const [currentLocation, setCurrentLocation] = useState<[number, number]>(profile.baseCoordinates);
   const [isUsingGPS, setIsUsingGPS] = useState(false);
   
@@ -48,6 +49,8 @@ export function App() {
   // Modals
   const [isJobDetailOpen, setIsJobDetailOpen] = useState(false);
   const [isNewJobOpen, setIsNewJobOpen] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+
 
   // Load initial jobs from Supabase or localStorage
   useEffect(() => {
@@ -234,6 +237,11 @@ export function App() {
   };
 
   // Reset Demo Data
+  const handleUpdateProfile = (updatedProfile: HandymanProfile) => {
+    setProfile(updatedProfile);
+    saveProfile(updatedProfile);
+  };
+
   const handleResetDemoData = () => {
     const demo = resetToDemoData();
     setJobs(demo);
@@ -283,6 +291,7 @@ export function App() {
         onTeleportLocation={handleTeleportLocation}
         onToggleViewMode={(tab) => setActiveTab(tab)}
         onOpenReminders={() => setIsRemindersDrawerOpen(true)}
+        onOpenProfile={() => setIsProfileModalOpen(true)}
         isUsingGPS={isUsingGPS}
       />
 
@@ -368,6 +377,14 @@ export function App() {
         onClose={() => setIsNewJobOpen(false)}
         onSave={handleCreateNewJob}
         currentLocation={currentLocation}
+      />
+
+      {/* Handyman Business Profile & ABN Invoicing Modal */}
+      <ProfileModal
+        isOpen={isProfileModalOpen}
+        profile={profile}
+        onClose={() => setIsProfileModalOpen(false)}
+        onSaveProfile={handleUpdateProfile}
       />
 
       {/* Smart Reminders & Follow-Ups Drawer */}

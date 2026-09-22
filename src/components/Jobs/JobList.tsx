@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Job, JobStatus, HandymanProfile, ReminderItem } from '../../types';
 import { STATUS_CONFIG, formatCurrency, formatDateTime } from '../../utils/helpers';
+import { REAL_ESTATE_AGENCIES } from '../../data/mockJobs';
 import {
   Search,
   Plus,
@@ -10,7 +11,10 @@ import {
   MapPin,
   Calendar,
   AlertCircle,
-  BellRing
+  BellRing,
+  Building2,
+  Filter,
+  X
 } from 'lucide-react';
 
 interface JobListProps {
@@ -30,30 +34,45 @@ export const JobList: React.FC<JobListProps> = ({
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<JobStatus | 'all'>('all');
+  const [agencyFilter, setAgencyFilter] = useState<string>('all');
+
+  const agencyCount = jobs.filter(j => j.isAgencyJob).length;
 
   const filteredJobs = jobs.filter(job => {
     const matchesStatus = statusFilter === 'all' || job.status === statusFilter;
+    
+    let matchesAgency = true;
+    if (agencyFilter === 'agency_only') {
+      matchesAgency = !!job.isAgencyJob;
+    } else if (agencyFilter === 'direct_only') {
+      matchesAgency = !job.isAgencyJob;
+    } else if (agencyFilter !== 'all') {
+      matchesAgency = job.realEstateAgency === agencyFilter;
+    }
+
     const searchLower = searchTerm.toLowerCase();
     const matchesSearch =
       job.title.toLowerCase().includes(searchLower) ||
       job.clientName.toLowerCase().includes(searchLower) ||
       job.address.toLowerCase().includes(searchLower) ||
       job.jobNumber.toLowerCase().includes(searchLower) ||
-      job.category.toLowerCase().includes(searchLower);
+      job.category.toLowerCase().includes(searchLower) ||
+      (job.realEstateAgency && job.realEstateAgency.toLowerCase().includes(searchLower)) ||
+      (job.workOrderNumber && job.workOrderNumber.toLowerCase().includes(searchLower));
 
-    return matchesStatus && matchesSearch;
+    return matchesStatus && matchesAgency && matchesSearch;
   });
 
   return (
     <div className="flex flex-col h-full bg-slate-50 overflow-y-auto pb-[calc(6.5rem+env(safe-area-inset-bottom,0px))] text-slate-900 p-4 sm:p-6 max-w-5xl mx-auto w-full">
       {/* Top Title & Add Button */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
         <div>
           <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
             Jobs & Quotes Directory
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-            Manage your customer requests, approved estimates, and in-progress jobs.
+            Manage your customer requests, approved estimates, and real estate agency work orders.
           </p>
         </div>
 
@@ -66,8 +85,8 @@ export const JobList: React.FC<JobListProps> = ({
         </button>
       </div>
 
-      {/* Search & Filter Controls */}
-      <div className="flex flex-col sm:flex-row gap-3 mb-6">
+      {/* Search & Status Controls */}
+      <div className="flex flex-col sm:flex-row gap-3 mb-3">
         {/* Search Box */}
         <div className="relative flex-1">
           <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
@@ -75,12 +94,12 @@ export const JobList: React.FC<JobListProps> = ({
             type="text"
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
-            placeholder="Search by client, title, address, or #ID..."
+            placeholder="Search client, address, agency, work order #, or title..."
             className="w-full bg-white border border-slate-200/90 rounded-2xl pl-10 pr-4 py-2.5 text-xs text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none shadow-sm transition"
           />
         </div>
 
-        {/* Filter Pills */}
+        {/* Status Filter Pills */}
         <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1">
           <button
             onClick={() => setStatusFilter('all')}
@@ -134,6 +153,94 @@ export const JobList: React.FC<JobListProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Real Estate Agency Filter Bar */}
+      <div className="bg-white p-2 sm:p-2.5 rounded-2xl border border-slate-200/90 shadow-sm mb-5 flex items-center gap-2 overflow-x-auto no-scrollbar">
+        <span className="text-[11px] font-bold text-slate-400 uppercase flex items-center gap-1.5 shrink-0 px-2">
+          <Building2 className="w-3.5 h-3.5 text-purple-600" /> Agency Filter:
+        </span>
+
+        <button
+          onClick={() => setAgencyFilter('all')}
+          className={`px-2.5 py-1 rounded-xl text-xs font-bold whitespace-nowrap transition ${
+            agencyFilter === 'all'
+              ? 'bg-purple-700 text-white shadow-sm'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+          }`}
+        >
+          All Sources
+        </button>
+
+        <button
+          onClick={() => setAgencyFilter('agency_only')}
+          className={`px-2.5 py-1 rounded-xl text-xs font-bold whitespace-nowrap transition flex items-center gap-1.5 ${
+            agencyFilter === 'agency_only'
+              ? 'bg-purple-700 text-white shadow-sm'
+              : 'text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200/60'
+          }`}
+        >
+          <span>All Agency Orders</span>
+          <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+            agencyFilter === 'agency_only' ? 'bg-purple-800 text-white' : 'bg-purple-200 text-purple-800'
+          }`}>
+            {agencyCount}
+          </span>
+        </button>
+
+        {REAL_ESTATE_AGENCIES.map(agency => {
+          const count = jobs.filter(j => j.realEstateAgency === agency).length;
+          if (count === 0) return null;
+          return (
+            <button
+              key={agency}
+              onClick={() => setAgencyFilter(agency)}
+              className={`px-2.5 py-1 rounded-xl text-xs font-bold whitespace-nowrap transition flex items-center gap-1.5 ${
+                agencyFilter === agency
+                  ? 'bg-purple-700 text-white shadow-sm'
+                  : 'text-slate-600 hover:text-purple-900 hover:bg-purple-50 border border-slate-200/60'
+              }`}
+            >
+              <span>{agency}</span>
+              <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                agencyFilter === agency ? 'bg-purple-800 text-white' : 'bg-slate-100 text-slate-600'
+              }`}>
+                {count}
+              </span>
+            </button>
+          );
+        })}
+
+        <button
+          onClick={() => setAgencyFilter('direct_only')}
+          className={`px-2.5 py-1 rounded-xl text-xs font-bold whitespace-nowrap transition ${
+            agencyFilter === 'direct_only'
+              ? 'bg-slate-800 text-white shadow-sm'
+              : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
+          }`}
+        >
+          Direct Residential Only
+        </button>
+      </div>
+
+      {/* Active Filter Notice if specific agency is isolated */}
+      {agencyFilter !== 'all' && (
+        <div className="bg-purple-50 border border-purple-200 rounded-2xl p-3 mb-4 flex items-center justify-between text-xs text-purple-900 animate-in fade-in">
+          <div className="flex items-center gap-2">
+            <Building2 className="w-4 h-4 text-purple-700 shrink-0" />
+            <span>
+              Showing ONLY work orders for: <strong>{agencyFilter === 'agency_only' ? 'All Real Estate Agencies' : agencyFilter === 'direct_only' ? 'Direct Residential Clients' : agencyFilter}</strong> ({filteredJobs.length} {filteredJobs.length === 1 ? 'job' : 'jobs'})
+            </span>
+          </div>
+          <button
+            onClick={() => setAgencyFilter('all')}
+            className="p-1 rounded-lg hover:bg-purple-200/60 text-purple-700 transition"
+            title="Clear agency filter"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+
 
       {/* Cards Grid */}
       {filteredJobs.length === 0 ? (
@@ -197,6 +304,21 @@ export const JobList: React.FC<JobListProps> = ({
                   <p className="text-xs text-slate-600 mt-1.5 line-clamp-2 leading-relaxed">
                     {job.description}
                   </p>
+
+                  {/* Real Estate Agency Work Order Pill */}
+                  {job.isAgencyJob && job.realEstateAgency && (
+                    <div className="mt-2.5 px-2.5 py-1 rounded-xl bg-purple-50 border border-purple-200/80 text-[11px] font-bold text-purple-900 flex items-center justify-between">
+                      <span className="flex items-center gap-1.5">
+                        <Building2 className="w-3 h-3 text-purple-600" />
+                        <span>{job.realEstateAgency}</span>
+                      </span>
+                      {job.workOrderNumber && (
+                        <span className="font-mono text-[10px] text-purple-700 bg-purple-100/80 px-1.5 py-0.2 rounded">
+                          {job.workOrderNumber}
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Client & Pricing footer */}
