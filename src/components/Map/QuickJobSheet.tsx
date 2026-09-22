@@ -108,6 +108,34 @@ export const QuickJobSheet: React.FC<QuickJobSheetProps> = ({
           </div>
         </div>
 
+        {/* Real Estate Agency Work Order Banner */}
+        {job.isAgencyJob && (
+          <div className="bg-purple-50/90 border border-purple-200/90 rounded-2xl p-2.5 text-xs flex items-center justify-between">
+            <div>
+              <div className="flex items-center gap-1.5 font-bold text-purple-900">
+                <span>🏢 {job.realEstateAgency}</span>
+                {job.workOrderNumber && (
+                  <span className="text-[10px] bg-purple-200/70 text-purple-900 px-1.5 py-0.2 rounded font-mono">
+                    {job.workOrderNumber}
+                  </span>
+                )}
+              </div>
+              {job.realEstateAgentName && (
+                <p className="text-[11px] text-purple-700 mt-0.5">PM: {job.realEstateAgentName}</p>
+              )}
+            </div>
+            {job.realEstateAgentPhone && (
+              <a
+                href={`tel:${job.realEstateAgentPhone}`}
+                className="px-2 py-1 rounded-lg bg-white hover:bg-purple-100 text-purple-900 font-bold text-[11px] border border-purple-200 shadow-sm transition"
+                title="Call Property Manager"
+              >
+                Call PM
+              </a>
+            )}
+          </div>
+        )}
+
         {/* Quote / Cost Preview */}
         {job.quote ? (
           <div className="flex items-center justify-between px-3.5 py-2 bg-purple-50/80 border border-purple-200/80 rounded-2xl text-xs">

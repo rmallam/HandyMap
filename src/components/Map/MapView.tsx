@@ -1,7 +1,8 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { MapContainer, TileLayer, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { Job, JobStatus, OptimizedRoute } from '../../types';
+import { extractSuburb } from '../../services/routeOptimizer';
 import { JobMarker } from './JobMarker';
 import { RoutePolyline } from './RoutePolyline';
 import { MapFilters } from './MapFilters';
@@ -37,7 +38,6 @@ function MapController({
   const initialFitDone = useRef(false);
 
   useEffect(() => {
-    // Invalidate map size so tiles render immediately without grey box
     const timer = setTimeout(() => {
       map.invalidateSize();
     }, 150);
@@ -91,10 +91,23 @@ export const MapView: React.FC<MapViewProps> = ({
   onOpenFullJob,
   onCenterMyLocation
 }) => {
-  // Filter jobs by selected status
-  const visibleJobs = selectedStatus === 'all'
-    ? jobs
-    : jobs.filter(j => j.status === selectedStatus);
+  const [selectedSuburb, setSelectedSuburb] = useState<string>('all');
+  const [selectedAgency, setSelectedAgency] = useState<string>('all');
+
+  // Filter jobs by status, suburb, and agency
+  const visibleJobs = jobs.filter(job => {
+    const matchesStatus = selectedStatus === 'all' || job.status === selectedStatus;
+    const matchesSuburb = selectedSuburb === 'all' || extractSuburb(job) === selectedSuburb;
+    
+    let matchesAgency = true;
+    if (selectedAgency === 'agency_only') {
+      matchesAgency = !!job.isAgencyJob;
+    } else if (selectedAgency !== 'all') {
+      matchesAgency = job.realEstateAgency === selectedAgency;
+    }
+
+    return matchesStatus && matchesSuburb && matchesAgency;
+  });
 
   // Map route stop index by job ID
   const routeStopMap = new Map();
@@ -110,14 +123,18 @@ export const MapView: React.FC<MapViewProps> = ({
       <MapFilters
         jobs={jobs}
         selectedStatus={selectedStatus}
+        selectedSuburb={selectedSuburb}
+        selectedAgency={selectedAgency}
         onSelectStatus={onSelectStatus}
+        onSelectSuburb={setSelectedSuburb}
+        onSelectAgency={setSelectedAgency}
         onOptimizeQuotesRoute={onOptimizeQuotesRoute}
         isOptimizing={isOptimizing}
         hasActiveRoute={activeRoute !== null}
         onCenterMyLocation={onCenterMyLocation}
       />
 
-      {/* Main Leaflet Map with Carto Positron Light Tiles */}
+      {/* Main Leaflet Map with OpenStreetMap Tiles */}
       <MapContainer
         center={currentLocation}
         zoom={13}

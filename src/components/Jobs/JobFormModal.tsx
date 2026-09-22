@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Job, JobCategory, JobPriority, JobStatus } from '../../types';
-import { X, Plus, MapPin } from 'lucide-react';
+import { REAL_ESTATE_AGENCIES, SUBURBS_LIST } from '../../data/mockJobs';
+import { X, Plus, MapPin, Building2, User, Phone, Tag } from 'lucide-react';
 
 interface JobFormModalProps {
   isOpen: boolean;
@@ -35,12 +36,22 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
   const [clientPhone, setClientPhone] = useState('');
   const [clientEmail, setClientEmail] = useState('');
   const [address, setAddress] = useState('25 Main St, Point Cook VIC 3030');
+  const [suburb, setSuburb] = useState('Point Cook');
   const [category, setCategory] = useState<JobCategory>('General Repair');
   const [priority, setPriority] = useState<JobPriority>('medium');
   const [status, setStatus] = useState<JobStatus>('quote_requested');
   const [description, setDescription] = useState('');
   const [durationMin, setDurationMin] = useState(45);
   const [appointmentTime, setAppointmentTime] = useState('');
+
+  // Real Estate Agency Fields
+  const [isAgencyJob, setIsAgencyJob] = useState(false);
+  const [realEstateAgency, setRealEstateAgency] = useState('Ray White Point Cook');
+  const [realEstateAgentName, setRealEstateAgentName] = useState('');
+  const [realEstateAgentPhone, setRealEstateAgentPhone] = useState('');
+  const [workOrderNumber, setWorkOrderNumber] = useState('');
+  const [tenantName, setTenantName] = useState('');
+  const [tenantPhone, setTenantPhone] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,7 +75,8 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
       clientName: clientName.trim(),
       clientPhone: clientPhone.trim() || '0412 555 019',
       clientEmail: clientEmail.trim() || `${clientName.toLowerCase().replace(/\s+/g, '.')}@gmail.com`,
-      address: address.trim() || 'Point Cook VIC 3030',
+      address: address.trim() || `${suburb} VIC 3030`,
+      suburb,
       coordinates,
       status,
       priority,
@@ -73,9 +85,19 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
       quoteRequestedDate: new Date().toISOString(),
       appointmentTime: appointmentTime ? new Date(appointmentTime).toISOString() : undefined,
       estimatedDurationMinutes: durationMin,
+      
+      // Agency details
+      isAgencyJob,
+      realEstateAgency: isAgencyJob ? realEstateAgency : undefined,
+      realEstateAgentName: isAgencyJob ? realEstateAgentName.trim() : undefined,
+      realEstateAgentPhone: isAgencyJob ? realEstateAgentPhone.trim() : undefined,
+      workOrderNumber: isAgencyJob ? workOrderNumber.trim() : undefined,
+      tenantName: isAgencyJob ? tenantName.trim() : undefined,
+      tenantPhone: isAgencyJob ? tenantPhone.trim() : undefined,
+
       photos: [],
       timeLogs: [],
-      internalNotes: ['Created via HandyMap Pro'],
+      internalNotes: [isAgencyJob ? `Real Estate Work Order: ${realEstateAgency}` : 'Created via HandyMap Pro'],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
@@ -98,10 +120,10 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
             </div>
             <div>
               <h2 className="text-base sm:text-lg font-bold text-slate-900">
-                New Quote Request / Job Lead
+                New Job Lead / Quote Request
               </h2>
               <p className="text-xs text-slate-500">
-                Log an incoming request to place onto your map & schedule.
+                Log a residential or real estate work order onto your map.
               </p>
             </div>
           </div>
@@ -115,7 +137,7 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
         </div>
 
         {/* Form Body */}
-        <form onSubmit={handleSubmit} className="p-4 sm:p-6 flex flex-col gap-4 text-xs">
+        <form onSubmit={handleSubmit} className="p-4 sm:p-6 overflow-y-auto flex flex-col gap-4 text-xs">
           <div>
             <label className="text-slate-700 font-bold block mb-1">
               Job / Quote Title *
@@ -130,10 +152,85 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
             />
           </div>
 
+          {/* Real Estate Agency Checkbox Toggle */}
+          <div className="p-3 bg-purple-50/70 border border-purple-200 rounded-2xl flex flex-col gap-3">
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={isAgencyJob}
+                onChange={e => setIsAgencyJob(e.target.checked)}
+                className="w-4 h-4 rounded text-purple-600 focus:ring-purple-500 border-slate-300 cursor-pointer"
+              />
+              <span className="font-bold text-purple-950 flex items-center gap-1.5">
+                <Building2 className="w-4 h-4 text-purple-700" />
+                This is a Real Estate Agency / Property Manager Work Order
+              </span>
+            </label>
+
+            {isAgencyJob && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-purple-200/80 animate-in fade-in">
+                <div>
+                  <label className="text-purple-900 font-bold block mb-1">
+                    Agency Partner *
+                  </label>
+                  <select
+                    value={realEstateAgency}
+                    onChange={e => setRealEstateAgency(e.target.value)}
+                    className="w-full bg-white border border-purple-200 rounded-xl px-3 py-2 text-slate-900 font-medium outline-none focus:border-purple-600"
+                  >
+                    {REAL_ESTATE_AGENCIES.map(a => (
+                      <option key={a} value={a}>{a}</option>
+                    ))}
+                    <option value="Other Real Estate Agency">Other Agency</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-purple-900 font-bold block mb-1">
+                    Work Order # (PO)
+                  </label>
+                  <input
+                    type="text"
+                    value={workOrderNumber}
+                    onChange={e => setWorkOrderNumber(e.target.value)}
+                    placeholder="e.g., WO-RW-9021"
+                    className="w-full bg-white border border-purple-200 rounded-xl px-3 py-2 text-slate-900 outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-purple-900 font-bold block mb-1">
+                    Property Manager Name
+                  </label>
+                  <input
+                    type="text"
+                    value={realEstateAgentName}
+                    onChange={e => setRealEstateAgentName(e.target.value)}
+                    placeholder="e.g., Sarah Jenkins"
+                    className="w-full bg-white border border-purple-200 rounded-xl px-3 py-2 text-slate-900 outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-purple-900 font-bold block mb-1">
+                    PM Phone Number
+                  </label>
+                  <input
+                    type="tel"
+                    value={realEstateAgentPhone}
+                    onChange={e => setRealEstateAgentPhone(e.target.value)}
+                    placeholder="0412 888 901"
+                    className="w-full bg-white border border-purple-200 rounded-xl px-3 py-2 text-slate-900 outline-none"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="text-slate-700 font-bold block mb-1">
-                Client Name *
+                {isAgencyJob ? 'Tenant / Occupant Name *' : 'Client Name *'}
               </label>
               <input
                 type="text"
@@ -147,7 +244,7 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
 
             <div>
               <label className="text-slate-700 font-bold block mb-1">
-                Client Phone
+                {isAgencyJob ? 'Tenant On-Site Phone' : 'Client Phone'}
               </label>
               <input
                 type="tel"
@@ -159,19 +256,36 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
             </div>
           </div>
 
-          <div>
-            <label className="text-slate-700 font-bold block mb-1">
-              Service Address
-            </label>
-            <div className="relative">
-              <MapPin className="w-4 h-4 text-blue-600 absolute left-3 top-3" />
-              <input
-                type="text"
-                value={address}
-                onChange={e => setAddress(e.target.value)}
-                placeholder="Street address, Point Cook VIC 3030"
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3 py-2.5 text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:bg-white outline-none transition"
-              />
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="sm:col-span-2">
+              <label className="text-slate-700 font-bold block mb-1">
+                Street Address
+              </label>
+              <div className="relative">
+                <MapPin className="w-4 h-4 text-blue-600 absolute left-3 top-3" />
+                <input
+                  type="text"
+                  value={address}
+                  onChange={e => setAddress(e.target.value)}
+                  placeholder="Street address, Point Cook"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3 py-2.5 text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:bg-white outline-none transition"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="text-slate-700 font-bold block mb-1">
+                Suburb *
+              </label>
+              <select
+                value={suburb}
+                onChange={e => setSuburb(e.target.value)}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-900 font-semibold focus:border-blue-500 focus:bg-white outline-none"
+              >
+                {SUBURBS_LIST.map(sub => (
+                  <option key={sub} value={sub}>{sub}</option>
+                ))}
+              </select>
             </div>
           </div>
 
@@ -225,18 +339,18 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
 
           <div>
             <label className="text-slate-700 font-bold block mb-1">
-              Scope / Problem Description
+              Scope / Work Order Description
             </label>
             <textarea
               rows={3}
               value={description}
               onChange={e => setDescription(e.target.value)}
-              placeholder="What does the client need estimated or repaired?"
+              placeholder="What needs to be estimated or repaired?"
               className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:bg-white outline-none resize-none transition"
             />
           </div>
 
-          <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-200">
+          <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-200 shrink-0">
             <button
               type="button"
               onClick={onClose}

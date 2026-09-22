@@ -16,7 +16,9 @@ import {
   Send,
   Sparkles,
   Trash2,
-  Tag
+  Tag,
+  Building2,
+  UserCheck
 } from 'lucide-react';
 
 interface JobDetailModalProps {
@@ -134,6 +136,14 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
               <span className="text-xs font-semibold bg-slate-100 text-slate-700 px-2.5 py-0.5 rounded-full flex items-center gap-1 border border-slate-200/60">
                 <Tag className="w-3 h-3 text-blue-600" /> {job.category}
               </span>
+
+              {job.isAgencyJob && (
+                <span className="text-xs font-bold bg-purple-100 text-purple-900 px-2.5 py-0.5 rounded-full flex items-center gap-1 border border-purple-200">
+                  <Building2 className="w-3 h-3 text-purple-700" />
+                  {job.realEstateAgency}
+                  {job.workOrderNumber && <span className="font-mono opacity-80">({job.workOrderNumber})</span>}
+                </span>
+              )}
             </div>
 
             <h2 className="text-base sm:text-lg font-bold text-slate-900 mt-1 leading-snug">
@@ -249,6 +259,83 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
 
           {activeTab === 'overview' && (
             <div className="flex flex-col gap-5 text-slate-900">
+              {/* Real Estate Agency B2B Work Order Info */}
+              {job.isAgencyJob && (
+                <div className="bg-purple-50/80 border border-purple-200 rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="p-2 rounded-xl bg-purple-600 text-white">
+                        <Building2 className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h3 className="text-xs font-black uppercase tracking-wider text-purple-900">
+                          {job.realEstateAgency} Work Order
+                        </h3>
+                        <p className="text-[11px] text-purple-700 font-mono font-bold">
+                          Order #{job.workOrderNumber || 'N/A'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-purple-200/80 text-xs">
+                    {/* Property Manager Column */}
+                    <div className="bg-white/90 p-3 rounded-xl border border-purple-100 flex flex-col justify-between gap-2">
+                      <div>
+                        <p className="text-[10px] uppercase font-bold text-purple-600">Property Manager (Billing & Approval)</p>
+                        <p className="font-bold text-slate-900 mt-0.5">{job.realEstateAgentName || 'Agency PM'}</p>
+                        <p className="text-[11px] text-slate-500">{job.realEstateAgentPhone || 'No phone listed'}</p>
+                      </div>
+                      {job.realEstateAgentPhone && (
+                        <div className="flex items-center gap-1.5 pt-1">
+                          <a
+                            href={`tel:${job.realEstateAgentPhone}`}
+                            className="px-2.5 py-1 rounded-lg bg-purple-600 text-white font-bold text-[11px] flex items-center gap-1 shadow-sm"
+                          >
+                            <Phone className="w-3 h-3" /> Call PM
+                          </a>
+                          <a
+                            href={buildSmsLink(
+                              job.realEstateAgentPhone,
+                              `Hi ${job.realEstateAgentName || 'Property Manager'}, Alex from ${profile.businessName} regarding ${job.workOrderNumber || job.title} at ${job.address}. Work status update:`
+                            )}
+                            className="px-2.5 py-1 rounded-lg bg-white hover:bg-purple-50 text-purple-900 font-bold text-[11px] border border-purple-200"
+                          >
+                            <MessageSquare className="w-3 h-3" /> SMS Update
+                          </a>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Tenant / Occupant Column */}
+                    <div className="bg-white/90 p-3 rounded-xl border border-purple-100 flex flex-col justify-between gap-2">
+                      <div>
+                        <p className="text-[10px] uppercase font-bold text-blue-600">Tenant / On-Site Occupant (Access)</p>
+                        <p className="font-bold text-slate-900 mt-0.5">{job.tenantName || job.clientName}</p>
+                        <p className="text-[11px] text-slate-500">{job.tenantPhone || job.clientPhone}</p>
+                      </div>
+                      <div className="flex items-center gap-1.5 pt-1">
+                        <a
+                          href={`tel:${job.tenantPhone || job.clientPhone}`}
+                          className="px-2.5 py-1 rounded-lg bg-emerald-600 text-white font-bold text-[11px] flex items-center gap-1 shadow-sm"
+                        >
+                          <Phone className="w-3 h-3" /> Call Tenant
+                        </a>
+                        <a
+                          href={buildSmsLink(
+                            job.tenantPhone || job.clientPhone,
+                            `Hi ${job.tenantName || job.clientName}, Alex from ${profile.businessName} here. I am arriving for the repair work order (${job.title}) at ${job.address}.`
+                          )}
+                          className="px-2.5 py-1 rounded-lg bg-white hover:bg-slate-50 text-slate-800 font-bold text-[11px] border border-slate-200"
+                        >
+                          <MessageSquare className="w-3 h-3" /> SMS Arrival
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Scope Description */}
               <div className="bg-white rounded-2xl border border-slate-200/90 p-4 shadow-sm">
                 <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">

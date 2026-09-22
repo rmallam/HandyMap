@@ -1,11 +1,17 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Job, JobStatus } from '../../types';
-import { Navigation, Filter, Compass } from 'lucide-react';
+import { extractSuburb } from '../../services/routeOptimizer';
+import { REAL_ESTATE_AGENCIES, SUBURBS_LIST } from '../../data/mockJobs';
+import { Navigation, Filter, Compass, Building2, MapPin, ChevronDown } from 'lucide-react';
 
 interface MapFiltersProps {
   jobs: Job[];
   selectedStatus: JobStatus | 'all';
+  selectedSuburb?: string;
+  selectedAgency?: string;
   onSelectStatus: (status: JobStatus | 'all') => void;
+  onSelectSuburb?: (suburb: string) => void;
+  onSelectAgency?: (agency: string) => void;
   onOptimizeQuotesRoute: () => void;
   isOptimizing?: boolean;
   hasActiveRoute?: boolean;
@@ -15,18 +21,32 @@ interface MapFiltersProps {
 export const MapFilters: React.FC<MapFiltersProps> = ({
   jobs,
   selectedStatus,
+  selectedSuburb = 'all',
+  selectedAgency = 'all',
   onSelectStatus,
+  onSelectSuburb,
+  onSelectAgency,
   onOptimizeQuotesRoute,
   isOptimizing,
   hasActiveRoute,
   onCenterMyLocation
 }) => {
+  const [showAgencyMenu, setShowAgencyMenu] = useState(false);
+
   // Counts by status
   const quoteReqCount = jobs.filter(j => j.status === 'quote_requested').length;
   const inProgressCount = jobs.filter(j => j.status === 'in_progress').length;
   const quotedCount = jobs.filter(j => j.status === 'quoted').length;
   const urgentCount = jobs.filter(j => j.status === 'urgent').length;
   const completedCount = jobs.filter(j => j.status === 'completed' || j.status === 'invoiced').length;
+  const agencyCount = jobs.filter(j => j.isAgencyJob).length;
+
+  // Suburb counts
+  const suburbCounts: Record<string, number> = {};
+  jobs.forEach(j => {
+    const sub = extractSuburb(j);
+    suburbCounts[sub] = (suburbCounts[sub] || 0) + 1;
+  });
 
   return (
     <div className="absolute top-3 left-3 right-3 z-[1000] flex flex-col gap-2 pointer-events-none">
@@ -136,6 +156,126 @@ export const MapFilters: React.FC<MapFiltersProps> = ({
             </span>
           </button>
         </div>
+      </div>
+
+      {/* Second row: Suburb Pills & Real Estate Agency Selector */}
+      <div className="flex items-center justify-between gap-2 overflow-x-auto no-scrollbar">
+        {/* Suburbs Filter Pills */}
+        {onSelectSuburb && (
+          <div className="pointer-events-auto flex items-center gap-1 py-1 px-1.5 bg-white/95 backdrop-blur-md rounded-2xl border border-slate-200/90 shadow-md">
+            <span className="text-[10px] uppercase font-bold text-slate-400 px-1.5 flex items-center gap-1">
+              <MapPin className="w-3 h-3 text-slate-500" /> Suburb:
+            </span>
+
+            <button
+              onClick={() => onSelectSuburb('all')}
+              className={`px-2.5 py-1 rounded-xl text-[11px] font-bold whitespace-nowrap transition ${
+                selectedSuburb === 'all'
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              }`}
+            >
+              All
+            </button>
+
+            {SUBURBS_LIST.map(sub => {
+              const count = suburbCounts[sub] || 0;
+              if (count === 0) return null;
+              return (
+                <button
+                  key={sub}
+                  onClick={() => onSelectSuburb(sub)}
+                  className={`px-2.5 py-1 rounded-xl text-[11px] font-bold whitespace-nowrap transition flex items-center gap-1 ${
+                    selectedSuburb === sub
+                      ? 'bg-blue-600 text-white shadow-sm'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                  }`}
+                >
+                  <span>{sub}</span>
+                  <span className={`text-[9px] px-1 py-0.2 rounded-full ${selectedSuburb === sub ? 'bg-blue-700 text-white' : 'bg-slate-100 text-slate-600'}`}>
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Real Estate Agency Filter Dropdown */}
+        {onSelectAgency && (
+          <div className="pointer-events-auto relative">
+            <button
+              onClick={() => setShowAgencyMenu(!showAgencyMenu)}
+              className={`px-3 py-1.5 rounded-2xl text-xs font-bold whitespace-nowrap shadow-md border backdrop-blur-md flex items-center gap-1.5 transition ${
+                selectedAgency !== 'all'
+                  ? 'bg-purple-700 text-white border-purple-800'
+                  : 'bg-white/95 text-slate-700 border-slate-200 hover:bg-slate-50'
+              }`}
+            >
+              <Building2 className={`w-3.5 h-3.5 ${selectedAgency !== 'all' ? 'text-purple-200' : 'text-purple-600'}`} />
+              <span>
+                {selectedAgency === 'all' ? `Agency (${agencyCount})` : selectedAgency.split(' ')[0]}
+              </span>
+              <ChevronDown className="w-3 h-3 opacity-70" />
+            </button>
+
+            {showAgencyMenu && (
+              <div className="absolute right-0 top-full mt-1.5 w-60 bg-white rounded-2xl shadow-xl border border-slate-200 py-1.5 z-50 animate-in fade-in zoom-in-95 text-xs">
+                <div className="px-3 py-1 border-b border-slate-100 font-extrabold text-[10px] uppercase text-slate-400">
+                  Filter by Real Estate Partner
+                </div>
+                <button
+                  onClick={() => {
+                    onSelectAgency('all');
+                    setShowAgencyMenu(false);
+                  }}
+                  className={`w-full text-left px-3 py-2 flex items-center justify-between hover:bg-slate-50 ${
+                    selectedAgency === 'all' ? 'font-bold text-blue-600 bg-blue-50/50' : 'text-slate-700'
+                  }`}
+                >
+                  <span>All Sources (Agencies & Direct)</span>
+                  <span className="text-[10px] text-slate-400">{jobs.length}</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    onSelectAgency('agency_only');
+                    setShowAgencyMenu(false);
+                  }}
+                  className={`w-full text-left px-3 py-2 flex items-center justify-between hover:bg-slate-50 ${
+                    selectedAgency === 'agency_only' ? 'font-bold text-purple-700 bg-purple-50/50' : 'text-slate-700'
+                  }`}
+                >
+                  <span className="flex items-center gap-1.5 font-bold text-purple-900">
+                    <Building2 className="w-3.5 h-3.5 text-purple-600" /> All Agency Work Orders
+                  </span>
+                  <span className="text-[10px] font-bold text-purple-700">{agencyCount}</span>
+                </button>
+
+                <div className="border-t border-slate-100 my-1"></div>
+
+                {REAL_ESTATE_AGENCIES.map(agency => {
+                  const count = jobs.filter(j => j.realEstateAgency === agency).length;
+                  return (
+                    <button
+                      key={agency}
+                      onClick={() => {
+                        onSelectAgency(agency);
+                        setShowAgencyMenu(false);
+                      }}
+                      className={`w-full text-left px-3 py-1.5 flex items-center justify-between hover:bg-slate-50 ${
+                        selectedAgency === agency ? 'font-bold text-purple-700 bg-purple-50' : 'text-slate-700'
+                      }`}
+                    >
+                      <span className="truncate max-w-[180px]">{agency}</span>
+                      <span className="text-[10px] text-slate-400">{count}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

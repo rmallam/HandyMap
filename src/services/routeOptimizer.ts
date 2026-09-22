@@ -1,4 +1,4 @@
-import { Job, OptimizedRoute, RouteStop } from '../types';
+import { Job, OptimizedRoute, RouteStop, SuburbCluster } from '../types';
 import { calculateDistanceKm } from '../utils/helpers';
 
 interface OSRMRouteResponse {
@@ -14,6 +14,34 @@ interface OSRMRouteResponse {
       duration: number;
     }>;
   }>;
+}
+
+const KNOWN_SUBURBS = [
+  'Point Cook',
+  'Williams Landing',
+  'Seabrook',
+  'Altona Meadows',
+  'Hoppers Crossing',
+  'Truganina',
+  'Sanctuary Lakes',
+  'Tarneit',
+  'Werribee'
+];
+
+/**
+ * Extracts normalized suburb name from job suburb field or address string
+ */
+export function extractSuburb(job: Job): string {
+  if (job.suburb && job.suburb.trim()) {
+    return job.suburb.trim();
+  }
+  const addr = job.address.toLowerCase();
+  for (const s of KNOWN_SUBURBS) {
+    if (addr.includes(s.toLowerCase())) {
+      return s === 'Sanctuary Lakes' ? 'Point Cook' : s;
+    }
+  }
+  return 'Point Cook';
 }
 
 /**
@@ -107,19 +135,121 @@ export function optimizeStopSequence(
 }
 
 /**
+ * Cluster jobs by suburb, solve TSP within each suburb, and chain suburbs sequentially.
+ * This guarantees you finish all jobs in Suburb A completely before moving to Suburb B!
+ */
+export function optimizeClusteredSuburbSequence(
+  startCoordinates: [number, number],
+  jobs: Job[],
+  prioritizeAgency = false
+): { orderedJobs: Job[]; suburbOrder: string[] } {
+  if (jobs.length <= 1) {
+    return { orderedJobs: [...jobs], suburbOrder: jobs.map(extractSuburb) };
+  }
+
+  // Group by suburb
+  const suburbGroups: Record<string, Job[]> = {};
+  for (const job of jobs) {
+    const sub = extractSuburb(job);
+    if (!suburbGroups[sub]) {
+      suburbGroups[sub] = [];
+    }
+    suburbGroups[sub].push(job);
+  }
+
+  const distinctSuburbs = Object.keys(suburbGroups);
+  if (distinctSuburbs.length === 1) {
+    let singleCluster = optimizeStopSequence(startCoordinates, jobs);
+    if (prioritizeAgency) {
+      singleCluster = [
+        ...singleCluster.filter(j => j.isAgencyJob),
+        ...singleCluster.filter(j => !j.isAgencyJob)
+      ];
+    }
+    return { orderedJobs: singleCluster, suburbOrder: distinctSuburbs };
+  }
+
+  // Chain suburbs by nearest center of mass
+  const suburbCentroids: Record<string, [number, number]> = {};
+  for (const sub of distinctSuburbs) {
+    const list = suburbGroups[sub];
+    const avgLat = list.reduce((acc, j) => acc + j.coordinates[0], 0) / list.length;
+    const avgLng = list.reduce((acc, j) => acc + j.coordinates[1], 0) / list.length;
+    suburbCentroids[sub] = [avgLat, avgLng];
+  }
+
+  // Order suburbs by nearest centroid
+  const unvisitedSuburbs = [...distinctSuburbs];
+  const orderedSuburbs: string[] = [];
+  let currentPos = startCoordinates;
+
+  while (unvisitedSuburbs.length > 0) {
+    let nearestIdx = 0;
+    let shortestDist = Infinity;
+
+    for (let i = 0; i < unvisitedSuburbs.length; i++) {
+      const sub = unvisitedSuburbs[i];
+      const centroid = suburbCentroids[sub];
+      const dist = calculateDistanceKm(currentPos[0], currentPos[1], centroid[0], centroid[1]);
+      if (dist < shortestDist) {
+        shortestDist = dist;
+        nearestIdx = i;
+      }
+    }
+
+    const nextSub = unvisitedSuburbs.splice(nearestIdx, 1)[0];
+    orderedSuburbs.push(nextSub);
+    currentPos = suburbCentroids[nextSub];
+  }
+
+  // Now optimize within each suburb in sequential order
+  const finalOrderedJobs: Job[] = [];
+  let runnerLoc = startCoordinates;
+
+  for (const sub of orderedSuburbs) {
+    const clusterJobs = suburbGroups[sub];
+    let optimizedCluster = optimizeStopSequence(runnerLoc, clusterJobs);
+
+    // If prioritizing agency work, keep agency jobs first within the suburb
+    if (prioritizeAgency) {
+      const agencyList = optimizedCluster.filter(j => j.isAgencyJob);
+      const normalList = optimizedCluster.filter(j => !j.isAgencyJob);
+      optimizedCluster = [...agencyList, ...normalList];
+    }
+
+    finalOrderedJobs.push(...optimizedCluster);
+    if (optimizedCluster.length > 0) {
+      runnerLoc = optimizedCluster[optimizedCluster.length - 1].coordinates;
+    }
+  }
+
+  return { orderedJobs: finalOrderedJobs, suburbOrder: orderedSuburbs };
+}
+
+/**
  * Fetch real-world road route from OSRM or fallback to direct calculation
  */
 export async function calculateOptimizedRoute(
   startLocation: { name: string; coordinates: [number, number] },
   jobs: Job[],
   filterType: 'quotes_only' | 'active_only' | 'urgent_and_quotes' | 'all' = 'quotes_only',
+  targetSuburb: string = 'all',
+  prioritizeAgency: boolean = false,
   startTime?: Date
 ): Promise<OptimizedRoute> {
-  if (jobs.length === 0) {
+  // Filter by suburb if specified
+  let candidateJobs = [...jobs];
+  if (targetSuburb && targetSuburb !== 'all') {
+    candidateJobs = candidateJobs.filter(j => extractSuburb(j) === targetSuburb);
+  }
+
+  if (candidateJobs.length === 0) {
     return {
       id: `route-${Date.now()}`,
       startLocation,
       stops: [],
+      suburbClusters: [],
+      selectedSuburb: targetSuburb,
       totalDistanceKm: 0,
       totalDurationMin: 0,
       polylineCoordinates: [startLocation.coordinates],
@@ -128,8 +258,12 @@ export async function calculateOptimizedRoute(
     };
   }
 
-  // 1. Order stops optimally
-  const orderedJobs = optimizeStopSequence(startLocation.coordinates, jobs);
+  // 1. Order stops optimally using Suburb-Clustering
+  const { orderedJobs, suburbOrder } = optimizeClusteredSuburbSequence(
+    startLocation.coordinates,
+    candidateJobs,
+    prioritizeAgency
+  );
 
   // 2. Build coordinates for routing: [lon, lat]
   const allPoints: [number, number][] = [
@@ -156,7 +290,6 @@ export async function calculateOptimizedRoute(
       const data: OSRMRouteResponse = await response.json();
       if (data.code === 'Ok' && data.routes && data.routes.length > 0) {
         const route = data.routes[0];
-        // OSRM coordinates are [lon, lat] -> convert to [lat, lon]
         polylineCoords = route.geometry.coordinates.map(([lon, lat]) => [lat, lon]);
         totalDistKm = Math.round((route.distance / 1000) * 10) / 10;
         totalDurMin = Math.round(route.duration / 60);
@@ -185,9 +318,7 @@ export async function calculateOptimizedRoute(
         allPoints[i + 1][0],
         allPoints[i + 1][1]
       );
-      // Multiply straight-line distance by 1.3 to approximate actual road network distance
       const roadDist = Math.round(dist * 1.3 * 10) / 10;
-      // Assume average city driving speed of 35 km/h + traffic
       const durationMin = Math.max(5, Math.round((roadDist / 35) * 60));
 
       legDistances.push(roadDist);
@@ -200,7 +331,6 @@ export async function calculateOptimizedRoute(
   // 3. Build scheduled RouteStop array with realistic ETAs
   let currentTime = startTime ? new Date(startTime) : new Date();
   
-  // If current time is past 6pm, default itinerary start to 8:30am today/tomorrow
   if (currentTime.getHours() >= 18 || currentTime.getHours() < 7) {
     currentTime.setHours(8, 30, 0, 0);
   }
@@ -217,7 +347,7 @@ export async function calculateOptimizedRoute(
       hour12: true
     });
 
-    // Add estimated stay duration on-site (quote visit ~35-45m, repair ~60-120m)
+    // Add stay duration on-site
     const onSiteStayMinutes = job.estimatedDurationMinutes || 45;
     currentTime = new Date(currentTime.getTime() + onSiteStayMinutes * 60 * 1000);
 
@@ -232,10 +362,34 @@ export async function calculateOptimizedRoute(
     };
   });
 
+  // 4. Build Suburb Clusters summary
+  const clusterMap: Record<string, RouteStop[]> = {};
+  for (const stop of stops) {
+    const sub = extractSuburb(stop.job);
+    if (!clusterMap[sub]) clusterMap[sub] = [];
+    clusterMap[sub].push(stop);
+  }
+
+  const suburbClusters: SuburbCluster[] = suburbOrder
+    .filter(sub => clusterMap[sub] && clusterMap[sub].length > 0)
+    .map(sub => {
+      const clusterStops = clusterMap[sub];
+      const dist = clusterStops.reduce((acc, s) => acc + s.distanceFromPrevKm, 0);
+      const dur = clusterStops.reduce((acc, s) => acc + s.durationFromPrevMin, 0);
+      return {
+        suburb: sub,
+        stops: clusterStops,
+        totalDistanceKm: Math.round(dist * 10) / 10,
+        totalDurationMin: dur
+      };
+    });
+
   return {
     id: `route-${Date.now()}`,
     startLocation,
     stops,
+    suburbClusters,
+    selectedSuburb: targetSuburb,
     totalDistanceKm: Math.round(totalDistKm * 10) / 10,
     totalDurationMin: totalDurMin,
     polylineCoordinates: polylineCoords,

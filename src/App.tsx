@@ -158,9 +158,11 @@ export function App() {
     }
   };
 
-  // Optimize multi-stop route
+  // Optimize multi-stop route with Suburb clustering and Real Estate priority
   const handleGenerateRoute = async (
-    filterType: 'quotes_only' | 'active_only' | 'urgent_and_quotes' | 'all' = 'quotes_only'
+    filterType: 'quotes_only' | 'active_only' | 'urgent_and_quotes' | 'all' = 'quotes_only',
+    targetSuburb: string = 'all',
+    prioritizeAgency: boolean = true
   ) => {
     setIsOptimizing(true);
     try {
@@ -182,7 +184,9 @@ export function App() {
           coordinates: currentLocation
         },
         targetJobs,
-        filterType
+        filterType,
+        targetSuburb,
+        prioritizeAgency
       );
 
       setActiveRoute(route);

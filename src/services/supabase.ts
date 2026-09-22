@@ -20,6 +20,7 @@ function mapRowToJob(row: any): Job {
     clientPhone: row.client_phone || '',
     clientEmail: row.client_email || '',
     address: row.address,
+    suburb: row.suburb || 'Point Cook',
     coordinates: [row.latitude, row.longitude],
     status: row.status,
     priority: row.priority,
@@ -28,6 +29,17 @@ function mapRowToJob(row: any): Job {
     quoteRequestedDate: row.quote_requested_date,
     appointmentTime: row.appointment_time,
     estimatedDurationMinutes: row.estimated_duration_minutes || 45,
+    
+    // Real estate agency details
+    isAgencyJob: row.is_agency_job || false,
+    realEstateAgency: row.real_estate_agency || undefined,
+    realEstateAgentName: row.real_estate_agent_name || undefined,
+    realEstateAgentPhone: row.real_estate_agent_phone || undefined,
+    realEstateAgentEmail: row.real_estate_agent_email || undefined,
+    workOrderNumber: row.work_order_number || undefined,
+    tenantName: row.tenant_name || undefined,
+    tenantPhone: row.tenant_phone || undefined,
+
     quote: row.quote || undefined,
     photos: Array.isArray(row.photos) ? row.photos : [],
     timeLogs: Array.isArray(row.time_logs) ? row.time_logs : [],
@@ -47,6 +59,7 @@ function mapJobToRow(job: Job): any {
     client_phone: job.clientPhone,
     client_email: job.clientEmail,
     address: job.address,
+    suburb: job.suburb || 'Point Cook',
     latitude: job.coordinates[0],
     longitude: job.coordinates[1],
     status: job.status,
@@ -56,6 +69,17 @@ function mapJobToRow(job: Job): any {
     quote_requested_date: job.quoteRequestedDate,
     appointment_time: job.appointmentTime || null,
     estimated_duration_minutes: job.estimatedDurationMinutes,
+    
+    // Real estate agency details
+    is_agency_job: job.isAgencyJob || false,
+    real_estate_agency: job.realEstateAgency || null,
+    real_estate_agent_name: job.realEstateAgentName || null,
+    real_estate_agent_phone: job.realEstateAgentPhone || null,
+    real_estate_agent_email: job.realEstateAgentEmail || null,
+    work_order_number: job.workOrderNumber || null,
+    tenant_name: job.tenantName || null,
+    tenant_phone: job.tenantPhone || null,
+
     quote: job.quote || null,
     photos: job.photos || [],
     time_logs: job.timeLogs || [],

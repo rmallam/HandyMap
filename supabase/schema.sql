@@ -32,6 +32,7 @@ create table if not exists public.jobs (
   client_phone text,
   client_email text,
   address text not null,
+  suburb text default 'Point Cook',
   latitude double precision not null,
   longitude double precision not null,
   status text not null check (status in ('quote_requested', 'quoted', 'in_progress', 'urgent', 'completed', 'invoiced')),
@@ -41,6 +42,17 @@ create table if not exists public.jobs (
   quote_requested_date timestamp with time zone default now(),
   appointment_time timestamp with time zone,
   estimated_duration_minutes integer default 45,
+  
+  -- Real Estate Agency & B2B Work Order Details
+  is_agency_job boolean default false,
+  real_estate_agency text,
+  real_estate_agent_name text,
+  real_estate_agent_phone text,
+  real_estate_agent_email text,
+  work_order_number text,
+  tenant_name text,
+  tenant_phone text,
+
   quote jsonb, -- Stores quote data and line items JSON
   photos jsonb default '[]'::jsonb, -- Array of photo objects
   time_logs jsonb default '[]'::jsonb, -- Array of time logs

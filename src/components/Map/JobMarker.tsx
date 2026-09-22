@@ -44,6 +44,14 @@ export const JobMarker: React.FC<JobMarkerProps> = ({
         </div>
 
         ${
+          job.isAgencyJob
+            ? `<div class="absolute -top-2 -left-2 bg-purple-700 text-white font-bold text-[9px] w-4 h-4 rounded-full flex items-center justify-center shadow-md border border-white" title="Real Estate Work Order: ${job.realEstateAgency || 'Agency'}">
+                🏢
+              </div>`
+            : ''
+        }
+
+        ${
           isStop
             ? `<div class="absolute -top-2.5 -right-2 bg-slate-900 text-white font-bold text-[9px] px-1.5 py-0.5 rounded-full shadow-md border border-white">
                 ${routeStop.eta.split(' ')[0]}
@@ -74,12 +82,17 @@ export const JobMarker: React.FC<JobMarkerProps> = ({
     >
       <Popup className="custom-leaflet-popup">
         <div className="p-3.5 min-w-[250px] text-slate-900 bg-white rounded-2xl shadow-xl border border-slate-200/80">
-          <div className="flex items-center justify-between gap-2 mb-1.5">
+          <div className="flex items-center justify-between gap-2 mb-1.5 flex-wrap">
             <span
               className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${statusCfg.bgClass} ${statusCfg.textClass} ${statusCfg.borderClass}`}
             >
               {statusCfg.shortLabel}
             </span>
+            {job.isAgencyJob && (
+              <span className="text-[10px] font-bold text-purple-800 bg-purple-50 border border-purple-200 px-2 py-0.5 rounded-full flex items-center gap-1">
+                🏢 {job.realEstateAgency ? job.realEstateAgency.split(' ')[0] : 'Agency'}
+              </span>
+            )}
             {routeStop && (
               <span className="text-xs font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md flex items-center gap-1 border border-blue-200/60">
                 <Clock className="w-3 h-3" /> Stop #{routeStop.stopOrder} ({routeStop.eta})
@@ -96,7 +109,12 @@ export const JobMarker: React.FC<JobMarkerProps> = ({
 
           <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs">
             <div>
-              <p className="text-[11px] font-semibold text-slate-800">{job.clientName}</p>
+              <p className="text-[11px] font-semibold text-slate-800">
+                {job.clientName}
+                {job.isAgencyJob && job.workOrderNumber && (
+                  <span className="block text-[10px] text-purple-700 font-mono font-bold">{job.workOrderNumber}</span>
+                )}
+              </p>
               {job.quote && (
                 <p className="text-[11px] text-emerald-700 font-extrabold">
                   {formatCurrency(job.quote.totalAmount)}

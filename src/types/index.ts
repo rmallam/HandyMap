@@ -73,6 +73,7 @@ export interface Job {
   clientPhone: string;
   clientEmail: string;
   address: string;
+  suburb?: string; // e.g. "Point Cook", "Williams Landing", "Seabrook"
   coordinates: [number, number]; // [lat, lng]
   status: JobStatus;
   priority: JobPriority;
@@ -81,6 +82,17 @@ export interface Job {
   quoteRequestedDate: string;
   appointmentTime?: string; // e.g. "2026-09-22T14:30:00"
   estimatedDurationMinutes: number;
+  
+  // Real Estate Agency & Property Management details
+  isAgencyJob?: boolean;
+  realEstateAgency?: string; // e.g. "Ray White Point Cook", "Barry Plant Sanctuary Lakes"
+  realEstateAgentName?: string; // e.g. "Sarah Jenkins (Property Manager)"
+  realEstateAgentPhone?: string; // e.g. "0412 888 999"
+  realEstateAgentEmail?: string;
+  workOrderNumber?: string; // e.g. "WO-RW-8492"
+  tenantName?: string; // On-site occupant
+  tenantPhone?: string;
+
   quote?: JobQuote;
   photos: JobPhoto[];
   timeLogs: TimeLog[];
@@ -93,10 +105,18 @@ export interface RouteStop {
   id: string;
   job: Job;
   stopOrder: number;
+  suburbOrder?: number;
   eta: string;
   distanceFromPrevKm: number;
   durationFromPrevMin: number;
   isCompleted: boolean;
+}
+
+export interface SuburbCluster {
+  suburb: string;
+  stops: RouteStop[];
+  totalDistanceKm: number;
+  totalDurationMin: number;
 }
 
 export interface OptimizedRoute {
@@ -106,6 +126,8 @@ export interface OptimizedRoute {
     coordinates: [number, number];
   };
   stops: RouteStop[];
+  suburbClusters?: SuburbCluster[];
+  selectedSuburb?: string; // 'all' or specific suburb name
   totalDistanceKm: number;
   totalDurationMin: number;
   polylineCoordinates: [number, number][]; // [lat, lng][]

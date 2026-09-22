@@ -12,6 +12,23 @@ export const DEFAULT_PROFILE: HandymanProfile = {
   taxRatePercent: 10.0 // Australian GST
 };
 
+export const REAL_ESTATE_AGENCIES = [
+  'Ray White Point Cook',
+  'Barry Plant Sanctuary Lakes',
+  'LJ Hooker Point Cook',
+  'Reliance Real Estate',
+  'Harcourts Point Cook'
+];
+
+export const SUBURBS_LIST = [
+  'Point Cook',
+  'Williams Landing',
+  'Seabrook',
+  'Altona Meadows',
+  'Hoppers Crossing',
+  'Truganina'
+];
+
 export const INITIAL_JOBS: Job[] = [
   // 1. QUOTE REQUEST 1 (Point Cook - Alamanda Estate)
   {
@@ -22,6 +39,7 @@ export const INITIAL_JOBS: Job[] = [
     clientPhone: '0431 998 214',
     clientEmail: 'marcus.vance@gmail.com',
     address: '42 Alamanda Blvd, Point Cook VIC 3030',
+    suburb: 'Point Cook',
     coordinates: [-37.9335, 144.7418],
     status: 'quote_requested',
     priority: 'medium',
@@ -30,6 +48,7 @@ export const INITIAL_JOBS: Job[] = [
     quoteRequestedDate: '2026-09-22T08:30:00',
     appointmentTime: '2026-09-22T10:30:00',
     estimatedDurationMinutes: 45,
+    isAgencyJob: false,
     photos: [
       {
         id: 'p-101',
@@ -45,23 +64,32 @@ export const INITIAL_JOBS: Job[] = [
     updatedAt: '2026-09-22T08:30:00'
   },
 
-  // 2. QUOTE REQUEST 2 (Sanctuary Lakes)
+  // 2. QUOTE REQUEST 2 (Sanctuary Lakes / Point Cook - Ray White)
   {
     id: 'job-102',
     jobNumber: 'REQ-1083',
     title: 'Timber Deck Board Replacement & Oiling Estimate',
-    clientName: 'Sarah Jenkins',
+    clientName: 'Sarah Jenkins (Tenant)',
     clientPhone: '0455 412 901',
     clientEmail: 'sarah.j88@outlook.com.au',
-    address: '18 Sanctuary Lakes East Blvd, Sanctuary Lakes VIC 3030',
+    address: '18 Sanctuary Lakes East Blvd, Point Cook VIC 3030',
+    suburb: 'Point Cook',
     coordinates: [-37.9045, 144.7620],
     status: 'quote_requested',
     priority: 'high',
     category: 'Carpentry',
-    description: 'Lakeside merbau deck has 6 weathered planks and loose perimeter railings. Need measurement on-site and quote for board replacement and pressure wash/seal.',
+    description: 'Lakeside merbau deck has 6 weathered planks and loose perimeter railings. Landlord requested on-site estimate and report for body corporate signoff.',
     quoteRequestedDate: '2026-09-22T09:15:00',
     appointmentTime: '2026-09-22T11:45:00',
     estimatedDurationMinutes: 40,
+    isAgencyJob: true,
+    realEstateAgency: 'Ray White Point Cook',
+    realEstateAgentName: 'Sarah Jenkins (Senior Property Manager)',
+    realEstateAgentPhone: '0412 888 901',
+    realEstateAgentEmail: 'sjenkins.pm@raywhite.com.au',
+    workOrderNumber: 'WO-RW-8492',
+    tenantName: 'Sarah Jenkins',
+    tenantPhone: '0455 412 901',
     photos: [
       {
         id: 'p-102',
@@ -72,7 +100,7 @@ export const INITIAL_JOBS: Job[] = [
       }
     ],
     timeLogs: [],
-    internalNotes: ['Gated estate access: Gate code #4492. Beware of golden retriever in backyard.'],
+    internalNotes: ['Gated estate access: Gate code #4492. Work Order WO-RW-8492 authorized by Ray White.'],
     createdAt: '2026-09-22T09:15:00',
     updatedAt: '2026-09-22T09:15:00'
   },
@@ -86,6 +114,7 @@ export const INITIAL_JOBS: Job[] = [
     clientPhone: '0477 340 192',
     clientEmail: 'dross.pointcook@gmail.com',
     address: '15 Saltwater Promenade, Point Cook VIC 3030',
+    suburb: 'Point Cook',
     coordinates: [-37.9392, 144.7635],
     status: 'quote_requested',
     priority: 'medium',
@@ -94,6 +123,7 @@ export const INITIAL_JOBS: Job[] = [
     quoteRequestedDate: '2026-09-22T09:40:00',
     appointmentTime: '2026-09-22T14:00:00',
     estimatedDurationMinutes: 45,
+    isAgencyJob: false,
     photos: [],
     timeLogs: [],
     internalNotes: ['Vanity delivered from Bunnings; stored in garage.'],
@@ -101,23 +131,32 @@ export const INITIAL_JOBS: Job[] = [
     updatedAt: '2026-09-22T09:40:00'
   },
 
-  // 4. QUOTE REQUEST 4 (Williams Landing)
+  // 4. QUOTE REQUEST 4 (Williams Landing - Barry Plant)
   {
     id: 'job-104',
     jobNumber: 'REQ-1085',
-    title: 'Kitchen Herringbone Splashback & LED Channel Lighting',
-    clientName: 'Elena Rostova',
+    title: 'Kitchen Splashback Tiling & Silicone Reseal',
+    clientName: 'Elena Rostova (Tenant)',
     clientPhone: '0461 288 743',
     clientEmail: 'elena.rostova@techco.io',
     address: '28 Overton Rd, Williams Landing VIC 3027',
+    suburb: 'Williams Landing',
     coordinates: [-37.8682, 144.7485],
     status: 'quote_requested',
     priority: 'low',
     category: 'Drywall & Masonry',
-    description: 'Roughly 4.5 sqm of white subway herringbone splashback tiling + hardwired under-cabinet LED strip lighting channel install.',
+    description: 'Roughly 4.5 sqm of subway splashback tiling and perimeter sanitary silicone replacement requested by landlord.',
     quoteRequestedDate: '2026-09-21T18:00:00',
     appointmentTime: '2026-09-22T15:30:00',
     estimatedDurationMinutes: 35,
+    isAgencyJob: true,
+    realEstateAgency: 'Barry Plant Sanctuary Lakes',
+    realEstateAgentName: 'Jessica Tran (Property Manager)',
+    realEstateAgentPhone: '0423 771 990',
+    realEstateAgentEmail: 'jtran@barryplant.com.au',
+    workOrderNumber: 'WO-BP-3310',
+    tenantName: 'Elena Rostova',
+    tenantPhone: '0461 288 743',
     photos: [],
     timeLogs: [],
     internalNotes: ['Townhouse opposite Williams Landing Shopping Centre. Driveway parking available.'],
@@ -125,23 +164,32 @@ export const INITIAL_JOBS: Job[] = [
     updatedAt: '2026-09-21T18:00:00'
   },
 
-  // 5. URGENT / EMERGENCY (Seabrook)
+  // 5. URGENT / EMERGENCY (Seabrook - LJ Hooker)
   {
     id: 'job-105',
     jobNumber: 'EMG-902',
     title: 'URGENT: Laundry Washing Machine Isolation Tap Burst',
-    clientName: 'Robert Sterling',
+    clientName: 'Robert Sterling (Tenant)',
     clientPhone: '0499 433 218',
     clientEmail: 'rsterling55@yahoo.com.au',
     address: '12 Truganina Ave, Seabrook VIC 3028',
+    suburb: 'Seabrook',
     coordinates: [-37.8865, 144.7682],
     status: 'urgent',
     priority: 'urgent',
     category: 'Plumbing',
-    description: 'Hot water isolation tap behind washing machine has cracked fitting leaking water onto laundry floor tiles. Main meter partially shut.',
+    description: 'Hot water isolation tap behind washing machine has cracked fitting leaking water onto laundry floor tiles. LJ Hooker emergency maintenance approved up to $500.',
     quoteRequestedDate: '2026-09-22T07:15:00',
     appointmentTime: '2026-09-22T09:30:00',
     estimatedDurationMinutes: 60,
+    isAgencyJob: true,
+    realEstateAgency: 'LJ Hooker Point Cook',
+    realEstateAgentName: 'Michael Chang (Maintenance Team)',
+    realEstateAgentPhone: '0438 662 104',
+    realEstateAgentEmail: 'mchang.pointcook@ljh.com.au',
+    workOrderNumber: 'WO-LJH-9022',
+    tenantName: 'Robert Sterling',
+    tenantPhone: '0499 433 218',
     photos: [
       {
         id: 'p-105',
@@ -166,6 +214,7 @@ export const INITIAL_JOBS: Job[] = [
     clientPhone: '0434 911 205',
     clientEmail: 'karen.p@petersonlaw.com.au',
     address: '54 Central Ave, Altona Meadows VIC 3028',
+    suburb: 'Altona Meadows',
     coordinates: [-37.8795, 144.7865],
     status: 'quoted',
     priority: 'medium',
@@ -174,6 +223,7 @@ export const INITIAL_JOBS: Job[] = [
     quoteRequestedDate: '2026-09-20T14:00:00',
     appointmentTime: undefined,
     estimatedDurationMinutes: 180,
+    isAgencyJob: false,
     quote: {
       id: 'q-106',
       quoteNumber: 'Q-2026-0044',
@@ -222,23 +272,32 @@ export const INITIAL_JOBS: Job[] = [
     updatedAt: '2026-09-21T11:30:00'
   },
 
-  // 7. IN PROGRESS (Point Cook - Boardwalk Estate)
+  // 7. IN PROGRESS (Point Cook - Boardwalk Estate / Reliance)
   {
     id: 'job-107',
     jobNumber: 'ACT-780',
     title: 'Plasterboard Wall Repair, Texture Matching & Skirting',
-    clientName: 'Daniel Cho',
+    clientName: 'Daniel Cho (Tenant)',
     clientPhone: '0448 077 912',
     clientEmail: 'dcho.creatives@gmail.com',
     address: '89 Boardwalk Blvd, Point Cook VIC 3030',
+    suburb: 'Point Cook',
     coordinates: [-37.9125, 144.7520],
     status: 'in_progress',
     priority: 'high',
     category: 'Drywall & Masonry',
-    description: 'Patching two 400x600mm cutout holes in hallway plasterboard from previous air con duct inspection. Base coat, top coat finish, sanding, and reattaching MDF skirting boards.',
+    description: 'Patching two 400x600mm cutout holes in hallway plasterboard from previous air con duct inspection. Authorized by Reliance Real Estate.',
     quoteRequestedDate: '2026-09-18T10:00:00',
     appointmentTime: '2026-09-22T13:00:00',
     estimatedDurationMinutes: 120,
+    isAgencyJob: true,
+    realEstateAgency: 'Reliance Real Estate',
+    realEstateAgentName: 'Rohan Sharma (Property Manager)',
+    realEstateAgentPhone: '0419 554 321',
+    realEstateAgentEmail: 'rsharma@reliancere.com.au',
+    workOrderNumber: 'WO-REL-4401',
+    tenantName: 'Daniel Cho',
+    tenantPhone: '0448 077 912',
     quote: {
       id: 'q-107',
       quoteNumber: 'Q-2026-0039',
@@ -277,7 +336,7 @@ export const INITIAL_JOBS: Job[] = [
       subtotal: 328.00,
       taxAmount: 32.80,
       totalAmount: 335.80,
-      notes: 'Customer accepted quote on 19/09.',
+      notes: 'Agency accepted work order on 19/09.',
       status: 'accepted',
       clientSignatureName: 'Daniel Cho',
       signedAt: '2026-09-20T16:45:00'
@@ -313,6 +372,7 @@ export const INITIAL_JOBS: Job[] = [
     clientPhone: '0483 329 401',
     clientEmail: 'jennifer.walsh@vicmail.com.au',
     address: '67 Morris Rd, Hoppers Crossing VIC 3029',
+    suburb: 'Hoppers Crossing',
     coordinates: [-37.8765, 144.7085],
     status: 'in_progress',
     priority: 'medium',
@@ -321,6 +381,7 @@ export const INITIAL_JOBS: Job[] = [
     quoteRequestedDate: '2026-09-19T11:00:00',
     appointmentTime: '2026-09-22T16:30:00',
     estimatedDurationMinutes: 90,
+    isAgencyJob: false,
     quote: {
       id: 'q-108',
       quoteNumber: 'Q-2026-0041',
@@ -371,23 +432,32 @@ export const INITIAL_JOBS: Job[] = [
     updatedAt: '2026-09-21T09:00:00'
   },
 
-  // 9. COMPLETED (Point Cook - Innisfail Estate)
+  // 9. COMPLETED (Point Cook - Innisfail Estate / Ray White)
   {
     id: 'job-109',
     jobNumber: 'CMP-610',
     title: 'Kitchen Sink Tapware & Waste Disposer Replacement',
-    clientName: 'Thomas Wright',
+    clientName: 'Thomas Wright (Tenant)',
     clientPhone: '0430 266 512',
     clientEmail: 'twright.vic@gmail.com',
     address: '14 Dunnings Rd, Point Cook VIC 3030',
+    suburb: 'Point Cook',
     coordinates: [-37.8985, 144.7435],
     status: 'completed',
     priority: 'medium',
     category: 'Plumbing',
-    description: 'Replaced seized sink mixer with Dorf brushed brass pull-out vegetable spray mixer and installed new 50mm PVC trap and flexible hose connections.',
+    description: 'Replaced seized sink mixer with Dorf brushed brass pull-out vegetable spray mixer and installed new 50mm PVC trap. Ray White Work Order #WO-RW-8419.',
     quoteRequestedDate: '2026-09-21T08:00:00',
     appointmentTime: '2026-09-21T15:00:00',
     estimatedDurationMinutes: 60,
+    isAgencyJob: true,
+    realEstateAgency: 'Ray White Point Cook',
+    realEstateAgentName: 'Sarah Jenkins (Senior Property Manager)',
+    realEstateAgentPhone: '0412 888 901',
+    realEstateAgentEmail: 'sjenkins.pm@raywhite.com.au',
+    workOrderNumber: 'WO-RW-8419',
+    tenantName: 'Thomas Wright',
+    tenantPhone: '0430 266 512',
     quote: {
       id: 'q-109',
       quoteNumber: 'Q-2026-0043',
@@ -418,7 +488,7 @@ export const INITIAL_JOBS: Job[] = [
       subtotal: 300.00,
       taxAmount: 30.00,
       totalAmount: 330.00,
-      notes: 'Paid on-site via Square EFTPOS tap.',
+      notes: 'Paid on-site via Ray White account direct invoice.',
       status: 'accepted',
       clientSignatureName: 'Thomas Wright',
       signedAt: '2026-09-21T16:15:00'
@@ -441,12 +511,12 @@ export const INITIAL_JOBS: Job[] = [
         notes: 'Clean install, test isolators working smoothly.'
       }
     ],
-    internalNotes: ['Client gave positive feedback on Google Reviews.'],
+    internalNotes: ['Work order completed for Sarah Jenkins at Ray White.'],
     createdAt: '2026-09-21T08:00:00',
     updatedAt: '2026-09-21T16:30:00'
   },
 
-  // 10. INVOICED (Truganina / Tarneit border)
+  // 10. INVOICED (Truganina)
   {
     id: 'job-110',
     jobNumber: 'INV-502',
@@ -455,6 +525,7 @@ export const INITIAL_JOBS: Job[] = [
     clientPhone: '0467 098 119',
     clientEmail: 'pcampbell@westrealty.com.au',
     address: '112 Leakes Rd, Truganina VIC 3029',
+    suburb: 'Truganina',
     coordinates: [-37.8485, 144.7215],
     status: 'invoiced',
     priority: 'low',
@@ -463,6 +534,7 @@ export const INITIAL_JOBS: Job[] = [
     quoteRequestedDate: '2026-09-17T11:00:00',
     appointmentTime: '2026-09-19T09:00:00',
     estimatedDurationMinutes: 180,
+    isAgencyJob: false,
     quote: {
       id: 'q-110',
       quoteNumber: 'Q-2026-0035',
