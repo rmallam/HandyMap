@@ -1,6 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Job, JobStatus, OptimizedRoute, HandymanProfile } from './types';
-import { loadJobs, saveJobs, loadProfile, saveProfile, resetToDemoData } from './services/storage';
+import { loadJobs, saveJobs, loadProfile, resetToDemoData } from './services/storage';
+import {
+  isSupabaseConfigured,
+  supabase,
+  fetchJobsFromSupabase,
+  upsertJobInSupabase,
+  deleteJobFromSupabase,
+  seedJobsToSupabaseIfEmpty
+} from './services/supabase';
 import { calculateOptimizedRoute } from './services/routeOptimizer';
 import { Header } from './components/Navigation/Header';
 import { BottomNav } from './components/Navigation/BottomNav';
@@ -14,7 +22,7 @@ import { JobFormModal } from './components/Jobs/JobFormModal';
 
 export function App() {
   const [jobs, setJobs] = useState<Job[]>([]);
-  const [profile, setProfile] = useState<HandymanProfile>(loadProfile());
+  const [profile] = useState<HandymanProfile>(loadProfile());
   const [currentLocation, setCurrentLocation] = useState<[number, number]>(profile.baseCoordinates);
   const [isUsingGPS, setIsUsingGPS] = useState(false);
   
@@ -31,22 +39,65 @@ export function App() {
   const [isJobDetailOpen, setIsJobDetailOpen] = useState(false);
   const [isNewJobOpen, setIsNewJobOpen] = useState(false);
 
-  // Load initial jobs
+  // Load initial jobs from Supabase or localStorage
   useEffect(() => {
-    const loaded = loadJobs();
-    setJobs(loaded);
+    async function initJobs() {
+      if (isSupabaseConfigured) {
+        const cloudJobs = await fetchJobsFromSupabase();
+        if (cloudJobs && cloudJobs.length > 0) {
+          setJobs(cloudJobs);
+          saveJobs(cloudJobs);
+        } else {
+          const local = loadJobs();
+          setJobs(local);
+          await seedJobsToSupabaseIfEmpty(local);
+        }
+
+        // Realtime subscription
+        if (supabase) {
+          const channel = supabase
+            .channel('public:jobs')
+            .on(
+              'postgres_changes',
+              { event: '*', schema: 'public', table: 'jobs' },
+              async () => {
+                const refreshed = await fetchJobsFromSupabase();
+                if (refreshed) {
+                  setJobs(refreshed);
+                  saveJobs(refreshed);
+                }
+              }
+            )
+            .subscribe();
+
+          return () => {
+            supabase.removeChannel(channel);
+          };
+        }
+      } else {
+        const loaded = loadJobs();
+        setJobs(loaded);
+      }
+    }
+
+    initJobs();
   }, []);
 
-  // Update jobs state and localStorage
+  // Update jobs state, localStorage and Supabase
   const handleUpdateJobsList = (newJobs: Job[]) => {
     setJobs(newJobs);
     saveJobs(newJobs);
   };
 
-  const handleUpdateSingleJob = (updatedJob: Job) => {
+  const handleUpdateSingleJob = async (updatedJob: Job) => {
     const nextJobs = jobs.map(j => (j.id === updatedJob.id ? updatedJob : j));
     handleUpdateJobsList(nextJobs);
     setSelectedJob(updatedJob);
+
+    // Sync to Supabase if active
+    if (isSupabaseConfigured) {
+      upsertJobInSupabase(updatedJob);
+    }
 
     // If active route contains this job, update its reference
     if (activeRoute) {
@@ -57,12 +108,15 @@ export function App() {
     }
   };
 
-  const handleDeleteJob = (jobId: string) => {
+  const handleDeleteJob = async (jobId: string) => {
     const nextJobs = jobs.filter(j => j.id !== jobId);
     handleUpdateJobsList(nextJobs);
     if (selectedJob?.id === jobId) {
       setSelectedJob(null);
       setIsJobDetailOpen(false);
+    }
+    if (isSupabaseConfigured) {
+      deleteJobFromSupabase(jobId);
     }
     if (activeRoute) {
       const nextStops = activeRoute.stops.filter(stop => stop.job.id !== jobId);
@@ -70,11 +124,14 @@ export function App() {
     }
   };
 
-  const handleCreateNewJob = (newJob: Job) => {
+  const handleCreateNewJob = async (newJob: Job) => {
     const nextJobs = [newJob, ...jobs];
     handleUpdateJobsList(nextJobs);
     setSelectedJob(newJob);
     setActiveTab('map');
+    if (isSupabaseConfigured) {
+      upsertJobInSupabase(newJob);
+    }
   };
 
   // Optimize multi-stop route
@@ -133,7 +190,7 @@ export function App() {
           setIsUsingGPS(true);
         },
         () => {
-          alert('GPS permission not available. Using Austin Base coordinates.');
+          alert('GPS permission not available. Using Point Cook Base coordinates.');
         }
       );
     } else {
@@ -156,6 +213,9 @@ export function App() {
     setActiveRoute(null);
     setCurrentLocation(profile.baseCoordinates);
     setIsUsingGPS(false);
+    if (isSupabaseConfigured) {
+      seedJobsToSupabaseIfEmpty(demo);
+    }
   };
 
   const quoteRequestsCount = jobs.filter(j => j.status === 'quote_requested').length;
