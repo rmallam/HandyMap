@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Job, JobStatus, HandymanProfile } from '../../types';
+import { Job, JobStatus, HandymanProfile, ReminderItem } from '../../types';
 import { STATUS_CONFIG, formatCurrency, formatDateTime } from '../../utils/helpers';
 import {
   Search,
@@ -9,12 +9,14 @@ import {
   Sparkles,
   MapPin,
   Calendar,
-  AlertCircle
+  AlertCircle,
+  BellRing
 } from 'lucide-react';
 
 interface JobListProps {
   jobs: Job[];
   profile: HandymanProfile;
+  reminders?: ReminderItem[];
   onSelectJob: (job: Job) => void;
   onAddNewJob: () => void;
 }
@@ -22,6 +24,7 @@ interface JobListProps {
 export const JobList: React.FC<JobListProps> = ({
   jobs,
   profile,
+  reminders = [],
   onSelectJob,
   onAddNewJob
 }) => {
@@ -143,17 +146,24 @@ export const JobList: React.FC<JobListProps> = ({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {filteredJobs.map(job => {
             const statusCfg = STATUS_CONFIG[job.status];
+            const activeReminder = reminders.find(r => r.jobId === job.id && !r.isSnoozed);
 
             return (
               <div
                 key={job.id}
                 onClick={() => onSelectJob(job)}
-                className="bg-white hover:bg-slate-50/50 border border-slate-200/90 hover:border-slate-300 rounded-3xl p-5 shadow-sm hover:shadow-md transition-all duration-200 flex flex-col justify-between gap-4 cursor-pointer group"
+                className={`bg-white hover:bg-slate-50/50 border rounded-3xl p-5 shadow-sm hover:shadow-md transition-all duration-200 flex flex-col justify-between gap-4 cursor-pointer group ${
+                  activeReminder?.urgency === 'urgent'
+                    ? 'border-red-300 ring-1 ring-red-300/40'
+                    : activeReminder?.urgency === 'warning'
+                    ? 'border-amber-300 ring-1 ring-amber-300/30'
+                    : 'border-slate-200/90 hover:border-slate-300'
+                }`}
               >
                 <div>
                   {/* Top meta */}
-                  <div className="flex items-center justify-between gap-2 mb-2">
-                    <div className="flex items-center gap-2">
+                  <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-mono text-xs font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
                         {job.jobNumber}
                       </span>
@@ -162,6 +172,16 @@ export const JobList: React.FC<JobListProps> = ({
                       >
                         {statusCfg.shortLabel}
                       </span>
+                      {activeReminder && (
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 ${
+                          activeReminder.urgency === 'urgent'
+                            ? 'bg-red-50 text-red-700 border border-red-200 animate-pulse'
+                            : 'bg-amber-50 text-amber-800 border border-amber-200'
+                        }`}>
+                          <BellRing className="w-2.5 h-2.5" />
+                          {activeReminder.dueText}
+                        </span>
+                      )}
                     </div>
 
                     <span className="text-xs font-medium text-slate-600 bg-slate-100 px-2.5 py-0.5 rounded-lg border border-slate-200/60">

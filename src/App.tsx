@@ -10,6 +10,11 @@ import {
   seedJobsToSupabaseIfEmpty
 } from './services/supabase';
 import { calculateOptimizedRoute } from './services/routeOptimizer';
+import {
+  generateReminders,
+  loadSnoozedReminderIds,
+  saveSnoozedReminderIds
+} from './services/reminderEngine';
 import { Header } from './components/Navigation/Header';
 import { BottomNav } from './components/Navigation/BottomNav';
 import { MapView } from './components/Map/MapView';
@@ -19,6 +24,7 @@ import { DayScheduleView } from './components/Schedule/DayScheduleView';
 import { StatsOverview } from './components/Dashboard/StatsOverview';
 import { JobDetailModal } from './components/Jobs/JobDetailModal';
 import { JobFormModal } from './components/Jobs/JobFormModal';
+import { RemindersDrawer } from './components/Reminders/RemindersDrawer';
 
 export function App() {
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -35,6 +41,10 @@ export function App() {
   const [activeRoute, setActiveRoute] = useState<OptimizedRoute | null>(null);
   const [isOptimizing, setIsOptimizing] = useState(false);
   
+  // Reminders & Follow-ups state
+  const [snoozedReminderIds, setSnoozedReminderIds] = useState<string[]>(loadSnoozedReminderIds());
+  const [isRemindersDrawerOpen, setIsRemindersDrawerOpen] = useState(false);
+
   // Modals
   const [isJobDetailOpen, setIsJobDetailOpen] = useState(false);
   const [isNewJobOpen, setIsNewJobOpen] = useState(false);
@@ -227,12 +237,34 @@ export function App() {
     setActiveRoute(null);
     setCurrentLocation(profile.baseCoordinates);
     setIsUsingGPS(false);
+    setSnoozedReminderIds([]);
+    saveSnoozedReminderIds([]);
     if (isSupabaseConfigured) {
       seedJobsToSupabaseIfEmpty(demo);
     }
   };
 
+  // Snooze / Dismiss a reminder
+  const handleSnoozeReminder = (reminderId: string) => {
+    const isCurrentlySnoozed = snoozedReminderIds.includes(reminderId);
+    const nextIds = isCurrentlySnoozed
+      ? snoozedReminderIds.filter(id => id !== reminderId)
+      : [...snoozedReminderIds, reminderId];
+    setSnoozedReminderIds(nextIds);
+    saveSnoozedReminderIds(nextIds);
+  };
+
+  const handleClearAllSnoozed = () => {
+    setSnoozedReminderIds([]);
+    saveSnoozedReminderIds([]);
+  };
+
   const quoteRequestsCount = jobs.filter(j => j.status === 'quote_requested').length;
+  
+  // Smart Reminders & Follow-Ups calculation
+  const reminders = generateReminders(jobs, profile, snoozedReminderIds);
+  const activeRemindersCount = reminders.filter(r => !r.isSnoozed).length;
+  const hasUrgentReminders = reminders.some(r => !r.isSnoozed && r.urgency === 'urgent');
 
   return (
     <div className="h-full w-full flex flex-col bg-slate-50 text-slate-900 overflow-hidden font-sans">
@@ -241,9 +273,12 @@ export function App() {
         profile={profile}
         activeTab={activeTab}
         quoteRequestsCount={quoteRequestsCount}
+        remindersCount={activeRemindersCount}
+        hasUrgentReminders={hasUrgentReminders}
         onAddNewJob={() => setIsNewJobOpen(true)}
         onTeleportLocation={handleTeleportLocation}
         onToggleViewMode={(tab) => setActiveTab(tab)}
+        onOpenReminders={() => setIsRemindersDrawerOpen(true)}
         isUsingGPS={isUsingGPS}
       />
 
@@ -284,6 +319,7 @@ export function App() {
           <JobList
             jobs={jobs}
             profile={profile}
+            reminders={reminders}
             onSelectJob={handleOpenFullJob}
             onAddNewJob={() => setIsNewJobOpen(true)}
           />
@@ -330,10 +366,22 @@ export function App() {
         currentLocation={currentLocation}
       />
 
+      {/* Smart Reminders & Follow-Ups Drawer */}
+      <RemindersDrawer
+        isOpen={isRemindersDrawerOpen}
+        reminders={reminders}
+        profile={profile}
+        onClose={() => setIsRemindersDrawerOpen(false)}
+        onOpenJob={handleOpenFullJob}
+        onSnoozeReminder={handleSnoozeReminder}
+        onClearAllSnoozed={handleClearAllSnoozed}
+      />
+
       {/* Bottom Navigation for Mobile & Responsive */}
       <BottomNav
         activeTab={activeTab}
         quoteRequestsCount={quoteRequestsCount}
+        remindersCount={activeRemindersCount}
         hasActiveRoute={activeRoute !== null}
         onSelectTab={setActiveTab}
       />

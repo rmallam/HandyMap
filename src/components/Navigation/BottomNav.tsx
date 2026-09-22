@@ -4,6 +4,7 @@ import { Map, Navigation, ClipboardList, Calendar, BarChart3 } from 'lucide-reac
 interface BottomNavProps {
   activeTab: 'map' | 'route' | 'jobs' | 'schedule' | 'stats';
   quoteRequestsCount: number;
+  remindersCount?: number;
   hasActiveRoute: boolean;
   onSelectTab: (tab: 'map' | 'route' | 'jobs' | 'schedule' | 'stats') => void;
 }
@@ -11,6 +12,7 @@ interface BottomNavProps {
 export const BottomNav: React.FC<BottomNavProps> = ({
   activeTab,
   quoteRequestsCount,
+  remindersCount = 0,
   hasActiveRoute,
   onSelectTab
 }) => {
@@ -33,8 +35,8 @@ export const BottomNav: React.FC<BottomNavProps> = ({
       id: 'jobs' as const,
       label: 'Jobs & Quotes',
       icon: ClipboardList,
-      badge: null,
-      badgeColor: ''
+      badge: remindersCount > 0 ? remindersCount : null,
+      badgeColor: 'bg-red-500 text-white'
     },
     {
       id: 'schedule' as const,

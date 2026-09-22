@@ -124,3 +124,30 @@ export interface HandymanProfile {
   currencySymbol: string;
   taxRatePercent: number;
 }
+
+export type ReminderType =
+  | 'delayed_quote_visit'     // Waiting quote > 24h without scheduled site visit
+  | 'quote_followup'          // Quote sent > 48h ago awaiting client confirmation
+  | 'upcoming_appointment'    // Job or quote visit scheduled for today or within next few hours
+  | 'in_progress_check'       // Job in progress needing labor time logging or after-photos
+  | 'uninvoiced_completion'   // Completed job not yet invoiced
+  | 'urgent_unattended';      // Urgent emergency job needing immediate dispatch
+
+export type ReminderUrgency = 'urgent' | 'warning' | 'info';
+
+export interface ReminderItem {
+  id: string;
+  jobId: string;
+  job: Job;
+  type: ReminderType;
+  urgency: ReminderUrgency;
+  title: string;
+  message: string;
+  suggestedActionLabel: string;
+  suggestedActionType: 'sms_followup' | 'call' | 'schedule' | 'open_quote' | 'invoice' | 'open_job';
+  actionDraftText?: string;
+  dueText: string;
+  createdAt: string;
+  isSnoozed?: boolean;
+}
+

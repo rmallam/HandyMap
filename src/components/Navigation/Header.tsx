@@ -1,23 +1,29 @@
 import React from 'react';
 import { HandymanProfile } from '../../types';
-import { Wrench, Plus, MapPin, Map, List, Navigation } from 'lucide-react';
+import { Wrench, Plus, MapPin, Map, List, Navigation, Bell } from 'lucide-react';
 
 interface HeaderProps {
   profile: HandymanProfile;
   activeTab: string;
   quoteRequestsCount: number;
+  remindersCount?: number;
+  hasUrgentReminders?: boolean;
   onAddNewJob: () => void;
   onTeleportLocation: () => void;
   onToggleViewMode: (tab: 'map' | 'jobs') => void;
+  onOpenReminders?: () => void;
   isUsingGPS: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   profile,
   activeTab,
+  remindersCount = 0,
+  hasUrgentReminders = false,
   onAddNewJob,
   onTeleportLocation,
   onToggleViewMode,
+  onOpenReminders,
   isUsingGPS
 }) => {
   return (
@@ -74,6 +80,30 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* Right Controls */}
       <div className="flex items-center gap-1.5 sm:gap-2">
+        {/* Reminders / Notification Bell Button */}
+        {onOpenReminders && (
+          <button
+            onClick={onOpenReminders}
+            className={`p-2 rounded-xl relative transition active:scale-95 border ${
+              hasUrgentReminders
+                ? 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100'
+                : remindersCount > 0
+                ? 'bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100'
+                : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+            }`}
+            title={`${remindersCount} action reminders pending`}
+          >
+            <Bell className={`w-4 h-4 ${hasUrgentReminders ? 'animate-bounce text-red-600' : ''}`} />
+            {remindersCount > 0 && (
+              <span className={`absolute -top-1 -right-1 text-[10px] font-black px-1.5 py-0.2 rounded-full border border-white shadow-sm ${
+                hasUrgentReminders ? 'bg-red-600 text-white' : 'bg-amber-500 text-white'
+              }`}>
+                {remindersCount}
+              </span>
+            )}
+          </button>
+        )}
+
         {/* GPS location status button */}
         <button
           onClick={onTeleportLocation}
