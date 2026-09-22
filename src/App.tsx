@@ -7,7 +7,11 @@ import {
   fetchJobsFromSupabase,
   upsertJobInSupabase,
   deleteJobFromSupabase,
-  seedJobsToSupabaseIfEmpty
+  seedJobsToSupabaseIfEmpty,
+  getCurrentUser,
+  signOutUser,
+  fetchUserProfile,
+  upsertUserProfile
 } from './services/supabase';
 import { calculateOptimizedRoute } from './services/routeOptimizer';
 import {
@@ -26,6 +30,7 @@ import { JobDetailModal } from './components/Jobs/JobDetailModal';
 import { JobFormModal } from './components/Jobs/JobFormModal';
 import { RemindersDrawer } from './components/Reminders/RemindersDrawer';
 import { ProfileModal } from './components/Profile/ProfileModal';
+import { AuthModal } from './components/Auth/AuthModal';
 
 export function App() {
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -33,6 +38,11 @@ export function App() {
   const [currentLocation, setCurrentLocation] = useState<[number, number]>(profile.baseCoordinates);
   const [isUsingGPS, setIsUsingGPS] = useState(false);
   
+  // Authentication & Cloud Sync State
+  const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+
   // Navigation & Active View state
   const [activeTab, setActiveTab] = useState<'map' | 'route' | 'jobs' | 'schedule' | 'stats'>('map');
   const [selectedStatus, setSelectedStatus] = useState<JobStatus | 'all'>('all');
@@ -51,10 +61,9 @@ export function App() {
   const [isNewJobOpen, setIsNewJobOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
-
-  // Load initial jobs from Supabase or localStorage
+  // Initialize GPS location lock and Auth session
   useEffect(() => {
-    // Attempt automatic GPS location lock
+    // 1. Attempt automatic GPS location lock
     if ('geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
         pos => {
@@ -68,46 +77,84 @@ export function App() {
       );
     }
 
-    async function initJobs() {
-      if (isSupabaseConfigured) {
-        const cloudJobs = await fetchJobsFromSupabase();
+    // 2. Initialize Auth state & Supabase data sync
+    async function initAuthAndData() {
+      if (isSupabaseConfigured && supabase) {
+        // Check existing authenticated user
+        const user = await getCurrentUser();
+        if (user) {
+          setCurrentUserId(user.id);
+          setCurrentUserEmail(user.email || null);
+
+          // Fetch cloud profile
+          const cloudProfile = await fetchUserProfile(user.id);
+          if (cloudProfile) {
+            setProfile(cloudProfile);
+            saveProfile(cloudProfile);
+          } else {
+            // Upsert existing local profile as initial user profile
+            const currentLocal = loadProfile();
+            await upsertUserProfile(user.id, currentLocal);
+          }
+        }
+
+        // Fetch cloud jobs
+        const cloudJobs = await fetchJobsFromSupabase(user?.id);
         if (cloudJobs && cloudJobs.length > 0) {
           setJobs(cloudJobs);
           saveJobs(cloudJobs);
         } else {
           const local = loadJobs();
           setJobs(local);
-          await seedJobsToSupabaseIfEmpty(local);
+          await seedJobsToSupabaseIfEmpty(local, user?.id);
         }
 
-        // Realtime subscription
-        if (supabase) {
-          const channel = supabase
-            .channel('public:jobs')
-            .on(
-              'postgres_changes',
-              { event: '*', schema: 'public', table: 'jobs' },
-              async () => {
-                const refreshed = await fetchJobsFromSupabase();
-                if (refreshed) {
-                  setJobs(refreshed);
-                  saveJobs(refreshed);
-                }
+        // Realtime Postgres Changes Subscription
+        const channel = supabase
+          .channel('public:jobs')
+          .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'jobs' },
+            async () => {
+              const refreshed = await fetchJobsFromSupabase(currentUserId || undefined);
+              if (refreshed) {
+                setJobs(refreshed);
+                saveJobs(refreshed);
               }
-            )
-            .subscribe();
+            }
+          )
+          .subscribe();
 
-          return () => {
-            supabase.removeChannel(channel);
-          };
-        }
+        // Auth state listener
+        const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+          if (session?.user) {
+            setCurrentUserId(session.user.id);
+            setCurrentUserEmail(session.user.email || null);
+            const userProf = await fetchUserProfile(session.user.id);
+            if (userProf) {
+              setProfile(userProf);
+              saveProfile(userProf);
+            }
+          } else {
+            setCurrentUserId(null);
+            setCurrentUserEmail(null);
+          }
+        });
+
+        return () => {
+          supabase.removeChannel(channel);
+          authListener.subscription.unsubscribe();
+        };
       } else {
-        const loaded = loadJobs();
-        setJobs(loaded);
+        // Offline / Local storage mode
+        const loadedJobs = loadJobs();
+        setJobs(loadedJobs);
+        const loadedProfile = loadProfile();
+        setProfile(loadedProfile);
       }
     }
 
-    initJobs();
+    initAuthAndData();
   }, []);
 
   // Update jobs state, localStorage and Supabase
@@ -123,7 +170,7 @@ export function App() {
 
     // Sync to Supabase if active
     if (isSupabaseConfigured) {
-      upsertJobInSupabase(updatedJob);
+      upsertJobInSupabase(updatedJob, currentUserId || undefined);
     }
 
     // If active route contains this job, update its reference
@@ -157,7 +204,7 @@ export function App() {
     setSelectedJob(newJob);
     setActiveTab('map');
     if (isSupabaseConfigured) {
-      upsertJobInSupabase(newJob);
+      upsertJobInSupabase(newJob, currentUserId || undefined);
     }
   };
 
@@ -236,10 +283,46 @@ export function App() {
     setIsJobDetailOpen(true);
   };
 
-  // Reset Demo Data
-  const handleUpdateProfile = (updatedProfile: HandymanProfile) => {
+  // Update Profile (Persists to localStorage and Supabase)
+  const handleUpdateProfile = async (updatedProfile: HandymanProfile) => {
     setProfile(updatedProfile);
     saveProfile(updatedProfile);
+
+    // If signed into Supabase, persist to profiles table
+    if (isSupabaseConfigured && currentUserId) {
+      await upsertUserProfile(currentUserId, updatedProfile);
+    }
+  };
+
+  // Authentication Handlers
+  const handleLoginSuccess = async (email: string) => {
+    setCurrentUserEmail(email);
+    if (isSupabaseConfigured) {
+      const user = await getCurrentUser();
+      if (user) {
+        setCurrentUserId(user.id);
+        const prof = await fetchUserProfile(user.id);
+        if (prof) {
+          setProfile(prof);
+          saveProfile(prof);
+        } else {
+          await upsertUserProfile(user.id, profile);
+        }
+        const cloudJobs = await fetchJobsFromSupabase(user.id);
+        if (cloudJobs && cloudJobs.length > 0) {
+          setJobs(cloudJobs);
+          saveJobs(cloudJobs);
+        }
+      }
+    }
+  };
+
+  const handleSignOut = async () => {
+    if (isSupabaseConfigured) {
+      await signOutUser();
+    }
+    setCurrentUserId(null);
+    setCurrentUserEmail(null);
   };
 
   const handleResetDemoData = () => {
@@ -252,7 +335,7 @@ export function App() {
     setSnoozedReminderIds([]);
     saveSnoozedReminderIds([]);
     if (isSupabaseConfigured) {
-      seedJobsToSupabaseIfEmpty(demo);
+      seedJobsToSupabaseIfEmpty(demo, currentUserId || undefined);
     }
   };
 
@@ -287,11 +370,14 @@ export function App() {
         quoteRequestsCount={quoteRequestsCount}
         remindersCount={activeRemindersCount}
         hasUrgentReminders={hasUrgentReminders}
+        currentUserEmail={currentUserEmail}
         onAddNewJob={() => setIsNewJobOpen(true)}
         onTeleportLocation={handleTeleportLocation}
         onToggleViewMode={(tab) => setActiveTab(tab)}
         onOpenReminders={() => setIsRemindersDrawerOpen(true)}
         onOpenProfile={() => setIsProfileModalOpen(true)}
+        onOpenAuth={() => setIsAuthModalOpen(true)}
+        onSignOut={handleSignOut}
         isUsingGPS={isUsingGPS}
       />
 
@@ -383,8 +469,17 @@ export function App() {
       <ProfileModal
         isOpen={isProfileModalOpen}
         profile={profile}
+        currentUserEmail={currentUserEmail}
         onClose={() => setIsProfileModalOpen(false)}
         onSaveProfile={handleUpdateProfile}
+        onOpenAuth={() => setIsAuthModalOpen(true)}
+      />
+
+      {/* Handyman Sign In & Email OTP Authentication Modal */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        onLoginSuccess={handleLoginSuccess}
       />
 
       {/* Smart Reminders & Follow-Ups Drawer */}

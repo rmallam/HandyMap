@@ -1,5 +1,6 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, User, Session } from '@supabase/supabase-js';
 import { Job, HandymanProfile } from '../types';
+import { DEFAULT_PROFILE } from '../data/mockJobs';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
@@ -10,7 +11,182 @@ export const supabase = isSupabaseConfigured
   ? createClient(supabaseUrl, supabaseAnonKey)
   : null;
 
-// Map DB row to Job TypeScript model
+// ============================================================================
+// AUTHENTICATION METHODS (Email OTP & Session Management)
+// ============================================================================
+
+/**
+ * Send a 6-digit OTP code to the handyman's email address
+ */
+export async function sendEmailOtp(email: string): Promise<{ error: string | null }> {
+  if (!supabase) return { error: 'Supabase is not configured' };
+  try {
+    const { error } = await supabase.auth.signInWithOtp({
+      email: email.trim().toLowerCase(),
+      options: {
+        shouldCreateUser: true
+      }
+    });
+    if (error) {
+      return { error: error.message };
+    }
+    return { error: null };
+  } catch (err: any) {
+    return { error: err.message || 'Failed to send verification code' };
+  }
+}
+
+/**
+ * Verify 6-digit email OTP token
+ */
+export async function verifyEmailOtp(
+  email: string,
+  token: string
+): Promise<{ user: User | null; session: Session | null; error: string | null }> {
+  if (!supabase) return { user: null, session: null, error: 'Supabase is not configured' };
+  try {
+    const { data, error } = await supabase.auth.verifyOtp({
+      email: email.trim().toLowerCase(),
+      token: token.trim(),
+      type: 'email'
+    });
+    if (error) {
+      return { user: null, session: null, error: error.message };
+    }
+    return { user: data.user, session: data.session, error: null };
+  } catch (err: any) {
+    return { user: null, session: null, error: err.message || 'Invalid or expired code' };
+  }
+}
+
+/**
+ * Sign out user
+ */
+export async function signOutUser(): Promise<void> {
+  if (!supabase) return;
+  try {
+    await supabase.auth.signOut();
+  } catch (err) {
+    console.warn('Sign out exception:', err);
+  }
+}
+
+/**
+ * Get current authenticated user
+ */
+export async function getCurrentUser(): Promise<User | null> {
+  if (!supabase) return null;
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    return user;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Get current active session
+ */
+export async function getCurrentSession(): Promise<Session | null> {
+  if (!supabase) return null;
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    return session;
+  } catch {
+    return null;
+  }
+}
+
+// ============================================================================
+// PROFILE PERSISTENCE (Synced to public.profiles table)
+// ============================================================================
+
+export function mapRowToProfile(row: any): HandymanProfile {
+  return {
+    name: row.name || DEFAULT_PROFILE.name,
+    businessName: row.business_name || DEFAULT_PROFILE.businessName,
+    abn: row.abn || DEFAULT_PROFILE.abn,
+    phone: row.phone || DEFAULT_PROFILE.phone,
+    email: row.email || DEFAULT_PROFILE.email,
+    defaultHourlyRate: Number(row.default_hourly_rate) || DEFAULT_PROFILE.defaultHourlyRate,
+    baseAddress: row.base_address || DEFAULT_PROFILE.baseAddress,
+    baseCoordinates: [
+      row.base_latitude !== undefined && row.base_latitude !== null ? Number(row.base_latitude) : DEFAULT_PROFILE.baseCoordinates[0],
+      row.base_longitude !== undefined && row.base_longitude !== null ? Number(row.base_longitude) : DEFAULT_PROFILE.baseCoordinates[1]
+    ],
+    currencySymbol: row.currency_symbol || '$',
+    taxRatePercent: Number(row.tax_rate_percent) || 10.0,
+    accountName: row.account_name || DEFAULT_PROFILE.accountName,
+    bsb: row.bsb || DEFAULT_PROFILE.bsb,
+    accountNumber: row.account_number || DEFAULT_PROFILE.accountNumber,
+    bankName: row.bank_name || DEFAULT_PROFILE.bankName,
+    paymentTerms: row.payment_terms || DEFAULT_PROFILE.paymentTerms
+  };
+}
+
+export function mapProfileToRow(userId: string, profile: HandymanProfile): any {
+  return {
+    id: userId,
+    name: profile.name,
+    business_name: profile.businessName,
+    abn: profile.abn,
+    phone: profile.phone,
+    email: profile.email,
+    default_hourly_rate: profile.defaultHourlyRate,
+    base_address: profile.baseAddress,
+    base_latitude: profile.baseCoordinates[0],
+    base_longitude: profile.baseCoordinates[1],
+    currency_symbol: profile.currencySymbol,
+    tax_rate_percent: profile.taxRatePercent,
+    account_name: profile.accountName || null,
+    bsb: profile.bsb || null,
+    account_number: profile.accountNumber || null,
+    bank_name: profile.bankName || null,
+    payment_terms: profile.paymentTerms || null,
+    updated_at: new Date().toISOString()
+  };
+}
+
+export async function fetchUserProfile(userId: string): Promise<HandymanProfile | null> {
+  if (!supabase) return null;
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .maybeSingle();
+
+    if (error) {
+      console.warn('Supabase profile fetch error:', error.message);
+      return null;
+    }
+    return data ? mapRowToProfile(data) : null;
+  } catch (err) {
+    console.warn('Supabase profile exception:', err);
+    return null;
+  }
+}
+
+export async function upsertUserProfile(userId: string, profile: HandymanProfile): Promise<boolean> {
+  if (!supabase) return false;
+  try {
+    const row = mapProfileToRow(userId, profile);
+    const { error } = await supabase.from('profiles').upsert(row);
+    if (error) {
+      console.warn('Supabase profile upsert error:', error.message);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.warn('Supabase profile upsert exception:', err);
+    return false;
+  }
+}
+
+// ============================================================================
+// JOBS PERSISTENCE & MULTI-TENANCY
+// ============================================================================
+
 function mapRowToJob(row: any): Job {
   return {
     id: row.id,
@@ -49,10 +225,10 @@ function mapRowToJob(row: any): Job {
   };
 }
 
-// Map Job TypeScript model to DB row
-function mapJobToRow(job: Job): any {
+function mapJobToRow(job: Job, userId?: string): any {
   return {
     id: job.id,
+    user_id: userId || null,
     job_number: job.jobNumber,
     title: job.title,
     client_name: job.clientName,
@@ -88,69 +264,67 @@ function mapJobToRow(job: Job): any {
   };
 }
 
-// Fetch all jobs from Supabase
-export async function fetchJobsFromSupabase(): Promise<Job[] | null> {
+export async function fetchJobsFromSupabase(userId?: string): Promise<Job[] | null> {
   if (!supabase) return null;
   try {
-    const { data, error } = await supabase
-      .from('jobs')
-      .select('*')
-      .order('created_at', { ascending: false });
+    let query = supabase.from('jobs').select('*');
+    if (userId) {
+      query = query.or(`user_id.eq.${userId},user_id.is.null`);
+    }
+    const { data, error } = await query.order('created_at', { ascending: false });
 
     if (error) {
-      console.warn('Supabase fetch error:', error.message);
+      console.warn('Supabase jobs fetch error:', error.message);
       return null;
     }
     return data ? data.map(mapRowToJob) : [];
   } catch (err) {
-    console.warn('Supabase fetch exception:', err);
+    console.warn('Supabase jobs fetch exception:', err);
     return null;
   }
 }
 
-// Upsert a single job in Supabase
-export async function upsertJobInSupabase(job: Job): Promise<boolean> {
+export async function upsertJobInSupabase(job: Job, userId?: string): Promise<boolean> {
   if (!supabase) return false;
   try {
-    const row = mapJobToRow(job);
+    const row = mapJobToRow(job, userId);
     const { error } = await supabase.from('jobs').upsert(row);
     if (error) {
-      console.warn('Supabase upsert error:', error.message);
+      console.warn('Supabase job upsert error:', error.message);
       return false;
     }
     return true;
   } catch (err) {
-    console.warn('Supabase upsert exception:', err);
+    console.warn('Supabase job upsert exception:', err);
     return false;
   }
 }
 
-// Delete job from Supabase
 export async function deleteJobFromSupabase(jobId: string): Promise<boolean> {
   if (!supabase) return false;
   try {
     const { error } = await supabase.from('jobs').delete().eq('id', jobId);
     if (error) {
-      console.warn('Supabase delete error:', error.message);
+      console.warn('Supabase job delete error:', error.message);
       return false;
     }
     return true;
   } catch (err) {
-    console.warn('Supabase delete exception:', err);
+    console.warn('Supabase job delete exception:', err);
     return false;
   }
 }
 
-// Seed initial jobs to Supabase if empty
-export async function seedJobsToSupabaseIfEmpty(initialJobs: Job[]): Promise<void> {
+export async function seedJobsToSupabaseIfEmpty(initialJobs: Job[], userId?: string): Promise<void> {
   if (!supabase) return;
   try {
     const { count, error } = await supabase.from('jobs').select('*', { count: 'exact', head: true });
     if (error || count === 0) {
-      const rows = initialJobs.map(mapJobToRow);
+      const rows = initialJobs.map(j => mapJobToRow(j, userId));
       await supabase.from('jobs').upsert(rows);
     }
   } catch (err) {
     console.warn('Supabase seed exception:', err);
   }
 }
+

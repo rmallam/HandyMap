@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { HandymanProfile } from '../../types';
 import {
   X,
@@ -7,24 +7,37 @@ import {
   CreditCard,
   Percent,
   CheckCircle2,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Cloud,
+  ShieldCheck,
+  LogIn
 } from 'lucide-react';
 
 interface ProfileModalProps {
   isOpen: boolean;
   profile: HandymanProfile;
+  currentUserEmail?: string | null;
   onClose: () => void;
   onSaveProfile: (updatedProfile: HandymanProfile) => void;
+  onOpenAuth?: () => void;
 }
 
 export const ProfileModal: React.FC<ProfileModalProps> = ({
   isOpen,
   profile,
+  currentUserEmail,
   onClose,
-  onSaveProfile
+  onSaveProfile,
+  onOpenAuth
 }) => {
   const [formData, setFormData] = useState<HandymanProfile>({ ...profile });
   const [isSaved, setIsSaved] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      setFormData({ ...profile });
+    }
+  }, [isOpen, profile]);
 
   if (!isOpen) return null;
 
@@ -68,6 +81,57 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
           </button>
         </div>
 
+        {/* Cloud Persistence Status Banner */}
+        <div className="px-5 sm:px-6 pt-4 pb-0">
+          {currentUserEmail ? (
+            <div className="bg-emerald-50 border border-emerald-200/80 rounded-2xl p-3 flex items-center justify-between gap-3 text-xs text-emerald-900">
+              <div className="flex items-center gap-2.5">
+                <div className="w-7 h-7 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0">
+                  <ShieldCheck className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="font-bold flex items-center gap-1.5">
+                    <span>Cloud Sync Active</span>
+                    <span className="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.2 rounded font-mono font-bold">
+                      {currentUserEmail}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-emerald-700">
+                    Your profile and ABN are permanently stored in Supabase and sync across all devices.
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3 flex items-center justify-between gap-3 text-xs text-amber-900">
+              <div className="flex items-center gap-2.5">
+                <div className="w-7 h-7 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0">
+                  <Cloud className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="font-bold">Local Browser Storage</div>
+                  <p className="text-[11px] text-amber-700">
+                    Saved in this browser. Sign in with Email OTP to back up permanently.
+                  </p>
+                </div>
+              </div>
+
+              {onOpenAuth && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    onOpenAuth();
+                  }}
+                  className="px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold shrink-0 transition flex items-center gap-1 shadow-sm"
+                >
+                  <LogIn className="w-3.5 h-3.5" />
+                  <span>Sign In</span>
+                </button>
+              )}
+            </div>
+          )}
+        </div>
 
         {/* Scrollable Form Body */}
         <form onSubmit={handleSubmit} className="p-5 sm:p-6 overflow-y-auto space-y-6 flex-1 text-slate-900">
@@ -129,7 +193,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                   Contact Phone Number *
                 </label>
                 <input
-                  type="tel"
+                  type="text"
                   required
                   value={formData.phone}
                   onChange={e => setFormData({ ...formData, phone: e.target.value })}
@@ -140,59 +204,71 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
 
               <div className="sm:col-span-2">
                 <label className="text-[11px] font-bold text-slate-600 block mb-1">
-                  Business Email Address *
+                  Primary Email (for Quotes & Client Correspondence) *
                 </label>
                 <input
                   type="email"
                   required
                   value={formData.email}
                   onChange={e => setFormData({ ...formData, email: e.target.value })}
-                  placeholder="e.g. contact@apexhandyman.com.au"
+                  placeholder="e.g. alex@apexhandyman.com.au"
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 focus:border-blue-500 focus:bg-white outline-none transition"
                 />
               </div>
             </div>
           </div>
 
-          {/* Section 2: Pricing & Workshop Base */}
+          {/* Section 2: Operating Base & Rates */}
           <div className="space-y-4">
             <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
-              <Percent className="w-4 h-4 text-amber-600" />
+              <Percent className="w-4 h-4 text-blue-600" />
               <h3 className="text-xs font-black uppercase tracking-wider text-slate-700">
-                2. Pricing Defaults & Base Workshop Location
+                2. Operating Base & Hourly Rates
               </h3>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              <div className="sm:col-span-2">
+                <label className="text-[11px] font-bold text-slate-600 block mb-1">
+                  Operating Hub / Base Address (Route Starting Point)
+                </label>
+                <input
+                  type="text"
+                  value={formData.baseAddress}
+                  onChange={e => setFormData({ ...formData, baseAddress: e.target.value })}
+                  placeholder="e.g. Point Cook Town Centre, Point Cook VIC 3030"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 focus:border-blue-500 focus:bg-white outline-none transition"
+                />
+              </div>
+
               <div>
                 <label className="text-[11px] font-bold text-slate-600 block mb-1">
-                  Default Hourly Labor Rate ($ AUD/hr) *
+                  Default Labor Rate (AUD / Hour)
                 </label>
                 <div className="relative">
                   <span className="absolute left-3.5 top-2.5 text-xs font-bold text-slate-400">$</span>
                   <input
                     type="number"
                     min="20"
+                    max="500"
                     step="5"
-                    required
                     value={formData.defaultHourlyRate}
                     onChange={e => setFormData({ ...formData, defaultHourlyRate: parseFloat(e.target.value) || 0 })}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-7 pr-3.5 py-2.5 text-xs font-bold text-slate-900 focus:border-blue-500 focus:bg-white outline-none transition"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-8 pr-3.5 py-2.5 text-xs font-bold text-slate-900 focus:border-blue-500 focus:bg-white outline-none transition"
                   />
                 </div>
               </div>
 
               <div>
                 <label className="text-[11px] font-bold text-slate-600 block mb-1">
-                  GST / Tax Rate (%) *
+                  GST Tax Rate (%)
                 </label>
                 <div className="relative">
                   <input
                     type="number"
                     min="0"
-                    max="100"
+                    max="30"
                     step="0.5"
-                    required
                     value={formData.taxRatePercent}
                     onChange={e => setFormData({ ...formData, taxRatePercent: parseFloat(e.target.value) || 0 })}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-900 focus:border-blue-500 focus:bg-white outline-none transition"
@@ -200,29 +276,15 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                   <span className="absolute right-3.5 top-2.5 text-xs font-bold text-slate-400">%</span>
                 </div>
               </div>
-
-              <div className="sm:col-span-2">
-                <label className="text-[11px] font-bold text-slate-600 block mb-1">
-                  Base Workshop / Home Dispatch Address *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.baseAddress}
-                  onChange={e => setFormData({ ...formData, baseAddress: e.target.value })}
-                  placeholder="e.g. Point Cook Town Centre, Point Cook VIC 3030"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 focus:border-blue-500 focus:bg-white outline-none transition"
-                />
-              </div>
             </div>
           </div>
 
-          {/* Section 3: Direct Deposit (EFT) Bank Details */}
+          {/* Section 3: Banking & Payment Terms */}
           <div className="space-y-4">
             <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
-              <CreditCard className="w-4 h-4 text-emerald-600" />
+              <CreditCard className="w-4 h-4 text-blue-600" />
               <h3 className="text-xs font-black uppercase tracking-wider text-slate-700">
-                3. Direct Deposit (EFT) Bank Details for Invoices & Quotes
+                3. Direct Deposit / EFT Payment Details (For Invoices)
               </h3>
             </div>
 
@@ -235,7 +297,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                   type="text"
                   value={formData.bankName || ''}
                   onChange={e => setFormData({ ...formData, bankName: e.target.value })}
-                  placeholder="e.g. Commonwealth Bank of Australia"
+                  placeholder="e.g. Commonwealth Bank"
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 focus:border-blue-500 focus:bg-white outline-none transition"
                 />
               </div>
@@ -311,7 +373,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
               {isSaved ? (
                 <>
                   <CheckCircle2 className="w-4 h-4 text-emerald-300" />
-                  <span>Profile Saved!</span>
+                  <span>Profile Saved & Synced!</span>
                 </>
               ) : (
                 <>
