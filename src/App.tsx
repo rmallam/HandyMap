@@ -6,6 +6,7 @@ import {
   supabase,
   fetchJobsFromSupabase,
   upsertJobInSupabase,
+  batchUpsertJobsInSupabase,
   deleteJobFromSupabase,
   seedJobsToSupabaseIfEmpty,
   getCurrentUser,
@@ -28,6 +29,7 @@ import { DayScheduleView } from './components/Schedule/DayScheduleView';
 import { StatsOverview } from './components/Dashboard/StatsOverview';
 import { JobDetailModal } from './components/Jobs/JobDetailModal';
 import { JobFormModal } from './components/Jobs/JobFormModal';
+import { ImportJobsModal } from './components/Jobs/ImportJobsModal';
 import { RemindersDrawer } from './components/Reminders/RemindersDrawer';
 import { ProfileModal } from './components/Profile/ProfileModal';
 import { AuthModal } from './components/Auth/AuthModal';
@@ -59,6 +61,7 @@ export function App() {
   // Modals
   const [isJobDetailOpen, setIsJobDetailOpen] = useState(false);
   const [isNewJobOpen, setIsNewJobOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
   // Initialize GPS location lock and Auth session
@@ -205,6 +208,15 @@ export function App() {
     setActiveTab('map');
     if (isSupabaseConfigured) {
       upsertJobInSupabase(newJob, currentUserId || undefined);
+    }
+  };
+
+  const handleBatchImportJobs = async (importedJobs: Job[]) => {
+    const nextJobs = [...importedJobs, ...jobs];
+    handleUpdateJobsList(nextJobs);
+    setActiveTab('jobs');
+    if (isSupabaseConfigured) {
+      await batchUpsertJobsInSupabase(importedJobs, currentUserId || undefined);
     }
   };
 
@@ -376,6 +388,7 @@ export function App() {
         onToggleViewMode={(tab) => setActiveTab(tab)}
         onOpenReminders={() => setIsRemindersDrawerOpen(true)}
         onOpenProfile={() => setIsProfileModalOpen(true)}
+        onOpenImport={() => setIsImportModalOpen(true)}
         onOpenAuth={() => setIsAuthModalOpen(true)}
         onSignOut={handleSignOut}
         isUsingGPS={isUsingGPS}
@@ -421,6 +434,7 @@ export function App() {
             reminders={reminders}
             onSelectJob={handleOpenFullJob}
             onAddNewJob={() => setIsNewJobOpen(true)}
+            onOpenImport={() => setIsImportModalOpen(true)}
           />
         )}
 
@@ -465,6 +479,13 @@ export function App() {
         currentLocation={currentLocation}
       />
 
+      {/* Bulk Excel / CSV Import Modal */}
+      <ImportJobsModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        onImportJobs={handleBatchImportJobs}
+      />
+
       {/* Handyman Business Profile & ABN Invoicing Modal */}
       <ProfileModal
         isOpen={isProfileModalOpen}
@@ -475,7 +496,7 @@ export function App() {
         onOpenAuth={() => setIsAuthModalOpen(true)}
       />
 
-      {/* Handyman Sign In & Email OTP Authentication Modal */}
+      {/* Handyman User & Password / Email OTP Authentication Modal */}
       <AuthModal
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}

@@ -12,8 +12,72 @@ export const supabase = isSupabaseConfigured
   : null;
 
 // ============================================================================
-// AUTHENTICATION METHODS (Email OTP & Session Management)
+// AUTHENTICATION METHODS (Password Login, Sign Up, Email OTP & Session)
 // ============================================================================
+
+/**
+ * Sign in with email and password
+ */
+export async function signInWithPassword(
+  email: string,
+  password: string
+): Promise<{ user: User | null; session: Session | null; error: string | null }> {
+  if (!supabase) return { user: null, session: null, error: 'Supabase is not configured' };
+  try {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: email.trim().toLowerCase(),
+      password
+    });
+    if (error) {
+      return { user: null, session: null, error: error.message };
+    }
+    return { user: data.user, session: data.session, error: null };
+  } catch (err: any) {
+    return { user: null, session: null, error: err.message || 'Failed to sign in' };
+  }
+}
+
+/**
+ * Sign up with email and password
+ */
+export async function signUpWithPassword(
+  email: string,
+  password: string,
+  fullName?: string
+): Promise<{ user: User | null; session: Session | null; error: string | null }> {
+  if (!supabase) return { user: null, session: null, error: 'Supabase is not configured' };
+  try {
+    const { data, error } = await supabase.auth.signUp({
+      email: email.trim().toLowerCase(),
+      password,
+      options: {
+        data: {
+          full_name: fullName || 'Handyman Professional'
+        }
+      }
+    });
+    if (error) {
+      return { user: null, session: null, error: error.message };
+    }
+    return { user: data.user, session: data.session, error: null };
+  } catch (err: any) {
+    return { user: null, session: null, error: err.message || 'Failed to register account' };
+  }
+}
+
+/**
+ * Send password reset email
+ */
+export async function sendPasswordReset(email: string): Promise<{ error: string | null }> {
+  if (!supabase) return { error: 'Supabase is not configured' };
+  try {
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase());
+    if (error) return { error: error.message };
+    return { error: null };
+  } catch (err: any) {
+    return { error: err.message || 'Failed to send password reset email' };
+  }
+}
 
 /**
  * Send a 6-digit OTP code to the handyman's email address
@@ -300,6 +364,22 @@ export async function upsertJobInSupabase(job: Job, userId?: string): Promise<bo
   }
 }
 
+export async function batchUpsertJobsInSupabase(jobsList: Job[], userId?: string): Promise<boolean> {
+  if (!supabase || jobsList.length === 0) return false;
+  try {
+    const rows = jobsList.map(j => mapJobToRow(j, userId));
+    const { error } = await supabase.from('jobs').upsert(rows);
+    if (error) {
+      console.warn('Supabase batch upsert error:', error.message);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.warn('Supabase batch upsert exception:', err);
+    return false;
+  }
+}
+
 export async function deleteJobFromSupabase(jobId: string): Promise<boolean> {
   if (!supabase) return false;
   try {
@@ -327,4 +407,3 @@ export async function seedJobsToSupabaseIfEmpty(initialJobs: Job[], userId?: str
     console.warn('Supabase seed exception:', err);
   }
 }
-

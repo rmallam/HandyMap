@@ -14,7 +14,8 @@ import {
   BellRing,
   Building2,
   Filter,
-  X
+  X,
+  FileSpreadsheet
 } from 'lucide-react';
 
 interface JobListProps {
@@ -23,6 +24,7 @@ interface JobListProps {
   reminders?: ReminderItem[];
   onSelectJob: (job: Job) => void;
   onAddNewJob: () => void;
+  onOpenImport?: () => void;
 }
 
 export const JobList: React.FC<JobListProps> = ({
@@ -30,7 +32,8 @@ export const JobList: React.FC<JobListProps> = ({
   profile,
   reminders = [],
   onSelectJob,
-  onAddNewJob
+  onAddNewJob,
+  onOpenImport
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<JobStatus | 'all'>('all');
@@ -65,24 +68,37 @@ export const JobList: React.FC<JobListProps> = ({
 
   return (
     <div className="flex flex-col h-full bg-slate-50 overflow-y-auto pb-[calc(6.5rem+env(safe-area-inset-bottom,0px))] text-slate-900 p-4 sm:p-6 max-w-5xl mx-auto w-full">
-      {/* Top Title & Add Button */}
+      {/* Top Title & Action Buttons */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
         <div>
           <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
             Jobs & Quotes Directory
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-            Manage your customer requests, approved estimates, and real estate agency work orders.
+            Manage customer requests, approved estimates, and real estate agency work orders.
           </p>
         </div>
 
-        <button
-          onClick={onAddNewJob}
-          className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-sm hover:shadow transition active:scale-95"
-        >
-          <Plus className="w-4 h-4 stroke-[2.5]" />
-          <span>New Lead / Quote</span>
-        </button>
+        <div className="flex items-center gap-2">
+          {onOpenImport && (
+            <button
+              onClick={onOpenImport}
+              className="px-3.5 py-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs transition active:scale-95"
+              title="Bulk import jobs from Excel or CSV spreadsheet"
+            >
+              <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+              <span>Import Excel / CSV</span>
+            </button>
+          )}
+
+          <button
+            onClick={onAddNewJob}
+            className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-sm hover:shadow transition active:scale-95"
+          >
+            <Plus className="w-4 h-4 stroke-[2.5]" />
+            <span>New Lead / Quote</span>
+          </button>
+        </div>
       </div>
 
       {/* Search & Status Controls */}
@@ -244,10 +260,38 @@ export const JobList: React.FC<JobListProps> = ({
 
       {/* Cards Grid */}
       {filteredJobs.length === 0 ? (
-        <div className="text-center py-16 bg-white rounded-3xl border border-slate-200 shadow-sm">
-          <AlertCircle className="w-10 h-10 text-slate-400 mx-auto mb-3" />
-          <p className="text-slate-800 font-bold text-sm">No matching jobs found</p>
-          <p className="text-xs text-slate-500 mt-1">Try tweaking your search term or filters</p>
+        <div className="text-center py-16 bg-white rounded-3xl border border-slate-200 shadow-sm p-6 space-y-4">
+          <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
+            <AlertCircle className="w-6 h-6" />
+          </div>
+          <div>
+            <p className="text-slate-800 font-bold text-sm">No matching jobs found</p>
+            <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
+              You can add a new lead, tweak your filters, or upload existing data from a spreadsheet.
+            </p>
+          </div>
+
+          <div className="flex items-center justify-center gap-3 pt-2">
+            {onOpenImport && (
+              <button
+                type="button"
+                onClick={onOpenImport}
+                className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-2 shadow-sm transition active:scale-95"
+              >
+                <FileSpreadsheet className="w-4 h-4" />
+                <span>Upload Excel / CSV</span>
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={onAddNewJob}
+              className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs flex items-center gap-2 shadow-sm transition active:scale-95"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Create New Job</span>
+            </button>
+          </div>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
