@@ -9,6 +9,7 @@ const SUBURB_COORDINATES: Record<string, [number, number]> = {
   'seabrook': [-37.8860, 144.7645],
   'altona meadows': [-37.8765, 144.7812],
   'altona': [-37.8667, 144.8333],
+  'altona north': [-37.8422, 144.8561],
   'tarneit': [-37.8360, 144.6640],
   'truganina': [-37.8280, 144.7180],
   'werribee': [-37.9020, 144.6620],
@@ -16,6 +17,17 @@ const SUBURB_COORDINATES: Record<string, [number, number]> = {
   'hoppers crossing': [-37.8833, 144.7000],
   'laverton': [-37.8620, 144.7740],
   'wyndham vale': [-37.8920, 144.6150],
+  'manor lakes': [-37.8770, 144.5980],
+  'melton': [-37.6830, 144.5830],
+  'rockbank': [-37.7330, 144.6500],
+  'caroline springs': [-37.7520, 144.7390],
+  'deer park': [-37.7710, 144.7760],
+  'st albans': [-37.7450, 144.8020],
+  'sunshine': [-37.7810, 144.8330],
+  'footscray': [-37.8000, 144.9000],
+  'yarraville': [-37.8180, 144.8910],
+  'williamstown': [-37.8560, 144.8970],
+  'newport': [-37.8430, 144.8870],
   'melbourne': [-37.8136, 144.9631]
 };
 
@@ -34,8 +46,8 @@ function normalizeStatus(val: any): JobStatus {
 function normalizePriority(val: any): JobPriority {
   if (!val) return 'medium';
   const str = String(val).toLowerCase().trim();
-  if (str.includes('urg') || str.includes('crit') || str.includes('emerg')) return 'urgent';
-  if (str.includes('high')) return 'high';
+  if (str.includes('urg') || str.includes('crit') || str.includes('emerg') || str.includes('flood') || str.includes('burst')) return 'urgent';
+  if (str.includes('high') || str.includes('leak') || str.includes('lock') || str.includes('broken')) return 'high';
   if (str.includes('low')) return 'low';
   return 'medium';
 }
@@ -43,15 +55,15 @@ function normalizePriority(val: any): JobPriority {
 function normalizeCategory(val: any): JobCategory {
   if (!val) return 'General Repair';
   const str = String(val).toLowerCase().trim();
-  if (str.includes('plumb') || str.includes('tap') || str.includes('pipe') || str.includes('leak') || str.includes('toilet') || str.includes('drain')) return 'Plumbing';
-  if (str.includes('elect') || str.includes('power') || str.includes('light') || str.includes('switch') || str.includes('wiring')) return 'Electrical';
-  if (str.includes('carp') || str.includes('timber') || str.includes('wood') || str.includes('deck') || str.includes('frame')) return 'Carpentry';
-  if (str.includes('paint') || str.includes('coat') || str.includes('render')) return 'Painting';
-  if (str.includes('hvac') || str.includes('air') || str.includes('heat') || str.includes('cool') || str.includes('vent')) return 'HVAC';
-  if (str.includes('roof') || str.includes('gutter') || str.includes('tile')) return 'Roofing';
-  if (str.includes('assem') || str.includes('mount') || str.includes('ikea') || str.includes('tv') || str.includes('bracket')) return 'Assembly & Mounting';
-  if (str.includes('drywall') || str.includes('plaster') || str.includes('mason') || str.includes('brick') || str.includes('hole')) return 'Drywall & Masonry';
-  if (str.includes('door') || str.includes('window') || str.includes('lock') || str.includes('hinge') || str.includes('screen')) return 'Door & Window';
+  if (str.includes('plumb') || str.includes('tap') || str.includes('pipe') || str.includes('leak') || str.includes('toilet') || str.includes('drain') || str.includes('basin') || str.includes('shower') || str.includes('bath') || str.includes('sink')) return 'Plumbing';
+  if (str.includes('elect') || str.includes('power') || str.includes('light') || str.includes('switch') || str.includes('wiring') || str.includes('sensor') || str.includes('lamp') || str.includes('globe')) return 'Electrical';
+  if (str.includes('carp') || str.includes('timber') || str.includes('wood') || str.includes('deck') || str.includes('frame') || str.includes('skirting') || str.includes('fence') || str.includes('gate') || str.includes('flooring')) return 'Carpentry';
+  if (str.includes('paint') || str.includes('coat') || str.includes('render') || str.includes('patch')) return 'Painting';
+  if (str.includes('hvac') || str.includes('air') || str.includes('heat') || str.includes('cool') || str.includes('vent') || str.includes('rangehood') || str.includes('exhaust') || str.includes('oven')) return 'HVAC';
+  if (str.includes('roof') || str.includes('gutter') || str.includes('tile') || str.includes('downpipe')) return 'Roofing';
+  if (str.includes('assem') || str.includes('mount') || str.includes('ikea') || str.includes('tv') || str.includes('bracket') || str.includes('blind') || str.includes('curtain')) return 'Assembly & Mounting';
+  if (str.includes('drywall') || str.includes('plaster') || str.includes('mason') || str.includes('brick') || str.includes('hole') || str.includes('wall')) return 'Drywall & Masonry';
+  if (str.includes('door') || str.includes('window') || str.includes('lock') || str.includes('hinge') || str.includes('screen') || str.includes('sliding') || str.includes('cavity') || str.includes('latch') || str.includes('flyscreen')) return 'Door & Window';
   return 'General Repair';
 }
 
@@ -99,23 +111,78 @@ export async function parseSpreadsheetFile(file: File): Promise<{
         const timestamp = Date.now();
 
         rawRows.forEach((row, index) => {
-          const rowNum = index + 2; // Accounting for 1-based index + header row
+          let rawTitle = String(findValue(row, ['title', 'jobtitle', 'summary', 'task', 'jobname', 'workdescription', 'name']) || '').trim();
+          let rawNotes = String(findValue(row, ['notes', 'description', 'desc', 'details', 'scope', 'instructions']) || '').replace(/\r/g, '\n').trim();
+          
+          let clientName = String(findValue(row, ['clientname', 'client', 'customer', 'customername', 'contact', 'name', 'landlord']) || '');
+          let clientPhone = String(findValue(row, ['clientphone', 'phone', 'mobile', 'cell', 'contactnumber', 'tel']) || '');
+          let clientEmail = String(findValue(row, ['clientemail', 'email', 'contactemail']) || '');
 
-          // 1. Title / Task
-          const title = findValue(row, ['title', 'jobtitle', 'summary', 'task', 'jobname', 'workdescription', 'name']) || `Handyman Work Order #${index + 1}`;
+          let address = String(findValue(row, ['address', 'streetaddress', 'street', 'propertyaddress', 'siteaddress', 'location']) || '');
+          let suburb = String(findValue(row, ['suburb', 'area', 'locality', 'town', 'city']) || '');
 
-          // 2. Client Details
-          const clientName = findValue(row, ['clientname', 'client', 'customer', 'customername', 'contact', 'name', 'landlord']) || 'Client';
-          const clientPhone = String(findValue(row, ['clientphone', 'phone', 'mobile', 'cell', 'contactnumber', 'tel']) || '');
-          const clientEmail = String(findValue(row, ['clientemail', 'email', 'contactemail']) || '');
+          let realEstateAgency = String(findValue(row, ['realestateagency', 'agency', 'agencyname', 'realestate', 'reagency', 'propertymanagement']) || '');
+          let realEstateAgentName = String(findValue(row, ['realestateagentname', 'agentname', 'agent', 'propertymanager', 'pmname']) || '');
+          let realEstateAgentPhone = String(findValue(row, ['realestateagentphone', 'agentphone', 'pmphone']) || '');
+          let realEstateAgentEmail = String(findValue(row, ['realestateagentemail', 'agentemail', 'pmemail']) || '');
+          let workOrderNumber = String(findValue(row, ['workordernumber', 'workorder', 'wo', 'wonumber', 'jobnumber', 'jobno', 'ref', 'reference']) || '');
+          let tenantName = String(findValue(row, ['tenantname', 'tenant', 'occupant', 'resident']) || '');
+          let tenantPhone = String(findValue(row, ['tenantphone', 'occupantphone', 'residentphone']) || '');
 
-          // 3. Address & Suburb
-          const address = findValue(row, ['address', 'streetaddress', 'street', 'propertyaddress', 'siteaddress', 'location']) || 'Point Cook VIC';
-          let suburb = findValue(row, ['suburb', 'area', 'locality', 'town', 'city']) || 'Point Cook';
-          suburb = String(suburb).trim();
+          // --- Intelligent Multi-Line & Field Extraction if CSV has combined Notes/Title ---
+          if (rawTitle.includes(' - ') && !workOrderNumber && !realEstateAgentName) {
+            const titleParts = rawTitle.split(' - ');
+            if (titleParts.length > 1) {
+              realEstateAgentName = titleParts[0].trim();
+              workOrderNumber = titleParts.slice(1).join(' - ').trim();
+            }
+          }
 
-          // Try to extract suburb from address if suburb wasn't explicitly given
-          if (suburb === 'Point Cook' && address) {
+          // If rawNotes contains address / tenant info lumped together
+          if (rawNotes && (!address || !clientPhone || !tenantName)) {
+            const lines = rawNotes.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+            const remainingLines: string[] = [];
+
+            for (const line of lines) {
+              // Check for address pattern
+              let matchedSuburb = '';
+              for (const subKey of Object.keys(SUBURB_COORDINATES)) {
+                if (line.toLowerCase().includes(subKey) && (line.includes('VIC') || line.includes('Vic') || line.match(/\b3\d{3}\b/) || line.match(/\d+\s+[A-Za-z]/))) {
+                  matchedSuburb = subKey.charAt(0).toUpperCase() + subKey.slice(1);
+                  break;
+                }
+              }
+
+              if (matchedSuburb && !address) {
+                address = line;
+                if (!suburb) suburb = matchedSuburb;
+                continue;
+              }
+
+              // Check for tenant phone & name pattern
+              const phoneMatch = line.match(/(?:\+61|0)4\d{2}[\s\d-]{6,12}/) || line.match(/04\d{8}/);
+              if (phoneMatch && !tenantPhone) {
+                tenantPhone = phoneMatch[0].trim();
+                if (!clientPhone) clientPhone = tenantPhone;
+                const namePart = line.replace(phoneMatch[0], '').replace(/\(Tenant\)|\(Agent\)|[-:,]/g, '').trim();
+                if (namePart.length > 2 && !tenantName) {
+                  tenantName = namePart;
+                  if (!clientName) clientName = tenantName;
+                }
+                continue;
+              }
+
+              remainingLines.push(line);
+            }
+
+            if (remainingLines.length > 0 && remainingLines.join('\n') !== rawNotes) {
+              rawNotes = remainingLines.join('\n');
+            }
+          }
+
+          // Suburb Fallback
+          if (!suburb) {
+            suburb = 'Point Cook';
             for (const subKey of Object.keys(SUBURB_COORDINATES)) {
               if (address.toLowerCase().includes(subKey)) {
                 suburb = subKey.charAt(0).toUpperCase() + subKey.slice(1);
@@ -124,43 +191,45 @@ export async function parseSpreadsheetFile(file: File): Promise<{
             }
           }
 
-          // 4. Coordinates
+          if (!address) {
+            address = `Property Address, ${suburb} VIC`;
+          }
+
+          if (!clientName) {
+            clientName = tenantName || (realEstateAgentName ? `${realEstateAgentName} (Property Manager)` : 'Client');
+          }
+
+          let finalTitle = rawTitle;
+          if (!finalTitle || finalTitle.toLowerCase().startsWith('job ') || finalTitle.toLowerCase().startsWith('quote ')) {
+            finalTitle = rawNotes.split('\n')[0]?.replace(/^[-–•\d.]+\s*/, '').slice(0, 60) || `${workOrderNumber || 'Handyman Service'} - ${suburb}`;
+          }
+
+          // Coordinates
           let lat = parseFloat(findValue(row, ['latitude', 'lat']));
           let lng = parseFloat(findValue(row, ['longitude', 'lng', 'long', 'lon']));
 
           if (isNaN(lat) || isNaN(lng)) {
             const normalizedSuburbKey = suburb.toLowerCase().trim();
             const baseCoord = SUBURB_COORDINATES[normalizedSuburbKey] || SUBURB_COORDINATES['point cook'];
-            // Add a small jitter (±0.008 deg ~ 800m) so multiple jobs in same suburb don't overlap completely
+            // Jitter to spread out markers in the suburb
             const jitterLat = (Math.random() - 0.5) * 0.012;
             const jitterLng = (Math.random() - 0.5) * 0.012;
             lat = Number((baseCoord[0] + jitterLat).toFixed(6));
             lng = Number((baseCoord[1] + jitterLng).toFixed(6));
           }
 
-          // 5. Status, Priority, Category
-          const status = normalizeStatus(findValue(row, ['status', 'jobstatus', 'stage', 'state']));
-          const priority = normalizePriority(findValue(row, ['priority', 'urgency', 'severity']));
-          const category = normalizeCategory(findValue(row, ['category', 'trade', 'servicetype', 'type', 'service']));
-          const description = findValue(row, ['description', 'desc', 'notes', 'details', 'scope', 'instructions']) || '';
-
-          // 6. Real Estate Agency Details
-          const realEstateAgency = findValue(row, ['realestateagency', 'agency', 'agencyname', 'realestate', 'reagency', 'propertymanagement']);
-          const realEstateAgentName = findValue(row, ['realestateagentname', 'agentname', 'agent', 'propertymanager', 'pmname']);
-          const realEstateAgentPhone = findValue(row, ['realestateagentphone', 'agentphone', 'pmphone']);
-          const realEstateAgentEmail = findValue(row, ['realestateagentemail', 'agentemail', 'pmemail']);
-          const workOrderNumber = findValue(row, ['workordernumber', 'workorder', 'wo', 'wonumber', 'jobnumber', 'jobno', 'ref', 'reference']);
-          const tenantName = findValue(row, ['tenantname', 'tenant', 'occupant', 'resident']);
-          const tenantPhone = findValue(row, ['tenantphone', 'occupantphone', 'residentphone']);
+          const status = normalizeStatus(findValue(row, ['status', 'jobstatus', 'stage', 'state']) || rawTitle);
+          const priority = normalizePriority(findValue(row, ['priority', 'urgency', 'severity']) || rawNotes);
+          const category = normalizeCategory(findValue(row, ['category', 'trade', 'servicetype', 'type', 'service']) || rawNotes || rawTitle);
+          const description = rawNotes || rawTitle;
 
           const isAgencyJob = Boolean(realEstateAgency || workOrderNumber || realEstateAgentName);
-
-          const estimatedDurationMinutes = parseInt(findValue(row, ['duration', 'durationminutes', 'estimatedduration', 'time']) || '45', 10);
+          const estimatedDurationMinutes = parseInt(findValue(row, ['duration', 'durationminutes', 'estimatedduration', 'time', 'estimatedmins']) || '60', 10);
 
           const newJob: Job = {
             id: `job-imp-${timestamp}-${index + 1}`,
             jobNumber: String(workOrderNumber || `JOB-${Math.floor(1000 + Math.random() * 9000)}`),
-            title: String(title),
+            title: String(finalTitle),
             clientName: String(clientName),
             clientPhone: String(clientPhone),
             clientEmail: String(clientEmail),
@@ -172,16 +241,16 @@ export async function parseSpreadsheetFile(file: File): Promise<{
             category,
             description: String(description),
             quoteRequestedDate: new Date().toISOString(),
-            estimatedDurationMinutes: isNaN(estimatedDurationMinutes) ? 45 : estimatedDurationMinutes,
+            estimatedDurationMinutes: isNaN(estimatedDurationMinutes) ? 60 : estimatedDurationMinutes,
             
             isAgencyJob,
-            realEstateAgency: realEstateAgency ? String(realEstateAgency) : undefined,
-            realEstateAgentName: realEstateAgentName ? String(realEstateAgentName) : undefined,
-            realEstateAgentPhone: realEstateAgentPhone ? String(realEstateAgentPhone) : undefined,
-            realEstateAgentEmail: realEstateAgentEmail ? String(realEstateAgentEmail) : undefined,
-            workOrderNumber: workOrderNumber ? String(workOrderNumber) : undefined,
-            tenantName: tenantName ? String(tenantName) : undefined,
-            tenantPhone: tenantPhone ? String(tenantPhone) : undefined,
+            realEstateAgency: realEstateAgency || (isAgencyJob ? 'Ray White / Barry Plant Property Management' : undefined),
+            realEstateAgentName: realEstateAgentName || undefined,
+            realEstateAgentPhone: realEstateAgentPhone || undefined,
+            realEstateAgentEmail: realEstateAgentEmail || undefined,
+            workOrderNumber: workOrderNumber || undefined,
+            tenantName: tenantName || undefined,
+            tenantPhone: tenantPhone || undefined,
 
             photos: [],
             timeLogs: [],
