@@ -39,7 +39,7 @@ export const MapFilters: React.FC<MapFiltersProps> = ({
   const quotedCount = jobs.filter(j => j.status === 'quoted').length;
   const urgentCount = jobs.filter(j => j.status === 'urgent').length;
   const completedCount = jobs.filter(j => j.status === 'completed' || j.status === 'invoiced').length;
-  const agencyCount = jobs.filter(j => j.isAgencyJob).length;
+  const agencyCount = jobs.filter(j => j.isAgencyJob && j.realEstateAgency).length;
 
   // Suburb counts
   const suburbCounts: Record<string, number> = {};
@@ -161,7 +161,7 @@ export const MapFilters: React.FC<MapFiltersProps> = ({
       {/* Row 2: Real Estate Agency Dropdown & Suburb Pills */}
       <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
         {/* Prominent Real Estate Agency Filter Button */}
-        {onSelectAgency && (
+        {onSelectAgency && agencyCount > 0 && (
           <div className="pointer-events-auto relative shrink-0">
             <button
               onClick={() => setShowAgencyMenu(!showAgencyMenu)}

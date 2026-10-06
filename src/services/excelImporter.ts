@@ -223,7 +223,7 @@ export async function parseSpreadsheetFile(file: File): Promise<{
           const category = normalizeCategory(findValue(row, ['category', 'trade', 'servicetype', 'type', 'service']) || rawNotes || rawTitle);
           const description = rawNotes || rawTitle;
 
-          const isAgencyJob = Boolean(realEstateAgency || workOrderNumber || realEstateAgentName);
+          const isAgencyJob = Boolean(realEstateAgency && realEstateAgency.trim().length > 0);
           const estimatedDurationMinutes = parseInt(findValue(row, ['duration', 'durationminutes', 'estimatedduration', 'time', 'estimatedmins']) || '60', 10);
 
           const newJob: Job = {

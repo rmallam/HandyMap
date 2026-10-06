@@ -138,7 +138,7 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                 <Tag className="w-3 h-3 text-blue-600" /> {job.category}
               </span>
 
-              {job.isAgencyJob && (
+              {job.isAgencyJob && job.realEstateAgency && (
                 <span className="text-xs font-bold bg-purple-100 text-purple-900 px-2.5 py-0.5 rounded-full flex items-center gap-1 border border-purple-200">
                   <Building2 className="w-3 h-3 text-purple-700" />
                   {job.realEstateAgency}
@@ -261,7 +261,7 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
           {activeTab === 'overview' && (
             <div className="flex flex-col gap-5 text-slate-900">
               {/* Real Estate Agency B2B Work Order Info */}
-              {job.isAgencyJob && (
+              {job.isAgencyJob && job.realEstateAgency && (
                 <div className="bg-purple-50/80 border border-purple-200 rounded-2xl p-4 shadow-sm flex flex-col gap-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">

@@ -46,7 +46,7 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
 
   // Real Estate Agency Fields
   const [isAgencyJob, setIsAgencyJob] = useState(false);
-  const [realEstateAgency, setRealEstateAgency] = useState('Ray White Point Cook');
+  const [realEstateAgency, setRealEstateAgency] = useState('');
   const [realEstateAgentName, setRealEstateAgentName] = useState('');
   const [realEstateAgentPhone, setRealEstateAgentPhone] = useState('');
   const [workOrderNumber, setWorkOrderNumber] = useState('');

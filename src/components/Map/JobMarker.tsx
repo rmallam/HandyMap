@@ -44,8 +44,8 @@ export const JobMarker: React.FC<JobMarkerProps> = ({
         </div>
 
         ${
-          job.isAgencyJob
-            ? `<div class="absolute -top-2 -left-2 bg-purple-700 text-white font-bold text-[9px] w-4 h-4 rounded-full flex items-center justify-center shadow-md border border-white" title="Real Estate Work Order: ${job.realEstateAgency || 'Agency'}">
+          job.isAgencyJob && job.realEstateAgency
+            ? `<div class="absolute -top-2 -left-2 bg-purple-700 text-white font-bold text-[9px] w-4 h-4 rounded-full flex items-center justify-center shadow-md border border-white" title="Real Estate Work Order: ${job.realEstateAgency}">
                 🏢
               </div>`
             : ''
@@ -88,9 +88,9 @@ export const JobMarker: React.FC<JobMarkerProps> = ({
             >
               {statusCfg.shortLabel}
             </span>
-            {job.isAgencyJob && (
+            {job.isAgencyJob && job.realEstateAgency && (
               <span className="text-[10px] font-bold text-purple-800 bg-purple-50 border border-purple-200 px-2 py-0.5 rounded-full flex items-center gap-1">
-                🏢 {job.realEstateAgency ? job.realEstateAgency.split(' ')[0] : 'Agency'}
+                🏢 {job.realEstateAgency.split(' ')[0]}
               </span>
             )}
             {routeStop && (

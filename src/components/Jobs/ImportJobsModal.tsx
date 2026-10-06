@@ -328,7 +328,7 @@ export const ImportJobsModal: React.FC<ImportJobsModalProps> = ({
                         )}
                       </div>
 
-                      {job.isAgencyJob && (
+                      {job.isAgencyJob && job.realEstateAgency && (
                         <div className="flex items-center gap-1.5 text-[10px] font-bold text-purple-700 bg-purple-50 px-2 py-0.5 rounded-md w-fit">
                           <Building2 className="w-3 h-3 text-purple-600" />
                           <span>Agency: {job.realEstateAgency}</span>

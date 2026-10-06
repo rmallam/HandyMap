@@ -39,7 +39,7 @@ export const JobList: React.FC<JobListProps> = ({
   const [statusFilter, setStatusFilter] = useState<JobStatus | 'all'>('all');
   const [agencyFilter, setAgencyFilter] = useState<string>('all');
 
-  const agencyCount = jobs.filter(j => j.isAgencyJob).length;
+  const agencyCount = jobs.filter(j => j.isAgencyJob && j.realEstateAgency).length;
 
   const filteredJobs = jobs.filter(job => {
     const matchesStatus = statusFilter === 'all' || job.status === statusFilter;
@@ -171,72 +171,74 @@ export const JobList: React.FC<JobListProps> = ({
       </div>
 
       {/* Real Estate Agency Filter Bar */}
-      <div className="bg-white p-2 sm:p-2.5 rounded-2xl border border-slate-200/90 shadow-sm mb-5 flex items-center gap-2 overflow-x-auto no-scrollbar">
-        <span className="text-[11px] font-bold text-slate-400 uppercase flex items-center gap-1.5 shrink-0 px-2">
-          <Building2 className="w-3.5 h-3.5 text-purple-600" /> Agency Filter:
-        </span>
-
-        <button
-          onClick={() => setAgencyFilter('all')}
-          className={`px-2.5 py-1 rounded-xl text-xs font-bold whitespace-nowrap transition ${
-            agencyFilter === 'all'
-              ? 'bg-purple-700 text-white shadow-sm'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-          }`}
-        >
-          All Sources
-        </button>
-
-        <button
-          onClick={() => setAgencyFilter('agency_only')}
-          className={`px-2.5 py-1 rounded-xl text-xs font-bold whitespace-nowrap transition flex items-center gap-1.5 ${
-            agencyFilter === 'agency_only'
-              ? 'bg-purple-700 text-white shadow-sm'
-              : 'text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200/60'
-          }`}
-        >
-          <span>All Agency Orders</span>
-          <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
-            agencyFilter === 'agency_only' ? 'bg-purple-800 text-white' : 'bg-purple-200 text-purple-800'
-          }`}>
-            {agencyCount}
+      {agencyCount > 0 && (
+        <div className="bg-white p-2 sm:p-2.5 rounded-2xl border border-slate-200/90 shadow-sm mb-5 flex items-center gap-2 overflow-x-auto no-scrollbar">
+          <span className="text-[11px] font-bold text-slate-400 uppercase flex items-center gap-1.5 shrink-0 px-2">
+            <Building2 className="w-3.5 h-3.5 text-purple-600" /> Agency Filter:
           </span>
-        </button>
 
-        {REAL_ESTATE_AGENCIES.map(agency => {
-          const count = jobs.filter(j => j.realEstateAgency === agency).length;
-          if (count === 0) return null;
-          return (
-            <button
-              key={agency}
-              onClick={() => setAgencyFilter(agency)}
-              className={`px-2.5 py-1 rounded-xl text-xs font-bold whitespace-nowrap transition flex items-center gap-1.5 ${
-                agencyFilter === agency
-                  ? 'bg-purple-700 text-white shadow-sm'
-                  : 'text-slate-600 hover:text-purple-900 hover:bg-purple-50 border border-slate-200/60'
-              }`}
-            >
-              <span>{agency}</span>
-              <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
-                agencyFilter === agency ? 'bg-purple-800 text-white' : 'bg-slate-100 text-slate-600'
-              }`}>
-                {count}
-              </span>
-            </button>
-          );
-        })}
+          <button
+            onClick={() => setAgencyFilter('all')}
+            className={`px-2.5 py-1 rounded-xl text-xs font-bold whitespace-nowrap transition ${
+              agencyFilter === 'all'
+                ? 'bg-purple-700 text-white shadow-sm'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+            }`}
+          >
+            All Sources
+          </button>
 
-        <button
-          onClick={() => setAgencyFilter('direct_only')}
-          className={`px-2.5 py-1 rounded-xl text-xs font-bold whitespace-nowrap transition ${
-            agencyFilter === 'direct_only'
-              ? 'bg-slate-800 text-white shadow-sm'
-              : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
-          }`}
-        >
-          Direct Residential Only
-        </button>
-      </div>
+          <button
+            onClick={() => setAgencyFilter('agency_only')}
+            className={`px-2.5 py-1 rounded-xl text-xs font-bold whitespace-nowrap transition flex items-center gap-1.5 ${
+              agencyFilter === 'agency_only'
+                ? 'bg-purple-700 text-white shadow-sm'
+                : 'text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200/60'
+            }`}
+          >
+            <span>All Agency Orders</span>
+            <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+              agencyFilter === 'agency_only' ? 'bg-purple-800 text-white' : 'bg-purple-200 text-purple-800'
+            }`}>
+              {agencyCount}
+            </span>
+          </button>
+
+          {REAL_ESTATE_AGENCIES.map(agency => {
+            const count = jobs.filter(j => j.realEstateAgency === agency).length;
+            if (count === 0) return null;
+            return (
+              <button
+                key={agency}
+                onClick={() => setAgencyFilter(agency)}
+                className={`px-2.5 py-1 rounded-xl text-xs font-bold whitespace-nowrap transition flex items-center gap-1.5 ${
+                  agencyFilter === agency
+                    ? 'bg-purple-700 text-white shadow-sm'
+                    : 'text-slate-600 hover:text-purple-900 hover:bg-purple-50 border border-slate-200/60'
+                }`}
+              >
+                <span>{agency}</span>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                  agencyFilter === agency ? 'bg-purple-800 text-white' : 'bg-slate-100 text-slate-600'
+                }`}>
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+
+          <button
+            onClick={() => setAgencyFilter('direct_only')}
+            className={`px-2.5 py-1 rounded-xl text-xs font-bold whitespace-nowrap transition ${
+              agencyFilter === 'direct_only'
+                ? 'bg-slate-800 text-white shadow-sm'
+                : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
+            }`}
+          >
+            Direct Residential Only
+          </button>
+        </div>
+      )}
 
       {/* Active Filter Notice if specific agency is isolated */}
       {agencyFilter !== 'all' && (

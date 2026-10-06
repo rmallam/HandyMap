@@ -427,10 +427,10 @@ export const RoutePlannerView: React.FC<RoutePlannerViewProps> = ({
                                   {statusCfg.shortLabel}
                                 </span>
                                 
-                                {job.isAgencyJob && (
+                                {job.isAgencyJob && job.realEstateAgency && (
                                   <span className="text-[10px] font-bold text-purple-800 bg-purple-50 border border-purple-200 px-2 py-0.5 rounded-full flex items-center gap-1">
                                     <Building2 className="w-2.5 h-2.5" />
-                                    {job.realEstateAgency ? job.realEstateAgency.split(' ')[0] : 'Agency'}
+                                    {job.realEstateAgency.split(' ')[0]}
                                     {job.workOrderNumber && ` • ${job.workOrderNumber}`}
                                   </span>
                                 )}

@@ -109,7 +109,7 @@ export const QuickJobSheet: React.FC<QuickJobSheetProps> = ({
         </div>
 
         {/* Real Estate Agency Work Order Banner */}
-        {job.isAgencyJob && (
+        {job.isAgencyJob && job.realEstateAgency && (
           <div className="bg-purple-50/90 border border-purple-200/90 rounded-2xl p-2.5 text-xs flex items-center justify-between">
             <div>
               <div className="flex items-center gap-1.5 font-bold text-purple-900">
