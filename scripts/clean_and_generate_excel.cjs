@@ -721,7 +721,7 @@ const cleanedData = rawRows.map((row, idx) => {
     'Priority': determinePriority(notes),
     'Category': determineCategory(notes),
     'Description': cleanDescription || notes,
-    'Real Estate Agency': 'Ray White / Barry Plant Property Management',
+    'Real Estate Agency': '',
     'Agent Name': agentName,
     'Agent Phone': '',
     'Work Order No': workOrderNo.replace('Sent', '').trim(),

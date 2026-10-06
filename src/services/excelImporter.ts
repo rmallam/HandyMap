@@ -244,7 +244,7 @@ export async function parseSpreadsheetFile(file: File): Promise<{
             estimatedDurationMinutes: isNaN(estimatedDurationMinutes) ? 60 : estimatedDurationMinutes,
             
             isAgencyJob,
-            realEstateAgency: realEstateAgency || (isAgencyJob ? 'Ray White / Barry Plant Property Management' : undefined),
+            realEstateAgency: realEstateAgency || undefined,
             realEstateAgentName: realEstateAgentName || undefined,
             realEstateAgentPhone: realEstateAgentPhone || undefined,
             realEstateAgentEmail: realEstateAgentEmail || undefined,
