@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Mail,
   KeyRound,
@@ -12,9 +12,6 @@ import {
   X,
   Sparkles,
   ShieldCheck,
-  RefreshCw,
-  Zap,
-  Cloud,
   UserCheck,
   UserPlus,
   Database,
@@ -26,7 +23,6 @@ import {
   signUpWithPassword,
   sendPasswordReset,
   sendEmailOtp,
-  verifyEmailOtp,
   isSupabaseConfigured
 } from '../../services/supabase';
 
@@ -36,7 +32,7 @@ interface AuthModalProps {
   onLoginSuccess: (email: string) => void;
 }
 
-type AuthMode = 'password_login' | 'register' | 'otp_request' | 'otp_verify' | 'forgot_password' | 'success';
+type AuthMode = 'password_login' | 'register' | 'magic_link' | 'forgot_password' | 'link_sent' | 'success';
 
 export const AuthModal: React.FC<AuthModalProps> = ({
   isOpen,
@@ -47,21 +43,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
-  const [otpCode, setOtpCode] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [infoMessage, setInfoMessage] = useState<string | null>(null);
-  const [countdown, setCountdown] = useState<number>(0);
   const [showStorageInfo, setShowStorageInfo] = useState(false);
-  const otpInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!isOpen) {
       // Reset state when closed
       setMode('password_login');
       setPassword('');
-      setOtpCode('');
       setErrorMessage(null);
       setInfoMessage(null);
       setIsLoading(false);
@@ -69,27 +61,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     }
   }, [isOpen]);
 
-  // Countdown timer for OTP resend
-  useEffect(() => {
-    let timer: ReturnType<typeof setTimeout>;
-    if (countdown > 0) {
-      timer = setTimeout(() => setCountdown(c => c - 1), 1000);
-    }
-    return () => clearTimeout(timer);
-  }, [countdown]);
-
-  // Focus OTP input when mode changes to 'otp_verify'
-  useEffect(() => {
-    if (mode === 'otp_verify') {
-      setTimeout(() => {
-        otpInputRef.current?.focus();
-      }, 150);
-    }
-  }, [mode]);
-
   if (!isOpen) return null;
 
-  // 1. Password Sign In (Direct & Primary)
+  // 1. Password Sign In
   const handlePasswordSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) {
@@ -102,15 +76,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setIsLoading(true);
 
     if (!isSupabaseConfigured) {
-      // Local fallback mode when Supabase is unconfigured
       setTimeout(() => {
         setIsLoading(false);
         setMode('success');
         setTimeout(() => {
           onLoginSuccess(email);
           onClose();
-        }, 800);
-      }, 400);
+        }, 700);
+      }, 300);
       return;
     }
 
@@ -118,13 +91,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setIsLoading(false);
 
     if (error || !user) {
-      setErrorMessage(error || 'Invalid email or password. Please try again.');
+      setErrorMessage(
+        error || 'Invalid email or password. If you have not created an account yet, click Create Account below.'
+      );
     } else {
       setMode('success');
       setTimeout(() => {
         onLoginSuccess(user.email || email);
         onClose();
-      }, 800);
+      }, 700);
     }
   };
 
@@ -132,7 +107,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) {
-      setErrorMessage('Please provide an email and a password.');
+      setErrorMessage('Please provide both an email and a password.');
       return;
     }
     if (password.length < 6) {
@@ -151,8 +126,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         setTimeout(() => {
           onLoginSuccess(email);
           onClose();
-        }, 800);
-      }, 400);
+        }, 700);
+      }, 300);
       return;
     }
 
@@ -166,7 +141,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       setTimeout(() => {
         onLoginSuccess(user.email || email);
         onClose();
-      }, 800);
+      }, 700);
     }
   };
 
@@ -197,9 +172,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     }
   };
 
-  // 4. Send Email OTP & Magic Link
-  const handleSendOtp = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
+  // 4. Send 1-Click Magic Link
+  const handleSendMagicLink = async (e: React.FormEvent) => {
+    e.preventDefault();
     if (!email || !email.includes('@')) {
       setErrorMessage('Please enter a valid email address.');
       return;
@@ -211,7 +186,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
     if (!isSupabaseConfigured) {
       setIsLoading(false);
-      setErrorMessage('Supabase is not configured yet. You can use 1-Click Demo Login or Password Sign In.');
+      setErrorMessage('Supabase credentials not configured.');
       return;
     }
 
@@ -221,38 +196,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     if (error) {
       setErrorMessage(error);
     } else {
-      setMode('otp_verify');
-      setCountdown(45);
+      setMode('link_sent');
     }
   };
 
-  // 5. Verify OTP
-  const handleVerifyOtp = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    const cleanOtp = otpCode.trim();
-    if (cleanOtp.length < 6) {
-      setErrorMessage('Please enter the full 6-digit verification code.');
-      return;
-    }
-
-    setErrorMessage(null);
-    setIsLoading(true);
-
-    const { user, error } = await verifyEmailOtp(email, cleanOtp);
-    setIsLoading(false);
-
-    if (error || !user) {
-      setErrorMessage(error || 'Invalid or expired verification code.');
-    } else {
-      setMode('success');
-      setTimeout(() => {
-        onLoginSuccess(user.email || email);
-        onClose();
-      }, 800);
-    }
-  };
-
-  // 6. 1-Click Demo Login
+  // 5. 1-Click Demo Login
   const handleQuickDemoLogin = () => {
     setIsLoading(true);
     setTimeout(() => {
@@ -262,7 +210,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         onLoginSuccess('alex@apexhandyman.com.au');
         onClose();
       }, 600);
-    }, 300);
+    }, 200);
   };
 
   return (
@@ -285,7 +233,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 </span>
               </h2>
               <p className="text-[11px] sm:text-xs text-slate-300">
-                Secure Account & Isolated Job Database
+                Isolated Database & Profile Management
               </p>
             </div>
           </div>
@@ -298,8 +246,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           </button>
         </div>
 
-        {/* Auth Mode Tabs (Password vs Sign Up vs Email Link) */}
-        {mode !== 'success' && (
+        {/* Auth Mode Tabs */}
+        {mode !== 'success' && mode !== 'link_sent' && (
           <div className="flex items-center p-1.5 bg-slate-100 border-b border-slate-200 text-xs font-bold text-slate-600 select-none">
             <button
               type="button"
@@ -338,18 +286,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             <button
               type="button"
               onClick={() => {
-                setMode('otp_request');
+                setMode('magic_link');
                 setErrorMessage(null);
                 setInfoMessage(null);
               }}
               className={`flex-1 py-2 rounded-xl transition flex items-center justify-center gap-1.5 ${
-                mode === 'otp_request' || mode === 'otp_verify'
+                mode === 'magic_link'
                   ? 'bg-white text-blue-600 shadow-xs'
                   : 'hover:text-slate-900'
               }`}
             >
               <Mail className="w-3.5 h-3.5" />
-              <span>Email Link / Code</span>
+              <span>Email Link</span>
             </button>
           </div>
         )}
@@ -358,9 +306,24 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         <div className="p-5 sm:p-6 space-y-4 text-slate-900">
           {/* Error Message Toast */}
           {errorMessage && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-3.5 py-2.5 rounded-xl text-xs flex items-start gap-2 animate-in fade-in">
-              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-600" />
-              <div className="flex-1 leading-relaxed">{errorMessage}</div>
+            <div className="bg-red-50 border border-red-200 text-red-700 px-3.5 py-2.5 rounded-xl text-xs flex flex-col gap-1.5 animate-in fade-in">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-600" />
+                <div className="flex-1 leading-relaxed">{errorMessage}</div>
+              </div>
+
+              {mode === 'password_login' && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode('register');
+                    setErrorMessage(null);
+                  }}
+                  className="text-[11px] font-bold text-blue-600 hover:underline text-left pl-6"
+                >
+                  Click here to register this account with a password →
+                </button>
+              )}
             </div>
           )}
 
@@ -372,12 +335,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             </div>
           )}
 
-          {/* TAB 1: PASSWORD SIGN IN (DIRECT & INSTANT) */}
+          {/* TAB 1: PASSWORD SIGN IN */}
           {mode === 'password_login' && (
             <form onSubmit={handlePasswordSignIn} className="space-y-3.5">
               <div>
                 <label className="text-xs font-bold text-slate-700 block mb-1">
-                  Email Address / Username
+                  Email Address
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
@@ -419,7 +382,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     required
                     value={password}
                     onChange={e => setPassword(e.target.value)}
-                    placeholder="Enter your password"
+                    placeholder="Enter password"
                     className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-medium focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-100 outline-none transition"
                   />
                   <button
@@ -444,7 +407,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   </>
                 ) : (
                   <>
-                    <span>Sign In with Password</span>
+                    <span>Sign In</span>
                     <ArrowRight className="w-4 h-4" />
                   </>
                 )}
@@ -507,7 +470,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     minLength={6}
                     value={password}
                     onChange={e => setPassword(e.target.value)}
-                    placeholder="Create a secure password"
+                    placeholder="Choose a password"
                     className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-medium focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-100 outline-none transition"
                   />
                   <button
@@ -533,7 +496,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 ) : (
                   <>
                     <UserPlus className="w-4 h-4" />
-                    <span>Register Account & Sync</span>
+                    <span>Register Account & Log In</span>
                   </>
                 )}
               </button>
@@ -544,12 +507,44 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           {mode === 'forgot_password' && (
             <form onSubmit={handleForgotPassword} className="space-y-3.5">
               <div className="text-center space-y-1">
-                <h3 className="text-sm font-bold text-slate-900">Reset Your Password</h3>
+                <h3 className="text-sm font-bold text-slate-900">Reset Password</h3>
                 <p className="text-xs text-slate-500">
-                  Enter your registered email address to receive a password reset link.
+                  Enter your email to receive a password reset link.
                 </p>
               </div>
 
+              <div>
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  placeholder="e.g. alex@apexhandyman.com.au"
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-medium focus:border-blue-500 focus:bg-white outline-none transition"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={isLoading || !email}
+                className="w-full py-3 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:bg-slate-200 text-white font-bold text-xs sm:text-sm shadow-md transition"
+              >
+                {isLoading ? 'Sending...' : 'Send Reset Link'}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setMode('password_login')}
+                className="w-full text-center text-xs text-blue-600 font-bold hover:underline block pt-1"
+              >
+                Back to Sign In
+              </button>
+            </form>
+          )}
+
+          {/* TAB 4: 1-CLICK MAGIC LINK */}
+          {mode === 'magic_link' && (
+            <form onSubmit={handleSendMagicLink} className="space-y-3.5">
               <div>
                 <label className="text-xs font-bold text-slate-700 block mb-1">
                   Email Address
@@ -564,74 +559,27 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     value={email}
                     onChange={e => setEmail(e.target.value)}
                     placeholder="e.g. alex@apexhandyman.com.au"
-                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-medium focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-100 outline-none transition"
-                  />
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={isLoading || !email}
-                className="w-full py-3 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:bg-slate-200 disabled:text-slate-400 text-white font-bold text-xs sm:text-sm shadow-md transition flex items-center justify-center gap-2 active:scale-[0.99]"
-              >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Sending Reset Link...</span>
-                  </>
-                ) : (
-                  <span>Send Password Reset Link</span>
-                )}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setMode('password_login')}
-                className="w-full text-center text-xs text-blue-600 font-bold hover:underline block pt-1"
-              >
-                Back to Sign In
-              </button>
-            </form>
-          )}
-
-          {/* TAB 4: EMAIL LINK / OTP REQUEST */}
-          {mode === 'otp_request' && (
-            <form onSubmit={handleSendOtp} className="space-y-3.5">
-              <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">
-                  Email Address (Passwordless)
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-                    <Mail className="w-4 h-4" />
-                  </div>
-                  <input
-                    type="email"
-                    required
-                    value={email}
-                    onChange={e => setEmail(e.target.value)}
-                    placeholder="e.g. alex@apexhandyman.com.au"
-                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-medium focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-100 outline-none transition"
+                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-medium focus:border-blue-500 focus:bg-white outline-none transition"
                   />
                 </div>
                 <p className="text-[11px] text-slate-500 mt-1.5">
-                  We'll email you a 1-click Sign-In Link AND a 6-digit verification code.
+                  We will email you a secure 1-click link to log in directly without a password.
                 </p>
               </div>
 
               <button
                 type="submit"
                 disabled={isLoading || !email}
-                className="w-full py-3 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:bg-slate-200 disabled:text-slate-400 text-white font-bold text-xs sm:text-sm shadow-md transition flex items-center justify-center gap-2 active:scale-[0.99]"
+                className="w-full py-3 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:bg-slate-200 text-white font-bold text-xs sm:text-sm shadow-md transition flex items-center justify-center gap-2 active:scale-[0.99]"
               >
                 {isLoading ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Sending Email Link & Code...</span>
+                    <span>Sending Link...</span>
                   </>
                 ) : (
                   <>
-                    <span>Send Sign-In Link & Code</span>
+                    <span>Send Sign-In Link to Email</span>
                     <ArrowRight className="w-4 h-4" />
                   </>
                 )}
@@ -639,86 +587,24 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             </form>
           )}
 
-          {/* TAB 5: OTP VERIFY / MAGIC LINK WAITING */}
-          {mode === 'otp_verify' && (
-            <form onSubmit={handleVerifyOtp} className="space-y-4">
-              <div className="text-center space-y-1">
-                <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto mb-2 border border-blue-100">
-                  <Mail className="w-6 h-6" />
-                </div>
-                <h3 className="text-sm font-black text-slate-900">Check Your Email Inbox</h3>
-                <p className="text-xs text-slate-500">
-                  We sent a sign-in email to <span className="font-bold text-slate-700">{email}</span>
-                </p>
+          {/* TAB 5: LINK SENT NOTIFICATION */}
+          {mode === 'link_sent' && (
+            <div className="py-4 text-center space-y-3 animate-in zoom-in-95">
+              <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto border border-blue-100">
+                <Mail className="w-6 h-6" />
               </div>
-
-              {/* Instructions banner */}
-              <div className="bg-slate-50 rounded-2xl p-3 border border-slate-200/80 text-[11px] text-slate-600 space-y-1">
-                <p className="font-bold text-slate-800">You can log in either way:</p>
-                <div className="flex items-center gap-2">
-                  <span className="w-4 h-4 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-[10px]">1</span>
-                  <span><strong>Click the sign-in link</strong> inside your email (logs in instantly).</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="w-4 h-4 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-[10px]">2</span>
-                  <span><strong>Or enter the 6-digit code</strong> from the email below:</span>
-                </div>
-              </div>
-
-              <div>
-                <input
-                  ref={otpInputRef}
-                  type="text"
-                  inputMode="numeric"
-                  autoComplete="one-time-code"
-                  maxLength={6}
-                  value={otpCode}
-                  onChange={e => {
-                    const val = e.target.value.replace(/\D/g, '');
-                    setOtpCode(val);
-                    if (errorMessage) setErrorMessage(null);
-                  }}
-                  placeholder="123456"
-                  className="w-full text-center tracking-[0.5em] font-mono text-2xl font-black py-3 bg-slate-50 border-2 border-slate-200 rounded-2xl text-slate-900 focus:border-blue-600 focus:bg-white outline-none transition"
-                />
-              </div>
-
+              <h3 className="text-sm font-black text-slate-900">Check Your Email</h3>
+              <p className="text-xs text-slate-600 max-w-xs mx-auto leading-relaxed">
+                We sent a sign-in link to <strong className="text-slate-800">{email}</strong>. Open the email on this device and click the link to log in automatically.
+              </p>
               <button
-                type="submit"
-                disabled={isLoading || otpCode.length < 6}
-                className="w-full py-3 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:bg-slate-200 disabled:text-slate-400 text-white font-bold text-xs sm:text-sm shadow-md transition flex items-center justify-center gap-2 active:scale-[0.99]"
+                type="button"
+                onClick={() => setMode('password_login')}
+                className="text-xs text-blue-600 font-bold hover:underline block mx-auto pt-2"
               >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Verifying Code...</span>
-                  </>
-                ) : (
-                  <>
-                    <UserCheck className="w-4 h-4" />
-                    <span>Verify Code & Sign In</span>
-                  </>
-                )}
+                ← Back to Password Login
               </button>
-
-              <div className="text-center pt-1">
-                {countdown > 0 ? (
-                  <span className="text-[11px] text-slate-400 font-medium">
-                    Resend in <strong className="text-slate-600 font-mono">{countdown}s</strong>
-                  </span>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={handleSendOtp}
-                    disabled={isLoading}
-                    className="text-[11px] text-blue-600 hover:text-blue-700 font-bold flex items-center justify-center gap-1 mx-auto hover:underline"
-                  >
-                    <RefreshCw className="w-3 h-3" />
-                    <span>Resend Email Link & Code</span>
-                  </button>
-                )}
-              </div>
-            </form>
+            </div>
           )}
 
           {/* TAB 6: SUCCESS */}
@@ -729,13 +615,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               </div>
               <h3 className="text-base font-black text-slate-900">Signed In Successfully!</h3>
               <p className="text-xs text-slate-500 max-w-xs mx-auto">
-                Your profile, ABN, and handyman jobs are now securely isolated and saved in your database.
+                Your profile, ABN, and handyman jobs are now securely loaded.
               </p>
             </div>
           )}
 
-          {/* 1-Click Instant Demo Login (for sandbox preview) */}
-          {mode !== 'success' && (
+          {/* 1-Click Demo Login Button */}
+          {mode !== 'success' && mode !== 'link_sent' && (
             <div className="pt-2 border-t border-slate-100 space-y-2">
               <button
                 type="button"
@@ -744,10 +630,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 className="w-full py-2.5 px-4 rounded-xl bg-indigo-50 hover:bg-indigo-100/80 border border-indigo-200/80 text-indigo-700 font-bold text-xs shadow-xs transition flex items-center justify-center gap-2 active:scale-[0.99]"
               >
                 <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
-                <span>1-Click Demo Login (Alex Miller • Point Cook)</span>
+                <span>1-Click Demo Preview (Alex Miller • Point Cook)</span>
               </button>
 
-              {/* Database & Storage Explanation Toggle */}
               <div className="text-center pt-1">
                 <button
                   type="button"
@@ -755,7 +640,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   className="text-[11px] text-slate-500 hover:text-slate-800 font-semibold inline-flex items-center gap-1"
                 >
                   <Database className="w-3 h-3 text-slate-400" />
-                  <span>How is my job data kept private?</span>
+                  <span>How is my data stored?</span>
                   <HelpCircle className="w-3 h-3 text-slate-400" />
                 </button>
               </div>
@@ -764,10 +649,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <div className="bg-slate-50 rounded-2xl p-3 border border-slate-200/80 text-[11px] text-slate-600 space-y-1.5 animate-in fade-in">
                   <div className="font-bold text-slate-800 flex items-center gap-1.5">
                     <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                    <span>Strict Row-Level Security (RLS)</span>
+                    <span>Multi-Tenant PostgreSQL Isolation</span>
                   </div>
                   <p>
-                    Each handyman account has its own isolated records in PostgreSQL. Jobs and profile data are filtered strictly by your unique user account ID.
+                    Every handyman has a private account. Your database records are strictly isolated to your user account and are never visible to other users.
                   </p>
                 </div>
               )}
