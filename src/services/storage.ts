@@ -1,21 +1,27 @@
 import { Job, HandymanProfile } from '../types';
 import { INITIAL_JOBS, DEFAULT_PROFILE } from '../data/mockJobs';
 
-const JOBS_STORAGE_KEY = 'handymap_jobs_v2_point_cook';
-const PROFILE_STORAGE_KEY = 'handymap_profile_v2_point_cook';
+const JOBS_STORAGE_KEY = 'handymap_jobs_v3_clean';
+const PROFILE_STORAGE_KEY = 'handymap_profile_v3_clean';
 
 export function loadJobs(): Job[] {
   try {
+    // Clear old legacy keys with stale mock jobs
+    if (typeof window !== 'undefined' && window.localStorage) {
+      localStorage.removeItem('handymap_jobs_v2_point_cook');
+      localStorage.removeItem('handymap_jobs_v1');
+    }
+
     const raw = localStorage.getItem(JOBS_STORAGE_KEY);
-    if (raw === null) {
-      saveJobs(INITIAL_JOBS);
-      return INITIAL_JOBS;
+    if (!raw) {
+      saveJobs([]);
+      return [];
     }
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : INITIAL_JOBS;
+    return Array.isArray(parsed) ? parsed : [];
   } catch (err) {
     console.error('Failed to load jobs from localStorage:', err);
-    return INITIAL_JOBS;
+    return [];
   }
 }
 
@@ -30,7 +36,7 @@ export function saveJobs(jobs: Job[]): void {
 export function loadProfile(): HandymanProfile {
   try {
     const raw = localStorage.getItem(PROFILE_STORAGE_KEY);
-    if (raw === null) {
+    if (!raw) {
       saveProfile(DEFAULT_PROFILE);
       return DEFAULT_PROFILE;
     }
@@ -50,7 +56,6 @@ export function saveProfile(profile: HandymanProfile): void {
 }
 
 export function resetToDemoData(): Job[] {
-  saveJobs(INITIAL_JOBS);
-  saveProfile(DEFAULT_PROFILE);
-  return INITIAL_JOBS;
+  saveJobs([]);
+  return [];
 }
