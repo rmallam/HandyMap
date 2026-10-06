@@ -82,14 +82,9 @@ export function App() {
 
     // 2. Fetch user's isolated jobs
     const cloudJobs = await fetchJobsFromSupabase(userId);
-    if (cloudJobs && cloudJobs.length > 0) {
+    if (cloudJobs !== null) {
       setJobs(cloudJobs);
       saveJobs(cloudJobs);
-    } else {
-      // First-time user: seed initial mock jobs scoped to their user_id
-      const initial = loadJobs();
-      setJobs(initial);
-      await seedJobsToSupabaseIfEmpty(initial, userId);
     }
   };
 

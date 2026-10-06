@@ -7,12 +7,12 @@ const PROFILE_STORAGE_KEY = 'handymap_profile_v2_point_cook';
 export function loadJobs(): Job[] {
   try {
     const raw = localStorage.getItem(JOBS_STORAGE_KEY);
-    if (!raw) {
+    if (raw === null) {
       saveJobs(INITIAL_JOBS);
       return INITIAL_JOBS;
     }
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) && parsed.length > 0 ? parsed : INITIAL_JOBS;
+    return Array.isArray(parsed) ? parsed : INITIAL_JOBS;
   } catch (err) {
     console.error('Failed to load jobs from localStorage:', err);
     return INITIAL_JOBS;
@@ -30,7 +30,7 @@ export function saveJobs(jobs: Job[]): void {
 export function loadProfile(): HandymanProfile {
   try {
     const raw = localStorage.getItem(PROFILE_STORAGE_KEY);
-    if (!raw) {
+    if (raw === null) {
       saveProfile(DEFAULT_PROFILE);
       return DEFAULT_PROFILE;
     }
