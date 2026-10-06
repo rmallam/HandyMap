@@ -1,6 +1,6 @@
 import { createClient, User, Session } from '@supabase/supabase-js';
 import { Job, HandymanProfile } from '../types';
-import { DEFAULT_PROFILE } from '../data/mockJobs';
+import { DEFAULT_PROFILE, INITIAL_JOBS } from '../data/mockJobs';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
@@ -16,7 +16,7 @@ export const supabase = isSupabaseConfigured
 // ============================================================================
 
 /**
- * Sign in with email and password
+ * Sign in with email and password (Primary & Direct)
  */
 export async function signInWithPassword(
   email: string,
@@ -52,7 +52,8 @@ export async function signUpWithPassword(
       password,
       options: {
         data: {
-          full_name: fullName || 'Handyman Professional'
+          name: fullName || 'Handyman Professional',
+          business_name: fullName || 'My Handyman Business'
         }
       }
     });
@@ -80,7 +81,7 @@ export async function sendPasswordReset(email: string): Promise<{ error: string 
 }
 
 /**
- * Send a 6-digit OTP code to the handyman's email address
+ * Send Email OTP & Magic Link to the handyman's email address
  */
 export async function sendEmailOtp(email: string): Promise<{ error: string | null }> {
   if (!supabase) return { error: 'Supabase is not configured' };
@@ -88,7 +89,8 @@ export async function sendEmailOtp(email: string): Promise<{ error: string | nul
     const { error } = await supabase.auth.signInWithOtp({
       email: email.trim().toLowerCase(),
       options: {
-        shouldCreateUser: true
+        shouldCreateUser: true,
+        emailRedirectTo: window.location.origin
       }
     });
     if (error) {
@@ -96,7 +98,7 @@ export async function sendEmailOtp(email: string): Promise<{ error: string | nul
     }
     return { error: null };
   } catch (err: any) {
-    return { error: err.message || 'Failed to send verification code' };
+    return { error: err.message || 'Failed to send verification email' };
   }
 }
 
@@ -162,7 +164,7 @@ export async function getCurrentSession(): Promise<Session | null> {
 }
 
 // ============================================================================
-// PROFILE PERSISTENCE (Synced to public.profiles table)
+// PROFILE PERSISTENCE (Scoped per user)
 // ============================================================================
 
 export function mapRowToProfile(row: any): HandymanProfile {
@@ -212,7 +214,7 @@ export function mapProfileToRow(userId: string, profile: HandymanProfile): any {
 }
 
 export async function fetchUserProfile(userId: string): Promise<HandymanProfile | null> {
-  if (!supabase) return null;
+  if (!supabase || !userId) return null;
   try {
     const { data, error } = await supabase
       .from('profiles')
@@ -232,7 +234,7 @@ export async function fetchUserProfile(userId: string): Promise<HandymanProfile 
 }
 
 export async function upsertUserProfile(userId: string, profile: HandymanProfile): Promise<boolean> {
-  if (!supabase) return false;
+  if (!supabase || !userId) return false;
   try {
     const row = mapProfileToRow(userId, profile);
     const { error } = await supabase.from('profiles').upsert(row);
@@ -248,7 +250,7 @@ export async function upsertUserProfile(userId: string, profile: HandymanProfile
 }
 
 // ============================================================================
-// JOBS PERSISTENCE & MULTI-TENANCY
+// JOBS PERSISTENCE & STRICT USER ISOLATION
 // ============================================================================
 
 function mapRowToJob(row: any): Job {
@@ -289,10 +291,10 @@ function mapRowToJob(row: any): Job {
   };
 }
 
-function mapJobToRow(job: Job, userId?: string): any {
+function mapJobToRow(job: Job, userId: string): any {
   return {
     id: job.id,
-    user_id: userId || null,
+    user_id: userId,
     job_number: job.jobNumber,
     title: job.title,
     client_name: job.clientName,
@@ -328,14 +330,17 @@ function mapJobToRow(job: Job, userId?: string): any {
   };
 }
 
-export async function fetchJobsFromSupabase(userId?: string): Promise<Job[] | null> {
-  if (!supabase) return null;
+/**
+ * Fetch jobs strictly isolated to the authenticated user ID
+ */
+export async function fetchJobsFromSupabase(userId: string): Promise<Job[] | null> {
+  if (!supabase || !userId) return null;
   try {
-    let query = supabase.from('jobs').select('*');
-    if (userId) {
-      query = query.or(`user_id.eq.${userId},user_id.is.null`);
-    }
-    const { data, error } = await query.order('created_at', { ascending: false });
+    const { data, error } = await supabase
+      .from('jobs')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
 
     if (error) {
       console.warn('Supabase jobs fetch error:', error.message);
@@ -348,8 +353,11 @@ export async function fetchJobsFromSupabase(userId?: string): Promise<Job[] | nu
   }
 }
 
-export async function upsertJobInSupabase(job: Job, userId?: string): Promise<boolean> {
-  if (!supabase) return false;
+/**
+ * Upsert a single job scoped to the user ID
+ */
+export async function upsertJobInSupabase(job: Job, userId: string): Promise<boolean> {
+  if (!supabase || !userId) return false;
   try {
     const row = mapJobToRow(job, userId);
     const { error } = await supabase.from('jobs').upsert(row);
@@ -364,8 +372,11 @@ export async function upsertJobInSupabase(job: Job, userId?: string): Promise<bo
   }
 }
 
-export async function batchUpsertJobsInSupabase(jobsList: Job[], userId?: string): Promise<boolean> {
-  if (!supabase || jobsList.length === 0) return false;
+/**
+ * Batch upsert jobs strictly scoped to the user ID
+ */
+export async function batchUpsertJobsInSupabase(jobsList: Job[], userId: string): Promise<boolean> {
+  if (!supabase || !userId || jobsList.length === 0) return false;
   try {
     const rows = jobsList.map(j => mapJobToRow(j, userId));
     const { error } = await supabase.from('jobs').upsert(rows);
@@ -380,10 +391,18 @@ export async function batchUpsertJobsInSupabase(jobsList: Job[], userId?: string
   }
 }
 
-export async function deleteJobFromSupabase(jobId: string): Promise<boolean> {
-  if (!supabase) return false;
+/**
+ * Delete a job strictly scoped to the user ID
+ */
+export async function deleteJobFromSupabase(jobId: string, userId: string): Promise<boolean> {
+  if (!supabase || !userId) return false;
   try {
-    const { error } = await supabase.from('jobs').delete().eq('id', jobId);
+    const { error } = await supabase
+      .from('jobs')
+      .delete()
+      .eq('id', jobId)
+      .eq('user_id', userId);
+      
     if (error) {
       console.warn('Supabase job delete error:', error.message);
       return false;
@@ -395,11 +414,18 @@ export async function deleteJobFromSupabase(jobId: string): Promise<boolean> {
   }
 }
 
-export async function seedJobsToSupabaseIfEmpty(initialJobs: Job[], userId?: string): Promise<void> {
-  if (!supabase) return;
+/**
+ * Seed initial mock jobs strictly for a specific user if their account has no jobs yet
+ */
+export async function seedJobsToSupabaseIfEmpty(initialJobs: Job[], userId: string): Promise<void> {
+  if (!supabase || !userId) return;
   try {
-    const { count, error } = await supabase.from('jobs').select('*', { count: 'exact', head: true });
-    if (error || count === 0) {
+    const { count, error } = await supabase
+      .from('jobs')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId);
+
+    if (!error && (count === null || count === 0)) {
       const rows = initialJobs.map(j => mapJobToRow(j, userId));
       await supabase.from('jobs').upsert(rows);
     }

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Job, JobStatus, OptimizedRoute, HandymanProfile } from './types';
 import { loadJobs, saveJobs, loadProfile, saveProfile, resetToDemoData } from './services/storage';
+import { INITIAL_JOBS, DEFAULT_PROFILE } from './data/mockJobs';
 import {
   isSupabaseConfigured,
   supabase,
@@ -9,7 +10,7 @@ import {
   batchUpsertJobsInSupabase,
   deleteJobFromSupabase,
   seedJobsToSupabaseIfEmpty,
-  getCurrentUser,
+  getCurrentSession,
   signOutUser,
   fetchUserProfile,
   upsertUserProfile
@@ -64,6 +65,34 @@ export function App() {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
+  // Load user-specific jobs and profile from Supabase
+  const loadUserData = async (userId: string, userEmail?: string | null) => {
+    setCurrentUserId(userId);
+    if (userEmail) setCurrentUserEmail(userEmail);
+
+    // 1. Fetch user's isolated profile
+    const cloudProfile = await fetchUserProfile(userId);
+    if (cloudProfile) {
+      setProfile(cloudProfile);
+      saveProfile(cloudProfile);
+    } else {
+      const currentLocal = loadProfile();
+      await upsertUserProfile(userId, currentLocal);
+    }
+
+    // 2. Fetch user's isolated jobs
+    const cloudJobs = await fetchJobsFromSupabase(userId);
+    if (cloudJobs && cloudJobs.length > 0) {
+      setJobs(cloudJobs);
+      saveJobs(cloudJobs);
+    } else {
+      // First-time user: seed initial mock jobs scoped to their user_id
+      const initial = loadJobs();
+      setJobs(initial);
+      await seedJobsToSupabaseIfEmpty(initial, userId);
+    }
+  };
+
   // Initialize GPS location lock and Auth session
   useEffect(() => {
     // 1. Attempt automatic GPS location lock
@@ -83,33 +112,16 @@ export function App() {
     // 2. Initialize Auth state & Supabase data sync
     async function initAuthAndData() {
       if (isSupabaseConfigured && supabase) {
-        // Check existing authenticated user
-        const user = await getCurrentUser();
-        if (user) {
-          setCurrentUserId(user.id);
-          setCurrentUserEmail(user.email || null);
-
-          // Fetch cloud profile
-          const cloudProfile = await fetchUserProfile(user.id);
-          if (cloudProfile) {
-            setProfile(cloudProfile);
-            saveProfile(cloudProfile);
-          } else {
-            // Upsert existing local profile as initial user profile
-            const currentLocal = loadProfile();
-            await upsertUserProfile(user.id, currentLocal);
-          }
-        }
-
-        // Fetch cloud jobs
-        const cloudJobs = await fetchJobsFromSupabase(user?.id);
-        if (cloudJobs && cloudJobs.length > 0) {
-          setJobs(cloudJobs);
-          saveJobs(cloudJobs);
+        // Check existing active session or URL token
+        const session = await getCurrentSession();
+        if (session?.user) {
+          await loadUserData(session.user.id, session.user.email);
         } else {
-          const local = loadJobs();
-          setJobs(local);
-          await seedJobsToSupabaseIfEmpty(local, user?.id);
+          // Unauthenticated: load local browser sandbox
+          const localJobs = loadJobs();
+          setJobs(localJobs);
+          const localProfile = loadProfile();
+          setProfile(localProfile);
         }
 
         // Realtime Postgres Changes Subscription
@@ -118,29 +130,34 @@ export function App() {
           .on(
             'postgres_changes',
             { event: '*', schema: 'public', table: 'jobs' },
-            async () => {
-              const refreshed = await fetchJobsFromSupabase(currentUserId || undefined);
-              if (refreshed) {
-                setJobs(refreshed);
-                saveJobs(refreshed);
+            async (payload: any) => {
+              // Only refresh if the change belongs to the current user
+              if (currentUserId && (!payload.new?.user_id || payload.new.user_id === currentUserId)) {
+                const refreshed = await fetchJobsFromSupabase(currentUserId);
+                if (refreshed) {
+                  setJobs(refreshed);
+                  saveJobs(refreshed);
+                }
               }
             }
           )
           .subscribe();
 
-        // Auth state listener
-        const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
-          if (session?.user) {
-            setCurrentUserId(session.user.id);
-            setCurrentUserEmail(session.user.email || null);
-            const userProf = await fetchUserProfile(session.user.id);
-            if (userProf) {
-              setProfile(userProf);
-              saveProfile(userProf);
+        // Auth state listener (Handles direct password login, OTP code, or Magic Link redirect clicks)
+        const { data: authListener } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
+          if (currentSession?.user) {
+            await loadUserData(currentSession.user.id, currentSession.user.email);
+            setIsAuthModalOpen(false);
+
+            // Clean URL hash if magic link / auth token was present in URL
+            if (window.location.hash || window.location.search.includes('code=')) {
+              window.history.replaceState(null, '', window.location.pathname);
             }
-          } else {
+          } else if (event === 'SIGNED_OUT') {
             setCurrentUserId(null);
             setCurrentUserEmail(null);
+            const localJobs = loadJobs();
+            setJobs(localJobs);
           }
         });
 
@@ -160,7 +177,7 @@ export function App() {
     initAuthAndData();
   }, []);
 
-  // Update jobs state, localStorage and Supabase
+  // Update jobs state and localStorage
   const handleUpdateJobsList = (newJobs: Job[]) => {
     setJobs(newJobs);
     saveJobs(newJobs);
@@ -171,9 +188,9 @@ export function App() {
     handleUpdateJobsList(nextJobs);
     setSelectedJob(updatedJob);
 
-    // Sync to Supabase if active
-    if (isSupabaseConfigured) {
-      upsertJobInSupabase(updatedJob, currentUserId || undefined);
+    // Sync to Supabase strictly scoped to current user
+    if (isSupabaseConfigured && currentUserId) {
+      upsertJobInSupabase(updatedJob, currentUserId);
     }
 
     // If active route contains this job, update its reference
@@ -192,8 +209,8 @@ export function App() {
       setSelectedJob(null);
       setIsJobDetailOpen(false);
     }
-    if (isSupabaseConfigured) {
-      deleteJobFromSupabase(jobId);
+    if (isSupabaseConfigured && currentUserId) {
+      deleteJobFromSupabase(jobId, currentUserId);
     }
     if (activeRoute) {
       const nextStops = activeRoute.stops.filter(stop => stop.job.id !== jobId);
@@ -206,8 +223,8 @@ export function App() {
     handleUpdateJobsList(nextJobs);
     setSelectedJob(newJob);
     setActiveTab('map');
-    if (isSupabaseConfigured) {
-      upsertJobInSupabase(newJob, currentUserId || undefined);
+    if (isSupabaseConfigured && currentUserId) {
+      upsertJobInSupabase(newJob, currentUserId);
     }
   };
 
@@ -215,8 +232,8 @@ export function App() {
     const nextJobs = [...importedJobs, ...jobs];
     handleUpdateJobsList(nextJobs);
     setActiveTab('jobs');
-    if (isSupabaseConfigured) {
-      await batchUpsertJobsInSupabase(importedJobs, currentUserId || undefined);
+    if (isSupabaseConfigured && currentUserId) {
+      await batchUpsertJobsInSupabase(importedJobs, currentUserId);
     }
   };
 
@@ -310,21 +327,9 @@ export function App() {
   const handleLoginSuccess = async (email: string) => {
     setCurrentUserEmail(email);
     if (isSupabaseConfigured) {
-      const user = await getCurrentUser();
-      if (user) {
-        setCurrentUserId(user.id);
-        const prof = await fetchUserProfile(user.id);
-        if (prof) {
-          setProfile(prof);
-          saveProfile(prof);
-        } else {
-          await upsertUserProfile(user.id, profile);
-        }
-        const cloudJobs = await fetchJobsFromSupabase(user.id);
-        if (cloudJobs && cloudJobs.length > 0) {
-          setJobs(cloudJobs);
-          saveJobs(cloudJobs);
-        }
+      const session = await getCurrentSession();
+      if (session?.user) {
+        await loadUserData(session.user.id, email);
       }
     }
   };
@@ -335,6 +340,8 @@ export function App() {
     }
     setCurrentUserId(null);
     setCurrentUserEmail(null);
+    setJobs(INITIAL_JOBS);
+    setProfile(DEFAULT_PROFILE);
   };
 
   const handleResetDemoData = () => {
@@ -346,8 +353,8 @@ export function App() {
     setIsUsingGPS(false);
     setSnoozedReminderIds([]);
     saveSnoozedReminderIds([]);
-    if (isSupabaseConfigured) {
-      seedJobsToSupabaseIfEmpty(demo, currentUserId || undefined);
+    if (isSupabaseConfigured && currentUserId) {
+      seedJobsToSupabaseIfEmpty(demo, currentUserId);
     }
   };
 

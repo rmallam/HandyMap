@@ -1,6 +1,6 @@
 -- ==============================================================================
 -- HandyMap PRO - Supabase PostgreSQL Database Schema
--- Multi-Tenancy, Persistent Profiles, Email OTP Auth & Jobs Directory
+-- Multi-Tenancy, Isolated Profiles, Email & Password Auth, and Jobs Directory
 -- ==============================================================================
 
 -- 1. Enable UUID extension
@@ -29,10 +29,10 @@ create table if not exists public.profiles (
   updated_at timestamp with time zone default now()
 );
 
--- 3. Jobs Table (linked to user_id for multi-tenant isolation)
+-- 3. Jobs Table (strictly linked to user_id for multi-tenant isolation)
 create table if not exists public.jobs (
   id text primary key, -- 'job-101' or uuid string
-  user_id uuid references auth.users(id) on delete cascade,
+  user_id uuid references auth.users(id) on delete cascade not null,
   job_number text not null,
   title text not null,
   client_name text not null,
@@ -68,46 +68,47 @@ create table if not exists public.jobs (
   updated_at timestamp with time zone default now()
 );
 
--- 4. Fast Indexes
+-- 4. Fast Performance Indexes
 create index if not exists idx_jobs_user_id on public.jobs(user_id);
 create index if not exists idx_jobs_status on public.jobs(status);
 create index if not exists idx_jobs_suburb on public.jobs(suburb);
 create index if not exists idx_jobs_agency on public.jobs(real_estate_agency);
 create index if not exists idx_jobs_created_at on public.jobs(created_at desc);
 
--- 5. Row Level Security (RLS)
+-- 5. Strict Row Level Security (RLS) Policies
+-- Each handyman user can ONLY view, insert, update, or delete their OWN data!
 alter table public.jobs enable row level security;
 alter table public.profiles enable row level security;
 
--- Profiles Policies: Users can view, insert, and update their own profile
+-- Profiles Policies:
 drop policy if exists "Allow select profiles" on public.profiles;
 create policy "Allow select profiles" on public.profiles
-  for select using (auth.uid() = id or auth.uid() is null);
+  for select using (auth.uid() = id);
 
 drop policy if exists "Allow insert profiles" on public.profiles;
 create policy "Allow insert profiles" on public.profiles
-  for insert with check (auth.uid() = id or auth.uid() is null);
+  for insert with check (auth.uid() = id);
 
 drop policy if exists "Allow update profiles" on public.profiles;
 create policy "Allow update profiles" on public.profiles
-  for update using (auth.uid() = id or auth.uid() is null);
+  for update using (auth.uid() = id);
 
--- Jobs Policies: Multi-tenancy with unauthenticated fallback
+-- Jobs Policies:
 drop policy if exists "Allow select jobs" on public.jobs;
 create policy "Allow select jobs" on public.jobs
-  for select using (auth.uid() = user_id or user_id is null or auth.uid() is null);
+  for select using (auth.uid() = user_id);
 
 drop policy if exists "Allow insert jobs" on public.jobs;
 create policy "Allow insert jobs" on public.jobs
-  for insert with check (auth.uid() = user_id or user_id is null or auth.uid() is null);
+  for insert with check (auth.uid() = user_id);
 
 drop policy if exists "Allow update jobs" on public.jobs;
 create policy "Allow update jobs" on public.jobs
-  for update using (auth.uid() = user_id or user_id is null or auth.uid() is null);
+  for update using (auth.uid() = user_id);
 
 drop policy if exists "Allow delete jobs" on public.jobs;
 create policy "Allow delete jobs" on public.jobs
-  for delete using (auth.uid() = user_id or user_id is null or auth.uid() is null);
+  for delete using (auth.uid() = user_id);
 
 -- 6. Trigger: Automatically initialize default profile on signup
 create or replace function public.handle_new_user()
@@ -149,4 +150,3 @@ create policy "Public Access to Job Photos" on storage.objects for select using 
 
 drop policy if exists "Public Upload to Job Photos" on storage.objects;
 create policy "Public Upload to Job Photos" on storage.objects for insert with check (bucket_id = 'job-photos');
-

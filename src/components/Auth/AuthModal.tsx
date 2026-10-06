@@ -18,7 +18,8 @@ import {
   UserCheck,
   UserPlus,
   Database,
-  HelpCircle
+  HelpCircle,
+  ExternalLink
 } from 'lucide-react';
 import {
   signInWithPassword,
@@ -88,7 +89,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   if (!isOpen) return null;
 
-  // 1. Password Sign In
+  // 1. Password Sign In (Direct & Primary)
   const handlePasswordSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) {
@@ -108,8 +109,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         setTimeout(() => {
           onLoginSuccess(email);
           onClose();
-        }, 1000);
-      }, 500);
+        }, 800);
+      }, 400);
       return;
     }
 
@@ -123,7 +124,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       setTimeout(() => {
         onLoginSuccess(user.email || email);
         onClose();
-      }, 1000);
+      }, 800);
     }
   };
 
@@ -150,8 +151,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         setTimeout(() => {
           onLoginSuccess(email);
           onClose();
-        }, 1000);
-      }, 500);
+        }, 800);
+      }, 400);
       return;
     }
 
@@ -165,7 +166,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       setTimeout(() => {
         onLoginSuccess(user.email || email);
         onClose();
-      }, 1000);
+      }, 800);
     }
   };
 
@@ -182,7 +183,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
     if (!isSupabaseConfigured) {
       setIsLoading(false);
-      setInfoMessage('Password reset link simulated. Please configure Supabase for live email sending.');
+      setInfoMessage('Password reset link simulated.');
       return;
     }
 
@@ -196,7 +197,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     }
   };
 
-  // 4. Send OTP
+  // 4. Send Email OTP & Magic Link
   const handleSendOtp = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!email || !email.includes('@')) {
@@ -210,7 +211,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
     if (!isSupabaseConfigured) {
       setIsLoading(false);
-      setErrorMessage('Supabase is not configured yet. You can use 1-Click Demo Login or Username/Password.');
+      setErrorMessage('Supabase is not configured yet. You can use 1-Click Demo Login or Password Sign In.');
       return;
     }
 
@@ -247,7 +248,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       setTimeout(() => {
         onLoginSuccess(user.email || email);
         onClose();
-      }, 1000);
+      }, 800);
     }
   };
 
@@ -260,7 +261,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       setTimeout(() => {
         onLoginSuccess('alex@apexhandyman.com.au');
         onClose();
-      }, 800);
+      }, 600);
     }, 300);
   };
 
@@ -284,7 +285,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 </span>
               </h2>
               <p className="text-[11px] sm:text-xs text-slate-300">
-                Secure Account & Cloud Database Sync
+                Secure Account & Isolated Job Database
               </p>
             </div>
           </div>
@@ -297,7 +298,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           </button>
         </div>
 
-        {/* Auth Mode Tabs (Password vs Sign Up vs OTP) */}
+        {/* Auth Mode Tabs (Password vs Sign Up vs Email Link) */}
         {mode !== 'success' && (
           <div className="flex items-center p-1.5 bg-slate-100 border-b border-slate-200 text-xs font-bold text-slate-600 select-none">
             <button
@@ -348,7 +349,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               }`}
             >
               <Mail className="w-3.5 h-3.5" />
-              <span>Email OTP</span>
+              <span>Email Link / Code</span>
             </button>
           </div>
         )}
@@ -371,7 +372,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             </div>
           )}
 
-          {/* TAB 1: PASSWORD SIGN IN */}
+          {/* TAB 1: PASSWORD SIGN IN (DIRECT & INSTANT) */}
           {mode === 'password_login' && (
             <form onSubmit={handlePasswordSignIn} className="space-y-3.5">
               <div>
@@ -545,7 +546,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               <div className="text-center space-y-1">
                 <h3 className="text-sm font-bold text-slate-900">Reset Your Password</h3>
                 <p className="text-xs text-slate-500">
-                  Enter your email address and we'll send you a password reset link.
+                  Enter your registered email address to receive a password reset link.
                 </p>
               </div>
 
@@ -593,7 +594,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             </form>
           )}
 
-          {/* TAB 4: EMAIL OTP REQUEST */}
+          {/* TAB 4: EMAIL LINK / OTP REQUEST */}
           {mode === 'otp_request' && (
             <form onSubmit={handleSendOtp} className="space-y-3.5">
               <div>
@@ -613,8 +614,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-medium focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-100 outline-none transition"
                   />
                 </div>
-                <p className="text-[11px] text-slate-500 mt-1">
-                  We'll send a 6-digit one-time code. No password needed.
+                <p className="text-[11px] text-slate-500 mt-1.5">
+                  We'll email you a 1-click Sign-In Link AND a 6-digit verification code.
                 </p>
               </div>
 
@@ -626,11 +627,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 {isLoading ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Sending 6-Digit Code...</span>
+                    <span>Sending Email Link & Code...</span>
                   </>
                 ) : (
                   <>
-                    <span>Send 6-Digit OTP</span>
+                    <span>Send Sign-In Link & Code</span>
                     <ArrowRight className="w-4 h-4" />
                   </>
                 )}
@@ -638,17 +639,30 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             </form>
           )}
 
-          {/* TAB 5: OTP VERIFY */}
+          {/* TAB 5: OTP VERIFY / MAGIC LINK WAITING */}
           {mode === 'otp_verify' && (
             <form onSubmit={handleVerifyOtp} className="space-y-4">
               <div className="text-center space-y-1">
                 <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto mb-2 border border-blue-100">
                   <Mail className="w-6 h-6" />
                 </div>
-                <h3 className="text-sm font-black text-slate-900">Enter Verification Code</h3>
+                <h3 className="text-sm font-black text-slate-900">Check Your Email Inbox</h3>
                 <p className="text-xs text-slate-500">
-                  We sent a 6-digit code to <span className="font-bold text-slate-700">{email}</span>
+                  We sent a sign-in email to <span className="font-bold text-slate-700">{email}</span>
                 </p>
+              </div>
+
+              {/* Instructions banner */}
+              <div className="bg-slate-50 rounded-2xl p-3 border border-slate-200/80 text-[11px] text-slate-600 space-y-1">
+                <p className="font-bold text-slate-800">You can log in either way:</p>
+                <div className="flex items-center gap-2">
+                  <span className="w-4 h-4 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-[10px]">1</span>
+                  <span><strong>Click the sign-in link</strong> inside your email (logs in instantly).</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="w-4 h-4 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-[10px]">2</span>
+                  <span><strong>Or enter the 6-digit code</strong> from the email below:</span>
+                </div>
               </div>
 
               <div>
@@ -682,7 +696,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 ) : (
                   <>
                     <UserCheck className="w-4 h-4" />
-                    <span>Verify & Sign In</span>
+                    <span>Verify Code & Sign In</span>
                   </>
                 )}
               </button>
@@ -690,7 +704,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               <div className="text-center pt-1">
                 {countdown > 0 ? (
                   <span className="text-[11px] text-slate-400 font-medium">
-                    Resend code in <strong className="text-slate-600 font-mono">{countdown}s</strong>
+                    Resend in <strong className="text-slate-600 font-mono">{countdown}s</strong>
                   </span>
                 ) : (
                   <button
@@ -700,7 +714,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     className="text-[11px] text-blue-600 hover:text-blue-700 font-bold flex items-center justify-center gap-1 mx-auto hover:underline"
                   >
                     <RefreshCw className="w-3 h-3" />
-                    <span>Resend 6-Digit Code</span>
+                    <span>Resend Email Link & Code</span>
                   </button>
                 )}
               </div>
@@ -715,7 +729,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               </div>
               <h3 className="text-base font-black text-slate-900">Signed In Successfully!</h3>
               <p className="text-xs text-slate-500 max-w-xs mx-auto">
-                Your profile, ABN, and handyman jobs are now securely synced and saved in your database.
+                Your profile, ABN, and handyman jobs are now securely isolated and saved in your database.
               </p>
             </div>
           )}
@@ -741,7 +755,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   className="text-[11px] text-slate-500 hover:text-slate-800 font-semibold inline-flex items-center gap-1"
                 >
                   <Database className="w-3 h-3 text-slate-400" />
-                  <span>Where is my data stored?</span>
+                  <span>How is my job data kept private?</span>
                   <HelpCircle className="w-3 h-3 text-slate-400" />
                 </button>
               </div>
@@ -750,13 +764,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <div className="bg-slate-50 rounded-2xl p-3 border border-slate-200/80 text-[11px] text-slate-600 space-y-1.5 animate-in fade-in">
                   <div className="font-bold text-slate-800 flex items-center gap-1.5">
                     <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                    <span>Dual Storage Architecture</span>
+                    <span>Strict Row-Level Security (RLS)</span>
                   </div>
                   <p>
-                    <strong>1. Cloud Database (Supabase PostgreSQL):</strong> All client jobs, ABN settings, quotes, and work orders are securely stored in a PostgreSQL database with Row Level Security.
-                  </p>
-                  <p>
-                    <strong>2. Browser Cache (LocalStorage):</strong> A local replica is saved in your browser so HandyMap works seamlessly even with spotty cellular connection on the road.
+                    Each handyman account has its own isolated records in PostgreSQL. Jobs and profile data are filtered strictly by your unique user account ID.
                   </p>
                 </div>
               )}
