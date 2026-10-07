@@ -18,7 +18,20 @@ export const DEFAULT_PROFILE: HandymanProfile = {
   paymentTerms: 'Payment due within 7 days of invoice issue. Direct deposit EFT or on-site card tap.'
 };
 
-export const REAL_ESTATE_AGENCIES: string[] = [];
+export const COMMON_AUSTRALIAN_AGENCIES = [
+  'Ray White',
+  'Barry Plant',
+  'LJ Hooker',
+  'Harcourts',
+  'First National',
+  'Raine & Horne',
+  'McGrath',
+  'Buxton',
+  'Belle Property',
+  'Reliance Real Estate'
+];
+
+export const REAL_ESTATE_AGENCIES: string[] = COMMON_AUSTRALIAN_AGENCIES;
 
 export const SUBURBS_LIST = [
   'Point Cook',

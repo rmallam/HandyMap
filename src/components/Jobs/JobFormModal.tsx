@@ -232,16 +232,19 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
                   <label className="text-purple-900 font-bold block mb-1">
                     Agency Partner *
                   </label>
-                  <select
+                  <input
+                    type="text"
+                    list="agency-suggestions"
                     value={realEstateAgency}
                     onChange={e => setRealEstateAgency(e.target.value)}
+                    placeholder="e.g., Ray White, Barry Plant, LJ Hooker..."
                     className="w-full bg-white border border-purple-200 rounded-xl px-3 py-2 text-slate-900 font-medium outline-none focus:border-purple-600"
-                  >
+                  />
+                  <datalist id="agency-suggestions">
                     {REAL_ESTATE_AGENCIES.map(a => (
-                      <option key={a} value={a}>{a}</option>
+                      <option key={a} value={a} />
                     ))}
-                    <option value="Other Real Estate Agency">Other Agency</option>
-                  </select>
+                  </datalist>
                 </div>
 
                 <div>

@@ -38,19 +38,30 @@ export const JobList: React.FC<JobListProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<JobStatus | 'all'>('all');
   const [agencyFilter, setAgencyFilter] = useState<string>('all');
+  const agencyCount = jobs.filter(j => j.isAgencyJob && j.realEstateAgency && j.realEstateAgency.trim().length > 0).length;
 
-  const agencyCount = jobs.filter(j => j.isAgencyJob && j.realEstateAgency).length;
+  // Extract unique agencies from current jobs list
+  const dynamicAgencies = Array.from(
+    new Set(
+      jobs
+        .map(j => j.realEstateAgency?.trim())
+        .filter((a): a is string => Boolean(a && a.length > 0))
+    )
+  ).sort();
 
   const filteredJobs = jobs.filter(job => {
     const matchesStatus = statusFilter === 'all' || job.status === statusFilter;
     
     let matchesAgency = true;
     if (agencyFilter === 'agency_only') {
-      matchesAgency = !!job.isAgencyJob;
+      matchesAgency = Boolean(job.isAgencyJob && job.realEstateAgency && job.realEstateAgency.trim().length > 0);
     } else if (agencyFilter === 'direct_only') {
-      matchesAgency = !job.isAgencyJob;
+      matchesAgency = !job.isAgencyJob || !job.realEstateAgency || job.realEstateAgency.trim().length === 0;
     } else if (agencyFilter !== 'all') {
-      matchesAgency = job.realEstateAgency === agencyFilter;
+      matchesAgency = Boolean(
+        job.realEstateAgency &&
+        job.realEstateAgency.trim().toLowerCase() === agencyFilter.trim().toLowerCase()
+      );
     }
 
     const searchLower = searchTerm.toLowerCase();
@@ -204,22 +215,23 @@ export const JobList: React.FC<JobListProps> = ({
             </span>
           </button>
 
-          {REAL_ESTATE_AGENCIES.map(agency => {
-            const count = jobs.filter(j => j.realEstateAgency === agency).length;
+          {dynamicAgencies.map(agency => {
+            const count = jobs.filter(j => j.realEstateAgency?.trim().toLowerCase() === agency.toLowerCase()).length;
             if (count === 0) return null;
+            const isSelected = agencyFilter.trim().toLowerCase() === agency.toLowerCase();
             return (
               <button
                 key={agency}
                 onClick={() => setAgencyFilter(agency)}
                 className={`px-2.5 py-1 rounded-xl text-xs font-bold whitespace-nowrap transition flex items-center gap-1.5 ${
-                  agencyFilter === agency
+                  isSelected
                     ? 'bg-purple-700 text-white shadow-sm'
                     : 'text-slate-600 hover:text-purple-900 hover:bg-purple-50 border border-slate-200/60'
                 }`}
               >
                 <span>{agency}</span>
                 <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
-                  agencyFilter === agency ? 'bg-purple-800 text-white' : 'bg-slate-100 text-slate-600'
+                  isSelected ? 'bg-purple-800 text-white' : 'bg-slate-100 text-slate-600'
                 }`}>
                   {count}
                 </span>

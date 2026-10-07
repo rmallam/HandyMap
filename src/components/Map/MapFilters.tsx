@@ -41,6 +41,15 @@ export const MapFilters: React.FC<MapFiltersProps> = ({
   const completedCount = jobs.filter(j => j.status === 'completed' || j.status === 'invoiced').length;
   const agencyCount = jobs.filter(j => j.isAgencyJob && j.realEstateAgency).length;
 
+  // Extract unique agencies from current jobs
+  const dynamicAgencies = Array.from(
+    new Set(
+      jobs
+        .map(j => j.realEstateAgency?.trim())
+        .filter((a): a is string => Boolean(a && a.length > 0))
+    )
+  ).sort();
+
   // Suburb counts
   const suburbCounts: Record<string, number> = {};
   jobs.forEach(j => {
@@ -220,10 +229,26 @@ export const MapFilters: React.FC<MapFiltersProps> = ({
                   <span className="text-[10px] font-bold text-purple-700 bg-purple-200 px-1.5 py-0.2 rounded-full">{agencyCount}</span>
                 </button>
 
-                <div className="border-t border-slate-100 my-1"></div>
+                <button
+                  onClick={() => {
+                    onSelectAgency('direct_only');
+                    setShowAgencyMenu(false);
+                  }}
+                  className={`w-full text-left px-3 py-2 flex items-center justify-between hover:bg-slate-50 transition ${
+                    selectedAgency === 'direct_only' ? 'font-bold text-slate-900 bg-slate-100' : 'text-slate-700'
+                  }`}
+                >
+                  <span className="flex items-center gap-1.5">
+                    <span>Direct Residential Only</span>
+                  </span>
+                  <span className="text-[10px] font-semibold text-slate-500">{jobs.length - agencyCount}</span>
+                </button>
 
-                {REAL_ESTATE_AGENCIES.map(agency => {
-                  const count = jobs.filter(j => j.realEstateAgency === agency).length;
+                {dynamicAgencies.length > 0 && <div className="border-t border-slate-100 my-1"></div>}
+
+                {dynamicAgencies.map(agency => {
+                  const count = jobs.filter(j => j.realEstateAgency?.trim().toLowerCase() === agency.toLowerCase()).length;
+                  const isSelected = selectedAgency.trim().toLowerCase() === agency.toLowerCase();
                   return (
                     <button
                       key={agency}
@@ -232,12 +257,12 @@ export const MapFilters: React.FC<MapFiltersProps> = ({
                         setShowAgencyMenu(false);
                       }}
                       className={`w-full text-left px-3 py-2 flex items-center justify-between hover:bg-purple-50 transition ${
-                        selectedAgency === agency ? 'font-bold text-purple-700 bg-purple-100/70' : 'text-slate-700'
+                        isSelected ? 'font-bold text-purple-700 bg-purple-100/70' : 'text-slate-700'
                       }`}
                     >
                       <span className="truncate max-w-[180px]">{agency}</span>
                       <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
-                        selectedAgency === agency ? 'bg-purple-700 text-white' : 'bg-slate-100 text-slate-600'
+                        isSelected ? 'bg-purple-700 text-white' : 'bg-slate-100 text-slate-600'
                       }`}>
                         {count}
                       </span>

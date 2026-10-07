@@ -101,9 +101,14 @@ export const MapView: React.FC<MapViewProps> = ({
     
     let matchesAgency = true;
     if (selectedAgency === 'agency_only') {
-      matchesAgency = !!job.isAgencyJob;
+      matchesAgency = Boolean(job.isAgencyJob && job.realEstateAgency && job.realEstateAgency.trim().length > 0);
+    } else if (selectedAgency === 'direct_only') {
+      matchesAgency = !job.isAgencyJob || !job.realEstateAgency || job.realEstateAgency.trim().length === 0;
     } else if (selectedAgency !== 'all') {
-      matchesAgency = job.realEstateAgency === selectedAgency;
+      matchesAgency = Boolean(
+        job.realEstateAgency &&
+        job.realEstateAgency.trim().toLowerCase() === selectedAgency.trim().toLowerCase()
+      );
     }
 
     return matchesStatus && matchesSuburb && matchesAgency;
