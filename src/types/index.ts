@@ -72,6 +72,12 @@ export interface JobTask {
   completedAt?: string;
 }
 
+export interface CustomerSignature {
+  dataUrl: string;
+  signedBy: string;
+  signedAt: string;
+}
+
 export interface Job {
   id: string;
   jobNumber: string;
@@ -105,6 +111,8 @@ export interface Job {
   photos: JobPhoto[];
   timeLogs: TimeLog[];
   internalNotes: string[];
+  signature?: CustomerSignature;
+  beforeAfterImage?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -160,6 +168,7 @@ export interface HandymanProfile {
   bsb?: string; // e.g. "063-000"
   accountNumber?: string; // e.g. "1234 5678"
   bankName?: string; // e.g. "Commonwealth Bank"
+  payId?: string; // e.g. "0412 345 678" or "billing@example.com"
   paymentTerms?: string; // e.g. "Payment due within 7 days of invoice issue date."
 }
 

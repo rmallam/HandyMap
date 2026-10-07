@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Job, JobStatus, HandymanProfile, JobPhoto, JobCategory, JobPriority, JobTask } from '../../types';
+import { Job, JobStatus, HandymanProfile, JobPhoto, JobCategory, JobPriority, JobTask, CustomerSignature } from '../../types';
 import { STATUS_CONFIG, formatDateTime, buildLiveNavigationUrl, buildSmsLink, buildWhatsAppLink } from '../../utils/helpers';
+import { buildGoogleCalendarUrl, downloadIcsCalendarFile } from '../../utils/calendarExport';
+import { stitchBeforeAndAfterPhotos } from '../../utils/photoStitcher';
+import { SignaturePadModal } from '../Common/SignaturePadModal';
 import { SUBURBS_LIST } from '../../data/mockJobs';
 import { AddressAutocomplete, AddressResult } from '../Common/AddressAutocomplete';
 import { QuoteBuilder } from './QuoteBuilder';
@@ -27,7 +30,13 @@ import {
   RotateCcw,
   Check,
   ListTodo,
-  AlertCircle
+  AlertCircle,
+  Calendar,
+  Download,
+  Share2,
+  PenTool,
+  ShieldCheck,
+  ChevronDown
 } from 'lucide-react';
 
 interface JobDetailModalProps {
@@ -68,6 +77,15 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
   const [photoCaptionInput, setPhotoCaptionInput] = useState('');
   const [photoTypeInput, setPhotoTypeInput] = useState<'assessment' | 'before' | 'after'>('assessment');
 
+  // Customer Signature Pad Modal
+  const [isSignatureModalOpen, setIsSignatureModalOpen] = useState(false);
+
+  // Before & After Photo Stitcher state
+  const [selectedBeforePhoto, setSelectedBeforePhoto] = useState<string>('');
+  const [selectedAfterPhoto, setSelectedAfterPhoto] = useState<string>('');
+  const [stitchedPhotoUrl, setStitchedPhotoUrl] = useState<string>(job.beforeAfterImage || '');
+  const [isStitching, setIsStitching] = useState(false);
+
   // Interactive Checklist & Task Management
   const [newTaskInput, setNewTaskInput] = useState('');
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
@@ -89,7 +107,7 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
   const [editCoordinates, setEditCoordinates] = useState<[number, number]>(job.coordinates);
   const [editDuration, setEditDuration] = useState(job.estimatedDurationMinutes);
 
-  // Sync edit form when job prop changes
+  // Sync edit form and photo stitcher when job prop changes
   useEffect(() => {
     setEditJobNumber(job.jobNumber);
     setEditTitle(job.title);
@@ -104,7 +122,57 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
     setEditSuburb(job.suburb || 'Point Cook');
     setEditCoordinates(job.coordinates);
     setEditDuration(job.estimatedDurationMinutes);
+    setStitchedPhotoUrl(job.beforeAfterImage || '');
+
+    const beforeP = job.photos.find(p => p.type === 'before');
+    const afterP = job.photos.find(p => p.type === 'after');
+    if (beforeP) setSelectedBeforePhoto(beforeP.url);
+    else if (job.photos.length > 0) setSelectedBeforePhoto(job.photos[0].url);
+    if (afterP) setSelectedAfterPhoto(afterP.url);
+    else if (job.photos.length > 1) setSelectedAfterPhoto(job.photos[1].url);
   }, [job]);
+
+  const handleGenerateStitchedReport = async () => {
+    if (!selectedBeforePhoto || !selectedAfterPhoto) {
+      alert('Please select or upload both a Before and After photo first.');
+      return;
+    }
+    try {
+      setIsStitching(true);
+      const dataUrl = await stitchBeforeAndAfterPhotos(
+        selectedBeforePhoto,
+        selectedAfterPhoto,
+        {
+          jobNumber: job.jobNumber,
+          jobTitle: job.title,
+          address: job.address,
+          suburb: job.suburb || 'Point Cook',
+          businessName: profile.businessName
+        }
+      );
+      setStitchedPhotoUrl(dataUrl);
+      onUpdateJob({
+        ...job,
+        beforeAfterImage: dataUrl,
+        updatedAt: new Date().toISOString()
+      });
+    } catch (err) {
+      console.error(err);
+      alert('Could not generate stitched photo. Please verify photo URLs are accessible.');
+    } finally {
+      setIsStitching(false);
+    }
+  };
+
+  const handleDownloadStitchedImage = () => {
+    if (!stitchedPhotoUrl) return;
+    const a = document.createElement('a');
+    a.href = stitchedPhotoUrl;
+    a.download = `HandyMap_${job.jobNumber}_Before_After_Comparison.jpg`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
 
   const statusCfg = STATUS_CONFIG[job.status];
   const googleNavUrl = buildLiveNavigationUrl(job.coordinates, job.address);
@@ -357,7 +425,7 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
           </div>
         </div>
 
-        {/* Client Quick Contact Banner */}
+        {/* Client Quick Contact & Calendar Sync Banner */}
         <div className="px-4 sm:px-5 py-3 bg-slate-50 border-b border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0 text-xs">
           <div>
             <p className="font-bold text-slate-900 text-sm">{job.clientName}</p>
@@ -395,6 +463,27 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
               <Navigation2 className="w-3.5 h-3.5 text-amber-600" />
               <span>Directions</span>
             </a>
+
+            {/* 1-Click Calendar Sync */}
+            <button
+              type="button"
+              onClick={() => window.open(buildGoogleCalendarUrl(job, profile), '_blank')}
+              className="px-2.5 py-1.5 rounded-xl bg-white hover:bg-blue-50 text-blue-800 font-semibold flex items-center gap-1 transition border border-blue-200 shadow-sm"
+              title="Add to Google Calendar"
+            >
+              <Calendar className="w-3.5 h-3.5 text-blue-600" />
+              <span>Google Cal</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => downloadIcsCalendarFile(job, profile)}
+              className="px-2.5 py-1.5 rounded-xl bg-white hover:bg-slate-100 text-slate-800 font-semibold flex items-center gap-1 transition border border-slate-200 shadow-sm"
+              title="Download Apple / Outlook iCal (.ics) file"
+            >
+              <Download className="w-3.5 h-3.5 text-slate-600" />
+              <span>iCal</span>
+            </button>
           </div>
         </div>
 
@@ -930,6 +1019,83 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                 </div>
               </div>
 
+              {/* --------------------------------------------------------------------- */}
+              {/* CUSTOMER SIGN-OFF & DIGITAL ACCEPTANCE CARD */}
+              {/* --------------------------------------------------------------------- */}
+              <div className="bg-white rounded-2xl border border-slate-200/90 p-4 shadow-sm flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className={`p-2 rounded-xl border ${
+                      job.signature
+                        ? 'bg-emerald-50 text-emerald-600 border-emerald-200/60'
+                        : 'bg-blue-50 text-blue-600 border-blue-200/60'
+                    }`}>
+                      {job.signature ? <ShieldCheck className="w-4 h-4" /> : <PenTool className="w-4 h-4" />}
+                    </div>
+                    <div>
+                      <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900">
+                        Customer Completion Sign-Off
+                      </h3>
+                      <p className="text-[11px] text-slate-500">
+                        {job.signature
+                          ? 'Work verified and approved by customer on-site'
+                          : 'Collect digital touch/stylus signature upon completing job'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {job.signature ? (
+                    <button
+                      type="button"
+                      onClick={() => setIsSignatureModalOpen(true)}
+                      className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center gap-1.5 transition"
+                    >
+                      <PenTool className="w-3.5 h-3.5" /> Resign
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setIsSignatureModalOpen(true)}
+                      className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-md shadow-blue-600/30 transition active:scale-95"
+                    >
+                      <PenTool className="w-3.5 h-3.5" /> Sign-Off Job
+                    </button>
+                  )}
+                </div>
+
+                {job.signature ? (
+                  <div className="bg-emerald-50/60 border border-emerald-200/80 rounded-2xl p-3 flex flex-col sm:flex-row items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="bg-white p-1.5 rounded-xl border border-emerald-200 shadow-inner">
+                        <img
+                          src={job.signature.dataUrl}
+                          alt="Customer Signature"
+                          className="h-12 w-32 object-contain"
+                        />
+                      </div>
+                      <div className="text-xs">
+                        <p className="font-extrabold text-emerald-950 flex items-center gap-1">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                          Signed by {job.signature.signedBy}
+                        </p>
+                        <p className="text-[11px] text-emerald-700 mt-0.5">
+                          {formatDateTime(job.signature.signedAt)}
+                        </p>
+                      </div>
+                    </div>
+
+                    <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2.5 py-1 rounded-full uppercase tracking-wider">
+                      ✓ Signature Embedded in PDF Invoice
+                    </span>
+                  </div>
+                ) : (
+                  <div className="bg-slate-50 border border-dashed border-slate-200 rounded-2xl p-3 text-center flex flex-col items-center justify-center gap-1">
+                    <p className="text-xs text-slate-600 font-medium">No signature collected yet for Job #{job.jobNumber}.</p>
+                    <p className="text-[11px] text-slate-400">Click "Sign-Off Job" above to open the touch signature pad for the client or tenant.</p>
+                  </div>
+                )}
+              </div>
+
               {/* Quick SMS Presets */}
               <div className="bg-white rounded-2xl border border-slate-200/90 p-4 shadow-sm">
                 <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
@@ -1063,6 +1229,153 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                 </div>
               </div>
 
+              {/* --------------------------------------------------------------------- */}
+              {/* BEFORE & AFTER PHOTO STITCHER GENERATOR */}
+              {/* --------------------------------------------------------------------- */}
+              <div className="bg-gradient-to-br from-slate-900 to-slate-950 text-white rounded-3xl p-5 shadow-xl border border-slate-800 flex flex-col gap-4">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-2 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                      <Sparkles className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                        Before & After Photo Stitcher
+                      </h3>
+                      <p className="text-sm font-extrabold text-white">
+                        Side-by-Side Verified Work Report
+                      </p>
+                    </div>
+                  </div>
+
+                  <span className="text-[10px] font-mono font-bold bg-slate-800 text-slate-300 px-2.5 py-1 rounded-lg border border-slate-700">
+                    Auto-Watermarked
+                  </span>
+                </div>
+
+                <p className="text-xs text-slate-400">
+                  Select a 'Before' and 'After' photo from your job gallery to generate a branded, side-by-side comparison report with timestamp, address watermark, and Job ID.
+                </p>
+
+                {/* Photo Selectors */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                  {/* Before Selector */}
+                  <div className="bg-slate-800/80 p-3 rounded-2xl border border-slate-700 flex flex-col gap-2">
+                    <label className="text-[11px] font-bold text-amber-400 flex items-center gap-1 uppercase tracking-wider">
+                      <span>◀ Select 'Before' Photo</span>
+                    </label>
+                    <select
+                      value={selectedBeforePhoto}
+                      onChange={e => setSelectedBeforePhoto(e.target.value)}
+                      className="bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-2 text-xs text-white font-medium outline-none"
+                    >
+                      <option value="">-- Choose Before Photo --</option>
+                      {job.photos.map((p, idx) => (
+                        <option key={p.id} value={p.url}>
+                          Photo {idx + 1}: {p.caption} ({p.type})
+                        </option>
+                      ))}
+                    </select>
+
+                    {selectedBeforePhoto && (
+                      <div className="h-28 rounded-xl overflow-hidden border border-slate-700 mt-1 relative">
+                        <img src={selectedBeforePhoto} alt="Before Preview" className="w-full h-full object-cover" />
+                        <span className="absolute top-1.5 left-1.5 bg-amber-500 text-slate-950 font-black text-[9px] px-2 py-0.5 rounded-md">
+                          BEFORE
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* After Selector */}
+                  <div className="bg-slate-800/80 p-3 rounded-2xl border border-slate-700 flex flex-col gap-2">
+                    <label className="text-[11px] font-bold text-emerald-400 flex items-center gap-1 uppercase tracking-wider">
+                      <span>Select 'After' Photo ▶</span>
+                    </label>
+                    <select
+                      value={selectedAfterPhoto}
+                      onChange={e => setSelectedAfterPhoto(e.target.value)}
+                      className="bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-2 text-xs text-white font-medium outline-none"
+                    >
+                      <option value="">-- Choose After Photo --</option>
+                      {job.photos.map((p, idx) => (
+                        <option key={p.id} value={p.url}>
+                          Photo {idx + 1}: {p.caption} ({p.type})
+                        </option>
+                      ))}
+                    </select>
+
+                    {selectedAfterPhoto && (
+                      <div className="h-28 rounded-xl overflow-hidden border border-slate-700 mt-1 relative">
+                        <img src={selectedAfterPhoto} alt="After Preview" className="w-full h-full object-cover" />
+                        <span className="absolute top-1.5 right-1.5 bg-emerald-500 text-slate-950 font-black text-[9px] px-2 py-0.5 rounded-md">
+                          AFTER
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Generate Button */}
+                <button
+                  type="button"
+                  disabled={!selectedBeforePhoto || !selectedAfterPhoto || isStitching}
+                  onClick={handleGenerateStitchedReport}
+                  className={`py-3 px-4 rounded-2xl font-bold text-xs flex items-center justify-center gap-2 shadow-lg transition ${
+                    selectedBeforePhoto && selectedAfterPhoto && !isStitching
+                      ? 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-blue-500/20 active:scale-98'
+                      : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
+                  }`}
+                >
+                  <Sparkles className="w-4 h-4 text-amber-400" />
+                  <span>{isStitching ? 'Stitching Side-by-Side Report...' : '✨ Generate Before & After Stitched Comparison'}</span>
+                </button>
+
+                {/* Stitched Comparison Output Card */}
+                {stitchedPhotoUrl && (
+                  <div className="bg-slate-800/90 border border-slate-700 rounded-2xl p-3.5 flex flex-col gap-3 mt-1 animate-in fade-in">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
+                        <ShieldCheck className="w-4 h-4" /> Ready: Verified Side-by-Side Comparison
+                      </span>
+                      <span className="text-[10px] text-slate-400">High-Resolution 1200x760</span>
+                    </div>
+
+                    <div className="rounded-xl overflow-hidden border border-slate-700 shadow-md">
+                      <img
+                        src={stitchedPhotoUrl}
+                        alt="Stitched Before & After Report"
+                        className="w-full h-auto object-contain max-h-80"
+                      />
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={handleDownloadStitchedImage}
+                        className="flex-1 py-2.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition active:scale-95 shadow-sm"
+                      >
+                        <Download className="w-3.5 h-3.5 text-blue-300" />
+                        <span>Download Image</span>
+                      </button>
+
+                      <a
+                        href={buildWhatsAppLink(
+                          job.clientPhone,
+                          `Hi ${job.clientName}, here is the Before & After verified work completion report for ${job.title} at ${job.address}. Thank you!`
+                        )}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition active:scale-95 shadow-sm"
+                      >
+                        <Send className="w-3.5 h-3.5" />
+                        <span>Share on WhatsApp</span>
+                      </a>
+                    </div>
+                  </div>
+                )}
+              </div>
+
               {/* Photo gallery */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {job.photos.length === 0 ? (
@@ -1075,7 +1388,15 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                       <img src={p.url} alt={p.caption} className="w-full h-44 object-cover" />
                       <div className="p-2.5 flex items-center justify-between text-xs bg-white">
                         <div>
-                          <span className="text-[10px] uppercase font-bold text-blue-600 block">{p.type}</span>
+                          <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded mr-1.5 ${
+                            p.type === 'before'
+                              ? 'bg-amber-100 text-amber-800'
+                              : p.type === 'after'
+                              ? 'bg-emerald-100 text-emerald-800'
+                              : 'bg-blue-100 text-blue-800'
+                          }`}>
+                            {p.type}
+                          </span>
                           <span className="text-slate-800 font-medium">{p.caption}</span>
                         </div>
                         <button
@@ -1103,6 +1424,22 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
           )}
         </div>
       </div>
+
+      {/* Customer Signature Pad Modal */}
+      <SignaturePadModal
+        isOpen={isSignatureModalOpen}
+        clientName={job.clientName}
+        jobNumber={job.jobNumber}
+        onClose={() => setIsSignatureModalOpen(false)}
+        onSaveSignature={(signature: CustomerSignature) => {
+          onUpdateJob({
+            ...job,
+            signature,
+            updatedAt: new Date().toISOString()
+          });
+          setIsSignatureModalOpen(false);
+        }}
+      />
     </div>
   );
 };

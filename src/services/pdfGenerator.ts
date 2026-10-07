@@ -297,13 +297,14 @@ export function generateQuotePDF(job: Job, profile: HandymanProfile): void {
 
   y += 24;
 
-  // 6. BANK EFT DIRECT DEPOSIT DETAILS & PAYMENT TERMS
-  if (y + 120 > pageHeight - 50) {
+  // 6. BANK EFT DIRECT DEPOSIT & PAYID PAYMENT DETAILS
+  if (y + 130 > pageHeight - 50) {
     doc.addPage();
     y = 40;
   }
 
-  const eftBoxHeight = 65;
+  const payIdValue = profile.payId || profile.phone || profile.email;
+  const eftBoxHeight = 72;
   doc.setFillColor(subtleBgColor[0], subtleBgColor[1], subtleBgColor[2]);
   doc.setDrawColor(226, 232, 240);
   doc.roundedRect(margin, y, contentWidth, eftBoxHeight, 4, 4, 'FD');
@@ -311,7 +312,7 @@ export function generateQuotePDF(job: Job, profile: HandymanProfile): void {
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(8.5);
   doc.setTextColor(darkTextColor[0], darkTextColor[1], darkTextColor[2]);
-  doc.text('DIRECT DEPOSIT (EFT) / PAYMENT INFORMATION', margin + 12, y + 14);
+  doc.text('DIRECT DEPOSIT (EFT) / PAYID PAYMENT INFORMATION', margin + 12, y + 14);
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
@@ -321,13 +322,21 @@ export function generateQuotePDF(job: Job, profile: HandymanProfile): void {
     `Account Name: ${profile.accountName || profile.businessName}`,
     `Bank: ${profile.bankName || 'Commonwealth Bank of Australia'}`,
     `BSB: ${profile.bsb || '063-875'}`,
-    `Account Number: ${profile.accountNumber || '1048 9921'}`
+    `Acc #: ${profile.accountNumber || '1048 9921'}`
   ];
-  doc.text(bankTextLeft.join('    |    '), margin + 12, y + 28);
+  doc.text(bankTextLeft.join('   |   '), margin + 12, y + 27);
+
+  if (payIdValue) {
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(37, 99, 235); // Blue
+    doc.text(`⚡ Instant PayID: ${payIdValue}`, margin + 12, y + 40);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(71, 85, 105);
+  }
 
   const paymentTerms = profile.paymentTerms || 'Payment due within 7 days of invoice date. Quoted rates include standard warranty on workmanship.';
-  const termsWrapped = doc.splitTextToSize(`Terms: ${paymentTerms}  •  Reference: ${docNumber}`, contentWidth - 24);
-  doc.text(termsWrapped, margin + 12, y + 42);
+  const termsWrapped = doc.splitTextToSize(`Terms: ${paymentTerms}  •  Ref: ${docNumber}`, contentWidth - 24);
+  doc.text(termsWrapped, margin + 12, y + 53);
 
   y += eftBoxHeight + 16;
 
@@ -344,42 +353,51 @@ export function generateQuotePDF(job: Job, profile: HandymanProfile): void {
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(8.5);
   doc.setTextColor(darkTextColor[0], darkTextColor[1], darkTextColor[2]);
-  doc.text('CLIENT APPROVAL & AUTHORIZATION', margin + 12, y + 14);
+  doc.text('CLIENT SIGN-OFF & AUTHORIZATION', margin + 12, y + 14);
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7.5);
   doc.setTextColor(mutedTextColor[0], mutedTextColor[1], mutedTextColor[2]);
   doc.text(
-    'By signing below, the customer accepts the estimate, terms, and scope of work stated above.',
+    'Customer verification confirming satisfactory completion of repair works and acceptance of invoice terms.',
     margin + 12,
     y + 26
   );
 
   const sigX = pageWidth - margin - 180;
-  if (quote?.clientSignature) {
+  const signatureData = job.signature?.dataUrl || quote?.clientSignature;
+  const signatureName = job.signature?.signedBy || quote?.clientSignatureName || job.clientName;
+  const signatureDate = job.signature?.signedAt || quote?.signedAt || new Date().toISOString();
+
+  if (signatureData) {
     try {
-      doc.addImage(quote.clientSignature, 'PNG', sigX, y + 10, 160, 36);
+      doc.addImage(signatureData, 'PNG', sigX, y + 8, 160, 36);
       doc.setFontSize(7.5);
       doc.setTextColor(16, 185, 129);
-      doc.text(`Signed by: ${quote.clientSignatureName || job.clientName}`, sigX, y + 54);
+      doc.text(`✓ Verified Signed: ${signatureName}`, sigX, y + 52);
+      doc.setTextColor(mutedTextColor[0], mutedTextColor[1], mutedTextColor[2]);
+      doc.text(`Date: ${formatDate(signatureDate)}`, sigX, y + 62);
     } catch {
       doc.setFontSize(8);
       doc.setTextColor(16, 185, 129);
-      doc.text(`Electronically Signed by: ${quote.clientSignatureName || job.clientName}`, sigX, y + 36);
+      doc.text(`Electronically Signed by: ${signatureName}`, sigX, y + 36);
+      doc.setFontSize(7.5);
+      doc.setTextColor(mutedTextColor[0], mutedTextColor[1], mutedTextColor[2]);
+      doc.text(`Date: ${formatDate(signatureDate)}`, sigX, y + 48);
     }
-  } else if (quote?.clientSignatureName) {
+  } else if (signatureName && (quote?.status === 'accepted' || job.status === 'completed' || job.status === 'invoiced')) {
     doc.setFontSize(8.5);
     doc.setTextColor(16, 185, 129);
-    doc.text(`Approved: ${quote.clientSignatureName}`, sigX, y + 34);
+    doc.text(`✓ Approved: ${signatureName}`, sigX, y + 34);
     doc.setFontSize(7.5);
     doc.setTextColor(mutedTextColor[0], mutedTextColor[1], mutedTextColor[2]);
-    doc.text(`Date: ${formatDate(quote.signedAt || new Date().toISOString())}`, sigX, y + 48);
+    doc.text(`Date: ${formatDate(signatureDate)}`, sigX, y + 48);
   } else {
     doc.setDrawColor(148, 163, 184);
     doc.line(sigX, y + 42, pageWidth - margin - 10, y + 42);
     doc.setFontSize(7.5);
     doc.setTextColor(148, 163, 184);
-    doc.text('Client Signature / Date', sigX + 30, y + 54);
+    doc.text('Customer Signature / Date', sigX + 30, y + 54);
   }
 
   // 8. PAGE FOOTER ON ALL PAGES

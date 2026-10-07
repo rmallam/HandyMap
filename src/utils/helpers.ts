@@ -28,11 +28,11 @@ export const STATUS_CONFIG: Record<
   quoted: {
     label: 'Quoted (Awaiting Approval)',
     shortLabel: 'Quoted',
-    colorHex: '#7c3aed', // Purple 600
-    bgClass: 'bg-purple-50',
-    textClass: 'text-purple-800',
-    borderClass: 'border-purple-200',
-    badgeBg: 'bg-purple-500',
+    colorHex: '#4f46e5', // High-Contrast Indigo 600 (distinct from Purple Real Estate Agency)
+    bgClass: 'bg-indigo-50',
+    textClass: 'text-indigo-800',
+    borderClass: 'border-indigo-200',
+    badgeBg: 'bg-indigo-600',
     icon: 'FileCheck',
     description: 'Quote prepared & presented. Awaiting customer confirmation.'
   },

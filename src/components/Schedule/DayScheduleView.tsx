@@ -1,7 +1,8 @@
 import React from 'react';
 import { Job, HandymanProfile } from '../../types';
 import { STATUS_CONFIG, formatTime } from '../../utils/helpers';
-import { Calendar, Clock, MapPin, Phone, ArrowRight, Navigation } from 'lucide-react';
+import { buildGoogleCalendarUrl, downloadIcsCalendarFile } from '../../utils/calendarExport';
+import { Calendar, Clock, MapPin, Phone, ArrowRight, Navigation, Download, ExternalLink } from 'lucide-react';
 
 interface DayScheduleViewProps {
   jobs: Job[];
@@ -12,6 +13,7 @@ interface DayScheduleViewProps {
 
 export const DayScheduleView: React.FC<DayScheduleViewProps> = ({
   jobs,
+  profile,
   onSelectJob,
   onPlanRoute
 }) => {
@@ -115,14 +117,39 @@ export const DayScheduleView: React.FC<DayScheduleViewProps> = ({
                   <div className="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto">
                     <span className="font-semibold text-slate-800">{job.clientName}</span>
                     <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={e => {
+                          e.stopPropagation();
+                          window.open(buildGoogleCalendarUrl(job, profile), '_blank');
+                        }}
+                        className="p-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 transition"
+                        title="Sync to Google Calendar"
+                      >
+                        <Calendar className="w-3.5 h-3.5" />
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={e => {
+                          e.stopPropagation();
+                          downloadIcsCalendarFile(job, profile);
+                        }}
+                        className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition"
+                        title="Download Apple / Outlook iCal (.ics)"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                      </button>
+
                       <a
                         href={`tel:${job.clientPhone}`}
                         onClick={e => e.stopPropagation()}
-                        className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700"
+                        className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition"
                         title="Call"
                       >
                         <Phone className="w-3.5 h-3.5 text-emerald-600" />
                       </a>
+
                       <button
                         onClick={e => {
                           e.stopPropagation();

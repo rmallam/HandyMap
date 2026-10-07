@@ -3,6 +3,7 @@ import confetti from 'canvas-confetti';
 import { Job, JobQuote, QuoteItem, HandymanProfile } from '../../types';
 import { formatCurrency, buildWhatsAppQuoteText, buildWhatsAppLink } from '../../utils/helpers';
 import { generateQuotePDF } from '../../services/pdfGenerator';
+import { PayIdPaymentCard } from '../Common/PayIdPaymentCard';
 import {
   Plus,
   Trash2,
@@ -454,6 +455,13 @@ export const QuoteBuilder: React.FC<QuoteBuilderProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Instant Australian PayID & Bank Transfer Card */}
+      <PayIdPaymentCard
+        amount={quote.totalAmount}
+        jobNumber={quote.quoteNumber || job.jobNumber}
+        profile={profile}
+      />
 
       {/* Digital Signature Pad */}
       <div className="bg-white rounded-2xl border border-slate-200/90 p-4 shadow-sm">
