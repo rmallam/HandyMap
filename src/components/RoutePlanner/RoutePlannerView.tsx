@@ -269,37 +269,39 @@ export const RoutePlannerView: React.FC<RoutePlannerViewProps> = ({
           </div>
         </div>
 
-        {/* Row 3: Real Estate Agency Preference Toggle */}
-        <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <div className="p-1.5 rounded-lg bg-purple-50 text-purple-700 border border-purple-200">
-              <Building2 className="w-4 h-4" />
+        {/* Row 3: Agency Preference Toggle (Only shown if jobs contain agency work orders) */}
+        {jobs.some(j => j.realEstateAgency && j.realEstateAgency.trim().length > 0) && (
+          <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 rounded-lg bg-purple-50 text-purple-700 border border-purple-200">
+                <Building2 className="w-4 h-4" />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-slate-900">
+                  Prioritize Commercial & Agency Work Orders
+                </p>
+                <p className="text-[11px] text-slate-500">
+                  Sequences commercial contract jobs first within each suburb cluster.
+                </p>
+              </div>
             </div>
-            <div>
-              <p className="text-xs font-bold text-slate-900">
-                Prioritize Real Estate Agency Work Orders
-              </p>
-              <p className="text-[11px] text-slate-500">
-                Sequences Ray White, Barry Plant & LJ Hooker jobs first within each suburb cluster.
-              </p>
-            </div>
-          </div>
 
-          <button
-            onClick={() => {
-              const next = !prioritizeAgency;
-              setPrioritizeAgency(next);
-              handleRunOptimization(selectedGoal, selectedSuburb, next);
-            }}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm border ${
-              prioritizeAgency
-                ? 'bg-purple-700 text-white border-purple-800'
-                : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
-            }`}
-          >
-            {prioritizeAgency ? '✓ Priority Enabled' : 'Off'}
-          </button>
-        </div>
+            <button
+              onClick={() => {
+                const next = !prioritizeAgency;
+                setPrioritizeAgency(next);
+                handleRunOptimization(selectedGoal, selectedSuburb, next);
+              }}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm border ${
+                prioritizeAgency
+                  ? 'bg-purple-700 text-white border-purple-800'
+                  : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
+              }`}
+            >
+              {prioritizeAgency ? '✓ Priority Enabled' : 'Off'}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Active Route Summary Stats Banner */}

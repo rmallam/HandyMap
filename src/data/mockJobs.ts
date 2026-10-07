@@ -18,13 +18,7 @@ export const DEFAULT_PROFILE: HandymanProfile = {
   paymentTerms: 'Payment due within 7 days of invoice issue. Direct deposit EFT or on-site card tap.'
 };
 
-export const REAL_ESTATE_AGENCIES = [
-  'Ray White Point Cook',
-  'Barry Plant Sanctuary Lakes',
-  'LJ Hooker Point Cook',
-  'Reliance Real Estate',
-  'Harcourts Point Cook'
-];
+export const REAL_ESTATE_AGENCIES: string[] = [];
 
 export const SUBURBS_LIST = [
   'Point Cook',

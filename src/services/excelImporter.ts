@@ -302,6 +302,7 @@ export async function parseSpreadsheetFile(file: File): Promise<{
 export function downloadSampleExcelTemplate() {
   const sampleData = [
     {
+      'Job ID': 'BK-1042',
       'Job Title': 'Fix leaking bathroom vanity tap & seal base',
       'Client Name': 'Sarah Williams',
       'Client Phone': '0412 334 556',
@@ -311,17 +312,12 @@ export function downloadSampleExcelTemplate() {
       'Status': 'Quote Requested',
       'Priority': 'Medium',
       'Category': 'Plumbing',
-      'Description': 'Mixer tap leaking at base joint when turned on. Also check silicone bead around vanity.',
-      'Real Estate Agency': 'Ray White Point Cook',
-      'Agent Name': 'Michael Evans (PM)',
-      'Agent Phone': '0491 223 344',
-      'Work Order No': 'WO-RW-8942',
-      'Tenant Name': 'Sarah Williams',
-      'Tenant Phone': '0412 334 556',
+      'Description': '- Fix mixer tap leaking at base joint\n- Re-seal silicone bead around vanity',
       'Estimated Mins': 45
     },
     {
-      'Job Title': 'Replace broken sliding door latch & rollers',
+      'Job ID': 'BK-1043',
+      'Job Title': 'Replace sliding patio door rollers & latch',
       'Client Name': 'David Chen',
       'Client Phone': '0423 778 899',
       'Client Email': 'david.chen@example.com',
@@ -330,18 +326,13 @@ export function downloadSampleExcelTemplate() {
       'Status': 'Quote Requested',
       'Priority': 'High',
       'Category': 'Door & Window',
-      'Description': 'Rear patio aluminium sliding door stiff to open, roller damaged, latch missing screw.',
-      'Real Estate Agency': 'Barry Plant Sanctuary Lakes',
-      'Agent Name': 'Jessica Taylor',
-      'Agent Phone': '0488 112 233',
-      'Work Order No': 'WO-BP-5521',
-      'Tenant Name': 'David Chen',
-      'Tenant Phone': '0423 778 899',
+      'Description': '- Rear patio sliding door stiff to open\n- Replace damaged rollers\n- Install replacement latch screw',
       'Estimated Mins': 60
     },
     {
-      'Job Title': 'Plaster repair drywall hole in bedroom hallway',
-      'Client Name': 'Emma & Luke Taylor',
+      'Job ID': 'BK-1044',
+      'Job Title': 'Plaster repair drywall hole in hallway',
+      'Client Name': 'Emma Taylor',
       'Client Phone': '0434 998 112',
       'Client Email': 'emma.t@example.com.au',
       'Street Address': '7 Seabrook Blvd',
@@ -349,16 +340,11 @@ export function downloadSampleExcelTemplate() {
       'Status': 'In Progress',
       'Priority': 'Medium',
       'Category': 'Drywall & Masonry',
-      'Description': '15cm doorknob hole in gyprock. Patch, sand, and paint match with ceiling white.',
-      'Real Estate Agency': '',
-      'Agent Name': '',
-      'Agent Phone': '',
-      'Work Order No': '',
-      'Tenant Name': '',
-      'Tenant Phone': '',
+      'Description': '- 15cm doorknob hole in gyprock\n- Patch, sand, and paint match with ceiling white',
       'Estimated Mins': 90
     },
     {
+      'Job ID': 'BK-1045',
       'Job Title': 'URGENT: Burst laundry water hose leak',
       'Client Name': 'Mark Johnson',
       'Client Phone': '0400 554 433',
@@ -368,13 +354,7 @@ export function downloadSampleExcelTemplate() {
       'Status': 'Urgent',
       'Priority': 'Urgent',
       'Category': 'Plumbing',
-      'Description': 'Emergency water leak under laundry trough. Main valve turned off, needs new flexi hose immediately.',
-      'Real Estate Agency': 'Ray White Point Cook',
-      'Agent Name': 'Michael Evans (PM)',
-      'Agent Phone': '0491 223 344',
-      'Work Order No': 'WO-RW-9001',
-      'Tenant Name': 'Mark Johnson',
-      'Tenant Phone': '0400 554 433',
+      'Description': '- Emergency water leak under laundry trough\n- Replace ruptured flexi hose immediately',
       'Estimated Mins': 45
     }
   ];
@@ -385,22 +365,17 @@ export function downloadSampleExcelTemplate() {
 
   // Auto-fit column widths
   worksheet['!cols'] = [
-    { wch: 35 }, // Job Title
-    { wch: 20 }, // Client Name
-    { wch: 15 }, // Client Phone
+    { wch: 18 }, // Job ID
+    { wch: 42 }, // Job Title
+    { wch: 22 }, // Client Name
+    { wch: 16 }, // Client Phone
     { wch: 25 }, // Client Email
-    { wch: 25 }, // Street Address
+    { wch: 35 }, // Street Address
     { wch: 18 }, // Suburb
     { wch: 18 }, // Status
     { wch: 12 }, // Priority
     { wch: 18 }, // Category
-    { wch: 45 }, // Description
-    { wch: 25 }, // Real Estate Agency
-    { wch: 22 }, // Agent Name
-    { wch: 15 }, // Agent Phone
-    { wch: 15 }, // Work Order No
-    { wch: 18 }, // Tenant Name
-    { wch: 15 }, // Tenant Phone
+    { wch: 55 }, // Description
     { wch: 14 }  // Estimated Mins
   ];
 
@@ -412,11 +387,11 @@ export function downloadSampleExcelTemplate() {
  */
 export function downloadSampleCsvTemplate() {
   const csvContent = 
-`Job Title,Client Name,Client Phone,Client Email,Street Address,Suburb,Status,Priority,Category,Description,Real Estate Agency,Agent Name,Agent Phone,Work Order No,Tenant Name,Tenant Phone,Estimated Mins
-"Fix leaking bathroom vanity tap","Sarah Williams","0412 334 556","sarah@example.com","14 Boardwalk Blvd","Point Cook","Quote Requested","Medium","Plumbing","Mixer tap leaking at base. Check seal.","Ray White Point Cook","Michael Evans","0491 223 344","WO-RW-8942","Sarah Williams","0412 334 556",45
-"Replace sliding patio door rollers","David Chen","0423 778 899","david@example.com","28 Palmers Rd","Williams Landing","Quote Requested","High","Door & Window","Door stiff to open, replace rollers.","Barry Plant","Jessica Taylor","0488 112 233","WO-BP-5521","David Chen","0423 778 899",60
-"Drywall plaster repair in hallway","Emma Taylor","0434 998 112","emma@example.com","7 Seabrook Blvd","Seabrook","In Progress","Medium","Drywall & Masonry","15cm doorknob hole in wall. Patch and paint.","","","","","","",90
-"URGENT: Burst laundry flexi hose","Mark Johnson","0400 554 433","mark@example.com","42 Sanctuary Lakes Blvd","Sanctuary Lakes","Urgent","Urgent","Plumbing","Emergency water leak under sink. Replace hose.","Ray White Point Cook","Michael Evans","0491 223 344","WO-RW-9001","Mark Johnson","0400 554 433",45`;
+`Job ID,Job Title,Client Name,Client Phone,Client Email,Street Address,Suburb,Status,Priority,Category,Description,Estimated Mins
+"BK-1042","Fix leaking bathroom vanity tap","Sarah Williams","0412 334 556","sarah@example.com","14 Boardwalk Blvd","Point Cook","Quote Requested","Medium","Plumbing","- Fix mixer tap leaking at base\n- Re-seal silicone bead around vanity",45
+"BK-1043","Replace sliding patio door rollers","David Chen","0423 778 899","david@example.com","28 Palmers Rd","Williams Landing","Quote Requested","High","Door & Window","- Rear patio sliding door stiff to open\n- Replace damaged rollers",60
+"BK-1044","Drywall plaster repair in hallway","Emma Taylor","0434 998 112","emma@example.com","7 Seabrook Blvd","Seabrook","In Progress","Medium","Drywall & Masonry","- 15cm doorknob hole in wall\n- Patch, sand and paint match",90
+"BK-1045","URGENT: Burst laundry flexi hose","Mark Johnson","0400 554 433","mark@example.com","42 Sanctuary Lakes Blvd","Sanctuary Lakes","Urgent","Urgent","Plumbing","- Emergency water leak under sink\n- Replace flexi hose immediately",45`;
 
   const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
