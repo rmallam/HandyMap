@@ -199,9 +199,17 @@ export const QuickJobSheet: React.FC<QuickJobSheetProps> = ({
         {/* Primary CTA */}
         <button
           onClick={() => onOpenFullJob(job)}
-          className="w-full py-3 px-4 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition active:scale-95"
+          className={`w-full py-3 px-4 rounded-2xl text-white text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition active:scale-95 ${
+            job.status === 'completed' || job.status === 'invoiced'
+              ? 'bg-blue-600 hover:bg-blue-700 shadow-blue-600/30'
+              : 'bg-slate-900 hover:bg-slate-800'
+          }`}
         >
-          <span>{job.quote ? 'Edit / Present Quote' : '⚡ Open Quote Builder'}</span>
+          <span>
+            {job.status === 'completed' || job.status === 'invoiced'
+              ? '📄 View Job & Generate Tax Invoice'
+              : (job.quote ? 'Edit / Present Quote' : '⚡ Open Quote Builder')}
+          </span>
           <ArrowRight className="w-3.5 h-3.5" />
         </button>
 

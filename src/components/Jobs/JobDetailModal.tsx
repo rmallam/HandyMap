@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
+import confetti from 'canvas-confetti';
 import { Job, JobStatus, HandymanProfile, JobPhoto, JobCategory, JobPriority, JobTask, CustomerSignature } from '../../types';
-import { STATUS_CONFIG, formatDateTime, buildLiveNavigationUrl, buildSmsLink, buildWhatsAppLink } from '../../utils/helpers';
+import { STATUS_CONFIG, formatDateTime, formatCurrency, buildLiveNavigationUrl, buildSmsLink, buildWhatsAppLink } from '../../utils/helpers';
 import { buildGoogleCalendarUrl, downloadIcsCalendarFile } from '../../utils/calendarExport';
 import { stitchBeforeAndAfterPhotos, processImageFile } from '../../utils/photoStitcher';
+import { generateQuotePDF } from '../../services/pdfGenerator';
 import { SignaturePadModal } from '../Common/SignaturePadModal';
 import { SUBURBS_LIST } from '../../data/mockJobs';
 import { AddressAutocomplete, AddressResult } from '../Common/AddressAutocomplete';
@@ -24,6 +26,8 @@ import {
   Tag,
   Building2,
   CheckCircle2,
+  CheckCheck,
+  Receipt,
   Circle,
   Pencil,
   Save,
@@ -367,6 +371,20 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
     onUpdateJob(updatedJob);
   };
 
+  const handleCompleteAndInvoice = () => {
+    confetti({
+      particleCount: 80,
+      spread: 70,
+      origin: { y: 0.6 }
+    });
+    const updatedJob: Job = {
+      ...job,
+      status: 'completed',
+      updatedAt: new Date().toISOString()
+    };
+    onUpdateJob(updatedJob);
+  };
+
   const handleAddNote = () => {
     if (!newNote.trim()) return;
     const updatedJob: Job = {
@@ -460,6 +478,19 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
           </div>
 
           <div className="flex items-center gap-1.5 shrink-0">
+            {(job.status === 'completed' || job.status === 'invoiced') && (
+              <button
+                type="button"
+                onClick={() => generateQuotePDF(job, profile)}
+                className="px-3 py-1.5 rounded-xl text-xs font-extrabold bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-1.5 shadow-sm transition active:scale-95 cursor-pointer"
+                title="Generate & Download Official Tax Invoice PDF"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Tax Invoice (PDF)</span>
+                <span className="sm:hidden">Invoice</span>
+              </button>
+            )}
+
             <button
               onClick={() => setIsEditing(!isEditing)}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition border ${
@@ -790,6 +821,76 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
           {/* ========================================================================= */}
           {activeTab === 'overview' && !isEditing && (
             <div className="flex flex-col gap-5 text-slate-900">
+
+              {/* Job Completed & Tax Invoice Generation Banner */}
+              {(job.status === 'completed' || job.status === 'invoiced') && (
+                <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white rounded-2xl p-4 sm:p-5 shadow-xl border border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-in fade-in">
+                  <div className="flex items-start sm:items-center gap-3.5">
+                    <div className={`w-11 h-11 rounded-2xl flex items-center justify-center font-bold text-sm shrink-0 border ${
+                      job.status === 'invoiced'
+                        ? 'bg-blue-500/20 text-blue-400 border-blue-500/30'
+                        : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                    }`}>
+                      {job.status === 'invoiced' ? <CheckCheck className="w-6 h-6 text-blue-400" /> : <CheckCircle2 className="w-6 h-6 text-emerald-400" />}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-md ${
+                          job.status === 'invoiced'
+                            ? 'bg-blue-400/20 text-blue-300 border border-blue-400/40'
+                            : 'bg-emerald-400/20 text-emerald-300 border border-emerald-400/40'
+                        }`}>
+                          {job.status === 'invoiced' ? '✓ INVOICED & PAID' : '✓ JOB COMPLETED'}
+                        </span>
+                        <span className="text-sm font-bold text-white">
+                          Total: {formatCurrency(job.quote?.totalAmount || profile.defaultHourlyRate, profile.currencySymbol)}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-300 mt-0.5">
+                        {job.status === 'invoiced'
+                          ? 'Tax Invoice generated & marked paid. You can re-download or share anytime.'
+                          : 'Job is complete! Generate official Tax Invoice with ABN, bank deposit details & customer signature.'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0 flex-wrap">
+                    <button
+                      type="button"
+                      onClick={() => generateQuotePDF(job, profile)}
+                      className="flex-1 sm:flex-initial px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 active:scale-95 text-white font-extrabold text-xs flex items-center justify-center gap-2 shadow-lg shadow-blue-600/30 transition cursor-pointer"
+                      title="Download Official Tax Invoice PDF"
+                    >
+                      <Download className="w-4 h-4 text-white" />
+                      <span>Generate Tax Invoice (PDF)</span>
+                    </button>
+
+                    <a
+                      href={buildWhatsAppLink(
+                        job.isAgencyJob && job.realEstateAgentPhone ? job.realEstateAgentPhone : job.clientPhone,
+                        `Hi ${job.clientName}, your repair work for "${job.title}" at ${job.address} is completed! Tax Invoice Total: ${formatCurrency(job.quote?.totalAmount || profile.defaultHourlyRate, profile.currencySymbol)}. Bank Transfer: BSB ${profile.bsb || '063-875'} Acc ${profile.accountNumber || '1048 9921'} / PayID: ${profile.payId || profile.phone}. Thank you!`
+                      )}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-3.5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition"
+                      title="Send Tax Invoice details via WhatsApp"
+                    >
+                      <Send className="w-3.5 h-3.5" />
+                      <span>WhatsApp Invoice</span>
+                    </a>
+
+                    {job.status === 'completed' && (
+                      <button
+                        type="button"
+                        onClick={() => handleStatusChange('invoiced')}
+                        className="px-3.5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 active:scale-95 text-slate-200 font-bold text-xs border border-white/20 transition"
+                      >
+                        <span>Mark Paid</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
               
               {/* Real Estate Agency B2B Work Order Info (Only if Agency Partner exists) */}
               {job.isAgencyJob && job.realEstateAgency && (
@@ -1151,6 +1252,34 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                   </div>
                 )}
               </div>
+
+              {/* Complete Job & Invoice Action Card (when active or in progress) */}
+              {job.status !== 'completed' && job.status !== 'invoiced' && (
+                <div className="bg-gradient-to-r from-emerald-50 via-white to-emerald-50/60 rounded-2xl border-2 border-emerald-300/80 p-4 sm:p-5 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4 animate-in fade-in">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 rounded-2xl bg-emerald-600 text-white shadow-md shadow-emerald-600/20 shrink-0">
+                      <CheckCircle2 className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs sm:text-sm font-extrabold text-emerald-950 uppercase tracking-wide">
+                        Work Finished on Site?
+                      </h4>
+                      <p className="text-[11px] text-slate-600 mt-0.5">
+                        Mark this job completed to unlock instant Tax Invoice PDF generation and customer receipt delivery.
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleCompleteAndInvoice}
+                    className="w-full sm:w-auto px-5 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/30 transition cursor-pointer"
+                  >
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>Complete Job & Generate Invoice</span>
+                  </button>
+                </div>
+              )}
 
               {/* Quick SMS Presets */}
               <div className="bg-white rounded-2xl border border-slate-200/90 p-4 shadow-sm">

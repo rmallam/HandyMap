@@ -241,23 +241,23 @@ export const QuoteBuilder: React.FC<QuoteBuilderProps> = ({
         </div>
 
         {/* WhatsApp & PDF Direct Action Bar */}
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-2 shrink-0 flex-wrap">
           <button
             onClick={handleSendWhatsAppQuote}
-            className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 transition shadow-sm active:scale-95"
-            title="Send formatted itemized quote on WhatsApp"
+            className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 transition shadow-sm active:scale-95 cursor-pointer"
+            title={job.status === 'completed' || job.status === 'invoiced' ? 'Send Tax Invoice on WhatsApp' : 'Send formatted itemized quote on WhatsApp'}
           >
             <MessageSquare className="w-3.5 h-3.5 fill-white/20" />
-            <span>Send WhatsApp Quote</span>
+            <span>{job.status === 'completed' || job.status === 'invoiced' ? 'WhatsApp Invoice' : 'Send WhatsApp Quote'}</span>
           </button>
 
           <button
             onClick={() => generateQuotePDF(job, profile)}
-            className="px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold flex items-center gap-1.5 transition border border-white/20 shadow-sm active:scale-95"
-            title="Export clean PDF with ABN and bank deposit details"
+            className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold flex items-center gap-1.5 transition shadow-md shadow-blue-600/30 active:scale-95 cursor-pointer"
+            title={job.status === 'completed' || job.status === 'invoiced' ? 'Generate official Tax Invoice PDF' : 'Export clean Estimate PDF with ABN and bank deposit details'}
           >
-            <Download className="w-3.5 h-3.5 text-blue-300" />
-            <span>PDF</span>
+            <Download className="w-3.5 h-3.5 text-white" />
+            <span>{job.status === 'completed' || job.status === 'invoiced' ? 'Tax Invoice (PDF)' : 'Quote (PDF)'}</span>
           </button>
         </div>
       </div>

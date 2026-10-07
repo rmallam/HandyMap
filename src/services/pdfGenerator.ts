@@ -15,7 +15,7 @@ export function generateQuotePDF(job: Job, profile: HandymanProfile): void {
   const margin = 36; // 12.7mm margin
   const contentWidth = pageWidth - margin * 2; // 523.28 pt
 
-  const isInvoice = job.status === 'invoiced';
+  const isInvoice = job.status === 'invoiced' || job.status === 'completed';
   const docTitle = isInvoice ? 'TAX INVOICE' : 'SERVICE ESTIMATE & QUOTE';
   const docNumber = isInvoice
     ? (job.jobNumber.startsWith('INV') ? job.jobNumber : `INV-${job.jobNumber}`)
