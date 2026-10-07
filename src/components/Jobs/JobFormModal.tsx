@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Job, JobCategory, JobPriority, JobStatus } from '../../types';
 import { REAL_ESTATE_AGENCIES, SUBURBS_LIST } from '../../data/mockJobs';
 import { X, Plus, MapPin, Building2, User, Phone, Tag } from 'lucide-react';
+import { AddressAutocomplete, AddressResult } from '../Common/AddressAutocomplete';
 
 interface JobFormModalProps {
   isOpen: boolean;
@@ -35,8 +36,9 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
   const [clientName, setClientName] = useState('');
   const [clientPhone, setClientPhone] = useState('');
   const [clientEmail, setClientEmail] = useState('');
-  const [address, setAddress] = useState('25 Main St, Point Cook VIC 3030');
+  const [address, setAddress] = useState('');
   const [suburb, setSuburb] = useState('Point Cook');
+  const [selectedCoordinates, setSelectedCoordinates] = useState<[number, number] | null>(null);
   const [category, setCategory] = useState<JobCategory>('General Repair');
   const [priority, setPriority] = useState<JobPriority>('medium');
   const [status, setStatus] = useState<JobStatus>('quote_requested');
@@ -52,18 +54,35 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
   const [workOrderNumber, setWorkOrderNumber] = useState('');
   const [tenantName, setTenantName] = useState('');
   const [tenantPhone, setTenantPhone] = useState('');
+  const handleAddressSelect = (result: AddressResult) => {
+    setAddress(result.address);
+    if (result.suburb) {
+      const matched = SUBURBS_LIST.find(s => s.toLowerCase() === result.suburb.toLowerCase());
+      if (matched) {
+        setSuburb(matched);
+      } else {
+        setSuburb(result.suburb);
+      }
+    }
+    setSelectedCoordinates(result.coordinates);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !clientName.trim()) return;
 
-    // Randomize slight offset from current location for realistic placement around Point Cook
-    const latOffset = (Math.random() - 0.5) * 0.04;
-    const lngOffset = (Math.random() - 0.5) * 0.04;
-    const coordinates: [number, number] = [
-      currentLocation[0] + latOffset,
-      currentLocation[1] + lngOffset
-    ];
+    let coordinates: [number, number];
+    if (selectedCoordinates) {
+      coordinates = selectedCoordinates;
+    } else {
+      // Slight jitter around current location
+      const latOffset = (Math.random() - 0.5) * 0.02;
+      const lngOffset = (Math.random() - 0.5) * 0.02;
+      coordinates = [
+        currentLocation[0] + latOffset,
+        currentLocation[1] + lngOffset
+      ];
+    }
 
     const randomNum = Math.floor(1000 + Math.random() * 9000);
     const jobNumber = status === 'quote_requested' ? `REQ-${randomNum}` : `JOB-${randomNum}`;
@@ -259,19 +278,21 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="sm:col-span-2">
-              <label className="text-slate-700 font-bold block mb-1">
-                Street Address
+              <label className="text-slate-700 font-bold block mb-1 flex items-center justify-between">
+                <span>Street Address *</span>
+                {selectedCoordinates && (
+                  <span className="text-[10px] text-emerald-600 font-semibold flex items-center gap-1">
+                    ✓ Exact Map Pin Linked
+                  </span>
+                )}
               </label>
-              <div className="relative">
-                <MapPin className="w-4 h-4 text-blue-600 absolute left-3 top-3" />
-                <input
-                  type="text"
-                  value={address}
-                  onChange={e => setAddress(e.target.value)}
-                  placeholder="Street address, Point Cook"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3 py-2.5 text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:bg-white outline-none transition"
-                />
-              </div>
+              <AddressAutocomplete
+                value={address}
+                onChange={setAddress}
+                onAddressSelect={handleAddressSelect}
+                placeholder="Start typing street address or place (e.g. 20 Banjo Paterson)..."
+                currentLocation={currentLocation}
+              />
             </div>
 
             <div>
@@ -286,6 +307,9 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
                 {SUBURBS_LIST.map(sub => (
                   <option key={sub} value={sub}>{sub}</option>
                 ))}
+                {!SUBURBS_LIST.includes(suburb) && suburb && (
+                  <option value={suburb}>{suburb}</option>
+                )}
               </select>
             </div>
           </div>
