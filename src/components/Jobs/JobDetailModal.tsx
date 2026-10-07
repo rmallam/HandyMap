@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Job, JobStatus, HandymanProfile, JobPhoto, JobCategory, JobPriority, JobTask, CustomerSignature } from '../../types';
 import { STATUS_CONFIG, formatDateTime, buildLiveNavigationUrl, buildSmsLink, buildWhatsAppLink } from '../../utils/helpers';
 import { buildGoogleCalendarUrl, downloadIcsCalendarFile } from '../../utils/calendarExport';
-import { stitchBeforeAndAfterPhotos } from '../../utils/photoStitcher';
+import { stitchBeforeAndAfterPhotos, processImageFile } from '../../utils/photoStitcher';
 import { SignaturePadModal } from '../Common/SignaturePadModal';
 import { SUBURBS_LIST } from '../../data/mockJobs';
 import { AddressAutocomplete, AddressResult } from '../Common/AddressAutocomplete';
@@ -36,7 +36,10 @@ import {
   Share2,
   PenTool,
   ShieldCheck,
-  ChevronDown
+  ChevronDown,
+  Upload,
+  Image as ImageIcon,
+  Loader2
 } from 'lucide-react';
 
 interface JobDetailModalProps {
@@ -85,6 +88,59 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
   const [selectedAfterPhoto, setSelectedAfterPhoto] = useState<string>('');
   const [stitchedPhotoUrl, setStitchedPhotoUrl] = useState<string>(job.beforeAfterImage || '');
   const [isStitching, setIsStitching] = useState(false);
+
+  // Camera & Gallery file input refs
+  const attachCameraInputRef = useRef<HTMLInputElement>(null);
+  const attachGalleryInputRef = useRef<HTMLInputElement>(null);
+  const beforeCameraInputRef = useRef<HTMLInputElement>(null);
+  const beforeGalleryInputRef = useRef<HTMLInputElement>(null);
+  const afterCameraInputRef = useRef<HTMLInputElement>(null);
+  const afterGalleryInputRef = useRef<HTMLInputElement>(null);
+
+  const [isProcessingImage, setIsProcessingImage] = useState(false);
+  const [showUrlInputFallback, setShowUrlInputFallback] = useState(false);
+
+  const handleFileCapture = async (
+    file: File,
+    type: 'assessment' | 'before' | 'after' = 'assessment',
+    customCaption?: string,
+    setAsStitchTarget?: 'before' | 'after'
+  ) => {
+    if (!file) return;
+    try {
+      setIsProcessingImage(true);
+      const dataUrl = await processImageFile(file, 1280, 0.85);
+      const newPhoto: JobPhoto = {
+        id: `p-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        url: dataUrl,
+        caption: customCaption || photoCaptionInput.trim() || (type === 'before' ? 'Before Work' : type === 'after' ? 'After Completion' : 'Site Assessment'),
+        type: type,
+        uploadedAt: new Date().toISOString()
+      };
+
+      const updatedJob: Job = {
+        ...job,
+        photos: [...job.photos, newPhoto],
+        updatedAt: new Date().toISOString()
+      };
+      onUpdateJob(updatedJob);
+
+      if (setAsStitchTarget === 'before' || type === 'before') {
+        setSelectedBeforePhoto(dataUrl);
+      }
+      if (setAsStitchTarget === 'after' || type === 'after') {
+        setSelectedAfterPhoto(dataUrl);
+      }
+
+      setPhotoUrlInput('');
+      setPhotoCaptionInput('');
+    } catch (err) {
+      console.error('Failed to process image:', err);
+      alert('Failed to process the selected photo. Please try again.');
+    } finally {
+      setIsProcessingImage(false);
+    }
+  };
 
   // Interactive Checklist & Task Management
   const [newTaskInput, setNewTaskInput] = useState('');
@@ -1186,46 +1242,178 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
           {/* ========================================================================= */}
           {activeTab === 'photos' && (
             <div className="flex flex-col gap-5 text-slate-900">
-              {/* Add Photo form */}
-              <div className="bg-white rounded-2xl border border-slate-200/90 p-4 shadow-sm">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">
-                  Attach Site / Assessment Photo
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 mb-2.5">
-                  <select
-                    value={photoTypeInput}
-                    onChange={e => setPhotoTypeInput(e.target.value as any)}
-                    className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800"
-                  >
-                    <option value="assessment">Site Assessment</option>
-                    <option value="before">Before Work</option>
-                    <option value="after">After Completion</option>
-                  </select>
 
-                  <input
-                    type="text"
-                    value={photoUrlInput}
-                    onChange={e => setPhotoUrlInput(e.target.value)}
-                    placeholder="Image URL..."
-                    className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 sm:col-span-2 focus:border-blue-500 outline-none"
-                  />
+              {/* Hidden File Inputs for Direct Camera & Gallery capture */}
+              <input
+                type="file"
+                ref={attachCameraInputRef}
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleFileCapture(file, photoTypeInput, photoCaptionInput);
+                  e.target.value = '';
+                }}
+              />
+              <input
+                type="file"
+                ref={attachGalleryInputRef}
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleFileCapture(file, photoTypeInput, photoCaptionInput);
+                  e.target.value = '';
+                }}
+              />
+
+              <input
+                type="file"
+                ref={beforeCameraInputRef}
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleFileCapture(file, 'before', 'Before repair work', 'before');
+                  e.target.value = '';
+                }}
+              />
+              <input
+                type="file"
+                ref={beforeGalleryInputRef}
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleFileCapture(file, 'before', 'Before repair work', 'before');
+                  e.target.value = '';
+                }}
+              />
+
+              <input
+                type="file"
+                ref={afterCameraInputRef}
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleFileCapture(file, 'after', 'Completed repair work', 'after');
+                  e.target.value = '';
+                }}
+              />
+              <input
+                type="file"
+                ref={afterGalleryInputRef}
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleFileCapture(file, 'after', 'Completed repair work', 'after');
+                  e.target.value = '';
+                }}
+              />
+
+              {/* Processing Image Indicator */}
+              {isProcessingImage && (
+                <div className="bg-blue-50 border border-blue-200 text-blue-800 p-3.5 rounded-2xl flex items-center justify-center gap-2 animate-pulse">
+                  <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
+                  <span className="text-xs font-bold">Optimizing & saving photo...</span>
+                </div>
+              )}
+
+              {/* Add Photo form */}
+              <div className="bg-white rounded-2xl border border-slate-200/90 p-4 shadow-sm flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900">
+                      Attach Site & Assessment Photo
+                    </h3>
+                    <p className="text-[11px] text-slate-500">
+                      Snap or upload photos on-site with automatic mobile compression.
+                    </p>
+                  </div>
                 </div>
 
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={photoCaptionInput}
-                    onChange={e => setPhotoCaptionInput(e.target.value)}
-                    placeholder="Caption / description (e.g., Damaged valve fitting)..."
-                    className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:border-blue-500 outline-none"
-                  />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-700 block mb-1">Photo Category</label>
+                    <select
+                      value={photoTypeInput}
+                      onChange={e => setPhotoTypeInput(e.target.value as any)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:border-blue-500 outline-none"
+                    >
+                      <option value="assessment">Site Assessment / General</option>
+                      <option value="before">Before Work (Initial State)</option>
+                      <option value="after">After Work (Completed Repair)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-700 block mb-1">Caption / Note (Optional)</label>
+                    <input
+                      type="text"
+                      value={photoCaptionInput}
+                      onChange={e => setPhotoCaptionInput(e.target.value)}
+                      placeholder="e.g., Leaking brass valve, Cracked tile..."
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:border-blue-500 outline-none"
+                    />
+                  </div>
+                </div>
+
+                {/* Mobile Camera & Gallery Capture Action Buttons */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
                   <button
-                    onClick={handleAddPhoto}
-                    disabled={!photoUrlInput.trim()}
-                    className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs disabled:opacity-50 transition"
+                    type="button"
+                    onClick={() => attachCameraInputRef.current?.click()}
+                    disabled={isProcessingImage}
+                    className="py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-98 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-md shadow-blue-600/20 transition"
                   >
-                    Attach
+                    <Camera className="w-4 h-4" />
+                    <span>Take Photo (Camera)</span>
                   </button>
+
+                  <button
+                    type="button"
+                    onClick={() => attachGalleryInputRef.current?.click()}
+                    disabled={isProcessingImage}
+                    className="py-2.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 active:scale-98 text-slate-800 font-bold text-xs flex items-center justify-center gap-2 border border-slate-200 transition shadow-sm"
+                  >
+                    <ImageIcon className="w-4 h-4 text-slate-600" />
+                    <span>Upload from Device Gallery</span>
+                  </button>
+                </div>
+
+                {/* Fallback URL toggle */}
+                <div className="pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setShowUrlInputFallback(!showUrlInputFallback)}
+                    className="text-[11px] text-blue-600 hover:text-blue-700 font-medium"
+                  >
+                    {showUrlInputFallback ? '▲ Hide URL input option' : '▼ Or enter image web URL directly'}
+                  </button>
+
+                  {showUrlInputFallback && (
+                    <div className="flex gap-2 mt-2 pt-2 border-t border-slate-100 animate-in fade-in">
+                      <input
+                        type="text"
+                        value={photoUrlInput}
+                        onChange={e => setPhotoUrlInput(e.target.value)}
+                        placeholder="https://images.unsplash.com/..."
+                        className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:border-blue-500 outline-none"
+                      />
+                      <button
+                        onClick={handleAddPhoto}
+                        disabled={!photoUrlInput.trim()}
+                        className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs disabled:opacity-50 transition"
+                      >
+                        Attach URL
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -1253,63 +1441,125 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                   </span>
                 </div>
 
-                <p className="text-xs text-slate-400">
-                  Select a 'Before' and 'After' photo from your job gallery to generate a branded, side-by-side comparison report with timestamp, address watermark, and Job ID.
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  Take or select 'Before' and 'After' photos on mobile to generate an official branded comparison report stamped with GPS address, timestamp, and Job ID.
                 </p>
 
                 {/* Photo Selectors */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                  {/* Before Selector */}
-                  <div className="bg-slate-800/80 p-3 rounded-2xl border border-slate-700 flex flex-col gap-2">
-                    <label className="text-[11px] font-bold text-amber-400 flex items-center gap-1 uppercase tracking-wider">
-                      <span>◀ Select 'Before' Photo</span>
-                    </label>
-                    <select
-                      value={selectedBeforePhoto}
-                      onChange={e => setSelectedBeforePhoto(e.target.value)}
-                      className="bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-2 text-xs text-white font-medium outline-none"
-                    >
-                      <option value="">-- Choose Before Photo --</option>
-                      {job.photos.map((p, idx) => (
-                        <option key={p.id} value={p.url}>
-                          Photo {idx + 1}: {p.caption} ({p.type})
-                        </option>
-                      ))}
-                    </select>
+                  {/* Before Selector Card */}
+                  <div className="bg-slate-800/80 p-3.5 rounded-2xl border border-slate-700 flex flex-col gap-2.5">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[11px] font-black text-amber-400 flex items-center gap-1 uppercase tracking-wider">
+                        <span>◀ 1. 'Before' Photo</span>
+                      </label>
+                      <span className="text-[10px] text-slate-400">Pre-repair state</span>
+                    </div>
+
+                    {/* Direct Camera / Upload Buttons for Before */}
+                    <div className="grid grid-cols-2 gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => beforeCameraInputRef.current?.click()}
+                        disabled={isProcessingImage}
+                        className="py-2 px-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 active:scale-95 text-slate-950 font-bold text-[11px] flex items-center justify-center gap-1.5 shadow-sm transition"
+                      >
+                        <Camera className="w-3.5 h-3.5" />
+                        <span>Take Photo</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => beforeGalleryInputRef.current?.click()}
+                        disabled={isProcessingImage}
+                        className="py-2 px-2.5 rounded-xl bg-slate-700 hover:bg-slate-600 active:scale-95 text-white font-bold text-[11px] flex items-center justify-center gap-1.5 border border-slate-600 shadow-sm transition"
+                      >
+                        <Upload className="w-3.5 h-3.5" />
+                        <span>Upload</span>
+                      </button>
+                    </div>
+
+                    {/* Dropdown of existing photos */}
+                    <div className="flex flex-col gap-1">
+                      <span className="text-[10px] text-slate-400">Or pick from existing photos:</span>
+                      <select
+                        value={selectedBeforePhoto}
+                        onChange={e => setSelectedBeforePhoto(e.target.value)}
+                        className="bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-2 text-xs text-white font-medium outline-none"
+                      >
+                        <option value="">-- Select photo from job --</option>
+                        {job.photos.map((p, idx) => (
+                          <option key={p.id} value={p.url}>
+                            Photo {idx + 1}: {p.caption} ({p.type})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
 
                     {selectedBeforePhoto && (
-                      <div className="h-28 rounded-xl overflow-hidden border border-slate-700 mt-1 relative">
+                      <div className="h-32 rounded-xl overflow-hidden border border-slate-700 mt-1 relative bg-slate-950">
                         <img src={selectedBeforePhoto} alt="Before Preview" className="w-full h-full object-cover" />
-                        <span className="absolute top-1.5 left-1.5 bg-amber-500 text-slate-950 font-black text-[9px] px-2 py-0.5 rounded-md">
-                          BEFORE
+                        <span className="absolute top-2 left-2 bg-amber-500 text-slate-950 font-black text-[9px] px-2 py-0.5 rounded-md shadow">
+                          ◀ BEFORE SELECTED
                         </span>
                       </div>
                     )}
                   </div>
 
-                  {/* After Selector */}
-                  <div className="bg-slate-800/80 p-3 rounded-2xl border border-slate-700 flex flex-col gap-2">
-                    <label className="text-[11px] font-bold text-emerald-400 flex items-center gap-1 uppercase tracking-wider">
-                      <span>Select 'After' Photo ▶</span>
-                    </label>
-                    <select
-                      value={selectedAfterPhoto}
-                      onChange={e => setSelectedAfterPhoto(e.target.value)}
-                      className="bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-2 text-xs text-white font-medium outline-none"
-                    >
-                      <option value="">-- Choose After Photo --</option>
-                      {job.photos.map((p, idx) => (
-                        <option key={p.id} value={p.url}>
-                          Photo {idx + 1}: {p.caption} ({p.type})
-                        </option>
-                      ))}
-                    </select>
+                  {/* After Selector Card */}
+                  <div className="bg-slate-800/80 p-3.5 rounded-2xl border border-slate-700 flex flex-col gap-2.5">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[11px] font-black text-emerald-400 flex items-center gap-1 uppercase tracking-wider">
+                        <span>2. 'After' Photo ▶</span>
+                      </label>
+                      <span className="text-[10px] text-slate-400">Finished repair</span>
+                    </div>
+
+                    {/* Direct Camera / Upload Buttons for After */}
+                    <div className="grid grid-cols-2 gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => afterCameraInputRef.current?.click()}
+                        disabled={isProcessingImage}
+                        className="py-2 px-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-slate-950 font-bold text-[11px] flex items-center justify-center gap-1.5 shadow-sm transition"
+                      >
+                        <Camera className="w-3.5 h-3.5" />
+                        <span>Take Photo</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => afterGalleryInputRef.current?.click()}
+                        disabled={isProcessingImage}
+                        className="py-2 px-2.5 rounded-xl bg-slate-700 hover:bg-slate-600 active:scale-95 text-white font-bold text-[11px] flex items-center justify-center gap-1.5 border border-slate-600 shadow-sm transition"
+                      >
+                        <Upload className="w-3.5 h-3.5" />
+                        <span>Upload</span>
+                      </button>
+                    </div>
+
+                    {/* Dropdown of existing photos */}
+                    <div className="flex flex-col gap-1">
+                      <span className="text-[10px] text-slate-400">Or pick from existing photos:</span>
+                      <select
+                        value={selectedAfterPhoto}
+                        onChange={e => setSelectedAfterPhoto(e.target.value)}
+                        className="bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-2 text-xs text-white font-medium outline-none"
+                      >
+                        <option value="">-- Select photo from job --</option>
+                        {job.photos.map((p, idx) => (
+                          <option key={p.id} value={p.url}>
+                            Photo {idx + 1}: {p.caption} ({p.type})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
 
                     {selectedAfterPhoto && (
-                      <div className="h-28 rounded-xl overflow-hidden border border-slate-700 mt-1 relative">
+                      <div className="h-32 rounded-xl overflow-hidden border border-slate-700 mt-1 relative bg-slate-950">
                         <img src={selectedAfterPhoto} alt="After Preview" className="w-full h-full object-cover" />
-                        <span className="absolute top-1.5 right-1.5 bg-emerald-500 text-slate-950 font-black text-[9px] px-2 py-0.5 rounded-md">
-                          AFTER
+                        <span className="absolute top-2 right-2 bg-emerald-500 text-slate-950 font-black text-[9px] px-2 py-0.5 rounded-md shadow">
+                          AFTER SELECTED ▶
                         </span>
                       </div>
                     )}
@@ -1321,9 +1571,9 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                   type="button"
                   disabled={!selectedBeforePhoto || !selectedAfterPhoto || isStitching}
                   onClick={handleGenerateStitchedReport}
-                  className={`py-3 px-4 rounded-2xl font-bold text-xs flex items-center justify-center gap-2 shadow-lg transition ${
+                  className={`py-3.5 px-4 rounded-2xl font-bold text-xs flex items-center justify-center gap-2 shadow-lg transition ${
                     selectedBeforePhoto && selectedAfterPhoto && !isStitching
-                      ? 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-blue-500/20 active:scale-98'
+                      ? 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-blue-500/20 active:scale-98 cursor-pointer'
                       : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
                   }`}
                 >
