@@ -21,6 +21,7 @@ import {
   loadSnoozedReminderIds,
   saveSnoozedReminderIds
 } from './services/reminderEngine';
+import { Plus } from 'lucide-react';
 import { Header } from './components/Navigation/Header';
 import { BottomNav } from './components/Navigation/BottomNav';
 import { MapView } from './components/Map/MapView';
@@ -527,6 +528,18 @@ export function App() {
         onSnoozeReminder={handleSnoozeReminder}
         onClearAllSnoozed={handleClearAllSnoozed}
       />
+
+      {/* Mobile Thumb-Zone Floating Action Button (FAB) */}
+      {(activeTab === 'map' || activeTab === 'jobs') && (
+        <button
+          onClick={() => setIsNewJobOpen(true)}
+          className="fixed bottom-[calc(4.6rem+env(safe-area-inset-bottom,0px))] right-3.5 z-30 sm:hidden bg-gradient-to-tr from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-xl shadow-blue-600/40 w-13 h-13 rounded-full flex items-center justify-center active:scale-95 transition-all duration-150 border-2 border-white/80"
+          title="Create New Job or Quote"
+          aria-label="Create New Job"
+        >
+          <Plus className="w-6 h-6 stroke-[2.8]" />
+        </button>
+      )}
 
       {/* Bottom Navigation for Mobile & Responsive */}
       <BottomNav

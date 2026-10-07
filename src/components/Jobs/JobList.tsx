@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Job, JobStatus, HandymanProfile, ReminderItem } from '../../types';
-import { STATUS_CONFIG, formatCurrency, formatDateTime } from '../../utils/helpers';
+import { STATUS_CONFIG, formatCurrency, formatDateTime, buildLiveNavigationUrl, buildWhatsAppLink } from '../../utils/helpers';
 import { REAL_ESTATE_AGENCIES } from '../../data/mockJobs';
 import {
   Search,
@@ -15,7 +15,10 @@ import {
   Building2,
   Filter,
   X,
-  FileSpreadsheet
+  FileSpreadsheet,
+  ListTodo,
+  MessageSquare,
+  Navigation2
 } from 'lucide-react';
 
 interface JobListProps {
@@ -377,20 +380,41 @@ export const JobList: React.FC<JobListProps> = ({
                       )}
                     </div>
                   )}
+
+                  {/* Checklist Tasks Progress Bar (if job has checklist tasks) */}
+                  {job.tasks && job.tasks.length > 0 && (
+                    <div className="mt-3 p-2.5 rounded-xl bg-slate-50 border border-slate-200/70 flex flex-col gap-1.5">
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="font-bold text-slate-700 flex items-center gap-1">
+                          <ListTodo className="w-3.5 h-3.5 text-blue-600" />
+                          <span>{job.tasks.filter(t => t.isCompleted).length} of {job.tasks.length} Tasks Done</span>
+                        </span>
+                        <span className="font-extrabold text-blue-600">
+                          {Math.round((job.tasks.filter(t => t.isCompleted).length / job.tasks.length) * 100)}%
+                        </span>
+                      </div>
+                      <div className="w-full h-1.5 bg-slate-200/80 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-blue-600 rounded-full transition-all duration-300"
+                          style={{ width: `${(job.tasks.filter(t => t.isCompleted).length / job.tasks.length) * 100}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Client & Pricing footer */}
                 <div className="pt-3 border-t border-slate-100 flex flex-col gap-2.5">
                   <div className="flex items-center justify-between text-xs">
-                    <div className="flex items-center gap-1.5 text-slate-600">
+                    <div className="flex items-center gap-1.5 text-slate-600 min-w-0 flex-1">
                       <MapPin className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-                      <span className="truncate max-w-[200px]">{job.address}</span>
+                      <span className="truncate">{job.address}</span>
                     </div>
 
-                    <span className="font-semibold text-slate-800">{job.clientName}</span>
+                    <span className="font-semibold text-slate-800 shrink-0 ml-2">{job.clientName}</span>
                   </div>
 
-                  <div className="flex items-center justify-between pt-1 text-xs">
+                  <div className="flex items-center justify-between pt-1 text-xs gap-2 flex-wrap sm:flex-nowrap">
                     <div>
                       {job.quote ? (
                         <span className="text-sm font-extrabold text-emerald-700 flex items-center gap-1">
@@ -405,14 +429,41 @@ export const JobList: React.FC<JobListProps> = ({
                       )}
                     </div>
 
+                    {/* Direct 1-Tap Action Row */}
                     <div className="flex items-center gap-1.5">
+                      {job.clientPhone && (
+                        <>
+                          <a
+                            href={`tel:${job.clientPhone}`}
+                            onClick={e => e.stopPropagation()}
+                            className="p-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200/60 transition active:scale-95"
+                            title="Call Client"
+                          >
+                            <Phone className="w-3.5 h-3.5" />
+                          </a>
+
+                          <a
+                            href={buildWhatsAppLink(job.clientPhone, `Hi ${job.clientName}, regarding your job ${job.title}...`)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={e => e.stopPropagation()}
+                            className="p-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200/60 transition active:scale-95"
+                            title="WhatsApp Client"
+                          >
+                            <MessageSquare className="w-3.5 h-3.5" />
+                          </a>
+                        </>
+                      )}
+
                       <a
-                        href={`tel:${job.clientPhone}`}
+                        href={buildLiveNavigationUrl(job.coordinates, job.address)}
+                        target="_blank"
+                        rel="noopener noreferrer"
                         onClick={e => e.stopPropagation()}
-                        className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition"
-                        title="Call Client"
+                        className="p-2 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200/60 transition active:scale-95"
+                        title="Google Maps Navigation"
                       >
-                        <Phone className="w-3.5 h-3.5 text-emerald-600" />
+                        <Navigation2 className="w-3.5 h-3.5" />
                       </a>
 
                       <button
@@ -420,9 +471,9 @@ export const JobList: React.FC<JobListProps> = ({
                           e.stopPropagation();
                           onSelectJob(job);
                         }}
-                        className="px-3 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-600 text-blue-700 hover:text-white font-bold text-xs flex items-center gap-1 border border-blue-200 transition duration-150"
+                        className="px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center gap-1 shadow-xs transition active:scale-95 ml-1"
                       >
-                        <span>Manage</span>
+                        <span>Checklist</span>
                         <ArrowRight className="w-3 h-3" />
                       </button>
                     </div>
