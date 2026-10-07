@@ -65,6 +65,13 @@ export interface TimeLog {
   notes?: string;
 }
 
+export interface JobTask {
+  id: string;
+  title: string;
+  isCompleted: boolean;
+  completedAt?: string;
+}
+
 export interface Job {
   id: string;
   jobNumber: string;
@@ -79,6 +86,7 @@ export interface Job {
   priority: JobPriority;
   category: JobCategory;
   description: string;
+  tasks?: JobTask[]; // Checklist items / subtasks
   quoteRequestedDate: string;
   appointmentTime?: string; // e.g. "2026-09-22T14:30:00"
   estimatedDurationMinutes: number;

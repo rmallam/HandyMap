@@ -28,11 +28,29 @@ export const REAL_ESTATE_AGENCIES = [
 
 export const SUBURBS_LIST = [
   'Point Cook',
+  'Sanctuary Lakes',
   'Williams Landing',
   'Seabrook',
   'Altona Meadows',
+  'Altona',
+  'Altona North',
   'Hoppers Crossing',
-  'Truganina'
+  'Werribee',
+  'Werribee South',
+  'Truganina',
+  'Tarneit',
+  'Wyndham Vale',
+  'Manor Lakes',
+  'Laverton',
+  'Melton',
+  'Rockbank',
+  'Caroline Springs',
+  'Deer Park',
+  'Sunshine',
+  'Footscray',
+  'Yarraville',
+  'Newport',
+  'Williamstown'
 ];
 
 // Completely clean empty jobs by default - no hardcoded mock jobs

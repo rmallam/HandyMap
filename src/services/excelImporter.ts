@@ -1,5 +1,5 @@
 import * as XLSX from 'xlsx';
-import { Job, JobStatus, JobPriority, JobCategory } from '../types';
+import { Job, JobStatus, JobPriority, JobCategory, JobTask } from '../types';
 
 // Suburb Coordinates Lookup for Melbourne West & Greater Melbourne
 const SUBURB_COORDINATES: Record<string, [number, number]> = {
@@ -226,6 +226,21 @@ export async function parseSpreadsheetFile(file: File): Promise<{
           const isAgencyJob = Boolean(realEstateAgency && realEstateAgency.trim().length > 0);
           const estimatedDurationMinutes = parseInt(findValue(row, ['duration', 'durationminutes', 'estimatedduration', 'time', 'estimatedmins']) || '60', 10);
 
+          const parsedTasks: JobTask[] = [];
+          if (description) {
+            const descLines = String(description).split('\n').map(l => l.trim()).filter(Boolean);
+            descLines.forEach((line, i) => {
+              const clean = line.replace(/^[-*•\d.)]+\s*/, '').trim();
+              if (clean.length > 2) {
+                parsedTasks.push({
+                  id: `task-imp-${timestamp}-${index + 1}-${i + 1}`,
+                  title: clean,
+                  isCompleted: status === 'completed' || status === 'invoiced'
+                });
+              }
+            });
+          }
+
           const newJob: Job = {
             id: `job-imp-${timestamp}-${index + 1}`,
             jobNumber: String(workOrderNumber || `JOB-${Math.floor(1000 + Math.random() * 9000)}`),
@@ -240,6 +255,7 @@ export async function parseSpreadsheetFile(file: File): Promise<{
             priority,
             category,
             description: String(description),
+            tasks: parsedTasks,
             quoteRequestedDate: new Date().toISOString(),
             estimatedDurationMinutes: isNaN(estimatedDurationMinutes) ? 60 : estimatedDurationMinutes,
             

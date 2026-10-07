@@ -282,6 +282,7 @@ function mapRowToJob(row: any): Job {
     tenantName: row.tenant_name || undefined,
     tenantPhone: row.tenant_phone || undefined,
 
+    tasks: Array.isArray(row.tasks) ? row.tasks : [],
     quote: row.quote || undefined,
     photos: Array.isArray(row.photos) ? row.photos : [],
     timeLogs: Array.isArray(row.time_logs) ? row.time_logs : [],
@@ -322,6 +323,7 @@ function mapJobToRow(job: Job, userId: string): any {
     tenant_name: job.tenantName || null,
     tenant_phone: job.tenantPhone || null,
 
+    tasks: job.tasks || [],
     quote: job.quote || null,
     photos: job.photos || [],
     time_logs: job.timeLogs || [],
@@ -360,7 +362,13 @@ export async function upsertJobInSupabase(job: Job, userId: string): Promise<boo
   if (!supabase || !userId) return false;
   try {
     const row = mapJobToRow(job, userId);
-    const { error } = await supabase.from('jobs').upsert(row);
+    let { error } = await supabase.from('jobs').upsert(row);
+    if (error && (error.message.includes('tasks') || error.code === '42703')) {
+      // Retry without tasks column if schema doesn't have it yet
+      delete row.tasks;
+      const retry = await supabase.from('jobs').upsert(row);
+      error = retry.error;
+    }
     if (error) {
       console.warn('Supabase job upsert error:', error.message);
       return false;

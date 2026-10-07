@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Job, JobCategory, JobPriority, JobStatus } from '../../types';
+import { Job, JobCategory, JobPriority, JobStatus, JobTask } from '../../types';
 import { REAL_ESTATE_AGENCIES, SUBURBS_LIST } from '../../data/mockJobs';
 import { X, Plus, MapPin, Building2, User, Phone, Tag } from 'lucide-react';
 import { AddressAutocomplete, AddressResult } from '../Common/AddressAutocomplete';
@@ -45,6 +45,8 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
   const [description, setDescription] = useState('');
   const [durationMin, setDurationMin] = useState(45);
   const [appointmentTime, setAppointmentTime] = useState('');
+  const [tasks, setTasks] = useState<string[]>([]);
+  const [taskInput, setTaskInput] = useState('');
 
   // Real Estate Agency Fields
   const [isAgencyJob, setIsAgencyJob] = useState(false);
@@ -87,6 +89,26 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
     const randomNum = Math.floor(1000 + Math.random() * 9000);
     const jobNumber = status === 'quote_requested' ? `REQ-${randomNum}` : `JOB-${randomNum}`;
 
+    let initialTasks: JobTask[] = tasks.map((t, i) => ({
+      id: `task-${Date.now()}-${i}`,
+      title: t,
+      isCompleted: false
+    }));
+
+    if (initialTasks.length === 0 && description) {
+      const lines = description.split('\n').map(l => l.trim()).filter(Boolean);
+      lines.forEach((line, idx) => {
+        const clean = line.replace(/^[-*•\d.)]+\s*/, '').trim();
+        if (clean.length > 2 && (line.startsWith('-') || line.startsWith('•') || line.startsWith('*') || /^\d+\./.test(line))) {
+          initialTasks.push({
+            id: `task-init-${Date.now()}-${idx}`,
+            title: clean,
+            isCompleted: false
+          });
+        }
+      });
+    }
+
     const newJob: Job = {
       id: `job-${Date.now()}`,
       jobNumber,
@@ -101,6 +123,7 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
       priority,
       category,
       description: description.trim() || 'Customer requested on-site estimate and inspection.',
+      tasks: initialTasks,
       quoteRequestedDate: new Date().toISOString(),
       appointmentTime: appointmentTime ? new Date(appointmentTime).toISOString() : undefined,
       estimatedDurationMinutes: durationMin,
@@ -370,9 +393,66 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
               rows={3}
               value={description}
               onChange={e => setDescription(e.target.value)}
-              placeholder="What needs to be estimated or repaired?"
+              placeholder="What needs to be estimated or repaired? (Bullet points will auto-convert into checkboxes)"
               className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:bg-white outline-none resize-none transition"
             />
+          </div>
+
+          {/* Actionable Subtasks / Checklist Items */}
+          <div className="bg-slate-50/80 p-3 rounded-2xl border border-slate-200/80 flex flex-col gap-2">
+            <label className="text-slate-700 font-bold block flex items-center justify-between">
+              <span>Task Checklist Items (Optional)</span>
+              <span className="text-[10px] text-slate-500 font-normal">Mark done on-site</span>
+            </label>
+            
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={taskInput}
+                onChange={e => setTaskInput(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (taskInput.trim()) {
+                      setTasks([...tasks, taskInput.trim()]);
+                      setTaskInput('');
+                    }
+                  }
+                }}
+                placeholder="e.g. Replace shower seal, check lock..."
+                className="flex-1 bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:border-blue-500 outline-none"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  if (taskInput.trim()) {
+                    setTasks([...tasks, taskInput.trim()]);
+                    setTaskInput('');
+                  }
+                }}
+                disabled={!taskInput.trim()}
+                className="px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs disabled:opacity-50 transition"
+              >
+                + Add
+              </button>
+            </div>
+
+            {tasks.length > 0 && (
+              <div className="flex flex-col gap-1.5 mt-1">
+                {tasks.map((t, idx) => (
+                  <div key={idx} className="flex items-center justify-between bg-white px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs">
+                    <span className="text-slate-800">☐ {t}</span>
+                    <button
+                      type="button"
+                      onClick={() => setTasks(tasks.filter((_, i) => i !== idx))}
+                      className="text-slate-400 hover:text-red-600 p-0.5"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-200 shrink-0">

@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
-import { Job, JobStatus, HandymanProfile, JobPhoto } from '../../types';
+import React, { useState, useEffect } from 'react';
+import { Job, JobStatus, HandymanProfile, JobPhoto, JobCategory, JobPriority, JobTask } from '../../types';
 import { STATUS_CONFIG, formatDateTime, buildLiveNavigationUrl, buildSmsLink, buildWhatsAppLink } from '../../utils/helpers';
+import { SUBURBS_LIST } from '../../data/mockJobs';
+import { AddressAutocomplete, AddressResult } from '../Common/AddressAutocomplete';
 import { QuoteBuilder } from './QuoteBuilder';
 import { TimeTracker } from './TimeTracker';
 import {
@@ -18,7 +20,14 @@ import {
   Trash2,
   Tag,
   Building2,
-  UserCheck
+  CheckCircle2,
+  Circle,
+  Pencil,
+  Save,
+  RotateCcw,
+  Check,
+  ListTodo,
+  AlertCircle
 } from 'lucide-react';
 
 interface JobDetailModalProps {
@@ -30,6 +39,19 @@ interface JobDetailModalProps {
   onDeleteJob: (jobId: string) => void;
 }
 
+const CATEGORIES: JobCategory[] = [
+  'Plumbing',
+  'Electrical',
+  'Carpentry',
+  'Painting',
+  'HVAC',
+  'Roofing',
+  'General Repair',
+  'Assembly & Mounting',
+  'Drywall & Masonry',
+  'Door & Window'
+];
+
 export const JobDetailModal: React.FC<JobDetailModalProps> = ({
   job,
   profile,
@@ -40,15 +62,174 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
 }) => {
   if (!job) return null;
 
-  const [activeTab, setActiveTab] = useState<'quote' | 'overview' | 'photos' | 'time'>('quote');
+  const [activeTab, setActiveTab] = useState<'quote' | 'overview' | 'photos' | 'time'>('overview');
   const [newNote, setNewNote] = useState('');
   const [photoUrlInput, setPhotoUrlInput] = useState('');
   const [photoCaptionInput, setPhotoCaptionInput] = useState('');
   const [photoTypeInput, setPhotoTypeInput] = useState<'assessment' | 'before' | 'after'>('assessment');
 
+  // Interactive Checklist & Task Management
+  const [newTaskInput, setNewTaskInput] = useState('');
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [editingTaskTitle, setEditingTaskTitle] = useState('');
+
+  // Full Scope / Job Edit Mode
+  const [isEditing, setIsEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState(job.title);
+  const [editDescription, setEditDescription] = useState(job.description);
+  const [editCategory, setEditCategory] = useState<JobCategory>(job.category);
+  const [editPriority, setEditPriority] = useState<JobPriority>(job.priority);
+  const [editStatus, setEditStatus] = useState<JobStatus>(job.status);
+  const [editClientName, setEditClientName] = useState(job.clientName);
+  const [editClientPhone, setEditClientPhone] = useState(job.clientPhone);
+  const [editClientEmail, setEditClientEmail] = useState(job.clientEmail);
+  const [editAddress, setEditAddress] = useState(job.address);
+  const [editSuburb, setEditSuburb] = useState(job.suburb || 'Point Cook');
+  const [editCoordinates, setEditCoordinates] = useState<[number, number]>(job.coordinates);
+  const [editDuration, setEditDuration] = useState(job.estimatedDurationMinutes);
+
+  // Sync edit form when job prop changes
+  useEffect(() => {
+    setEditTitle(job.title);
+    setEditDescription(job.description);
+    setEditCategory(job.category);
+    setEditPriority(job.priority);
+    setEditStatus(job.status);
+    setEditClientName(job.clientName);
+    setEditClientPhone(job.clientPhone);
+    setEditClientEmail(job.clientEmail);
+    setEditAddress(job.address);
+    setEditSuburb(job.suburb || 'Point Cook');
+    setEditCoordinates(job.coordinates);
+    setEditDuration(job.estimatedDurationMinutes);
+  }, [job]);
+
   const statusCfg = STATUS_CONFIG[job.status];
-  // Direct live GPS navigation link (Google Maps / Apple Maps defaults to device location)
   const googleNavUrl = buildLiveNavigationUrl(job.coordinates, job.address);
+
+  // Tasks statistics
+  const currentTasks = job.tasks || [];
+  const completedTasksCount = currentTasks.filter(t => t.isCompleted).length;
+  const totalTasksCount = currentTasks.length;
+  const progressPercent = totalTasksCount > 0 ? Math.round((completedTasksCount / totalTasksCount) * 100) : 0;
+
+  // Toggle task done/pending
+  const handleToggleTask = (taskId: string) => {
+    const updatedTasks = currentTasks.map(t => {
+      if (t.id === taskId) {
+        const nextCompleted = !t.isCompleted;
+        return {
+          ...t,
+          isCompleted: nextCompleted,
+          completedAt: nextCompleted ? new Date().toISOString() : undefined
+        };
+      }
+      return t;
+    });
+
+    onUpdateJob({
+      ...job,
+      tasks: updatedTasks,
+      updatedAt: new Date().toISOString()
+    });
+  };
+
+  // Add new checklist task
+  const handleAddTask = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!newTaskInput.trim()) return;
+
+    const newTask: JobTask = {
+      id: `task-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      title: newTaskInput.trim(),
+      isCompleted: false
+    };
+
+    onUpdateJob({
+      ...job,
+      tasks: [...currentTasks, newTask],
+      updatedAt: new Date().toISOString()
+    });
+    setNewTaskInput('');
+  };
+
+  // Delete checklist task
+  const handleDeleteTask = (taskId: string) => {
+    const updatedTasks = currentTasks.filter(t => t.id !== taskId);
+    onUpdateJob({
+      ...job,
+      tasks: updatedTasks,
+      updatedAt: new Date().toISOString()
+    });
+  };
+
+  // Save inline task title edit
+  const handleSaveEditTask = () => {
+    if (!editingTaskId || !editingTaskTitle.trim()) {
+      setEditingTaskId(null);
+      return;
+    }
+
+    const updatedTasks = currentTasks.map(t =>
+      t.id === editingTaskId ? { ...t, title: editingTaskTitle.trim() } : t
+    );
+
+    onUpdateJob({
+      ...job,
+      tasks: updatedTasks,
+      updatedAt: new Date().toISOString()
+    });
+    setEditingTaskId(null);
+    setEditingTaskTitle('');
+  };
+
+  // Automatically extract checklist items from scope description bullet points
+  const handleAutoExtractTasks = () => {
+    const lines = job.description.split('\n').map(l => l.trim()).filter(Boolean);
+    const extracted: JobTask[] = [];
+
+    lines.forEach((line, idx) => {
+      const clean = line.replace(/^[-*•\d.)]+\s*/, '').trim();
+      if (clean.length > 2) {
+        extracted.push({
+          id: `task-ext-${Date.now()}-${idx}`,
+          title: clean,
+          isCompleted: false
+        });
+      }
+    });
+
+    if (extracted.length > 0) {
+      onUpdateJob({
+        ...job,
+        tasks: [...currentTasks, ...extracted],
+        updatedAt: new Date().toISOString()
+      });
+    }
+  };
+
+  // Save entire job & scope edits
+  const handleSaveAllJobEdits = (e: React.FormEvent) => {
+    e.preventDefault();
+    const updatedJob: Job = {
+      ...job,
+      title: editTitle.trim() || job.title,
+      description: editDescription.trim() || job.description,
+      category: editCategory,
+      priority: editPriority,
+      status: editStatus,
+      clientName: editClientName.trim() || job.clientName,
+      clientPhone: editClientPhone.trim() || job.clientPhone,
+      clientEmail: editClientEmail.trim() || job.clientEmail,
+      address: editAddress.trim() || job.address,
+      suburb: editSuburb || job.suburb,
+      coordinates: editCoordinates || job.coordinates,
+      estimatedDurationMinutes: Number(editDuration) || 45,
+      updatedAt: new Date().toISOString()
+    };
+    onUpdateJob(updatedJob);
+    setIsEditing(false);
+  };
 
   const handleStatusChange = (newStatus: JobStatus) => {
     const updatedJob: Job = {
@@ -99,9 +280,9 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
   };
 
   const quickSmsTemplates = [
-    { label: 'On My Way', text: `Hi ${job.clientName}, Alex from Apex Handyman here. I am on my way to your location! Est. arrival in 15-20 minutes.` },
+    { label: 'On My Way', text: `Hi ${job.clientName}, Alex from ${profile.businessName} here. I am on my way to your location! Est. arrival in 15-20 minutes.` },
     { label: 'Quote Ready', text: `Hi ${job.clientName}, I have prepared your estimate for ${job.title}. Please review when convenient: $${job.quote?.totalAmount || ''}` },
-    { label: 'Job Completed', text: `Hi ${job.clientName}, the repair work for ${job.title} is all done and tested. Thank you for choosing Apex Handyman!` }
+    { label: 'Job Completed', text: `Hi ${job.clientName}, the repair work for ${job.title} is all done and tested. Thank you for choosing ${profile.businessName}!` }
   ];
 
   return (
@@ -111,10 +292,9 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
         {/* Mobile Drag Indicator Bar */}
         <div className="w-12 h-1.5 bg-slate-300 rounded-full mx-auto my-2.5 sm:hidden shrink-0" />
 
-
         {/* Top Header */}
         <div className="p-4 sm:p-5 border-b border-slate-200/80 flex items-start justify-between gap-4 bg-white shrink-0">
-          <div className="flex flex-col gap-1">
+          <div className="flex flex-col gap-1 flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="font-mono text-xs font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
                 {job.jobNumber}
@@ -147,17 +327,31 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
               )}
             </div>
 
-            <h2 className="text-base sm:text-lg font-bold text-slate-900 mt-1 leading-snug">
+            <h2 className="text-base sm:text-lg font-bold text-slate-900 mt-1 leading-snug truncate">
               {job.title}
             </h2>
           </div>
 
-          <button
-            onClick={onClose}
-            className="p-2 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 transition"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              onClick={() => setIsEditing(!isEditing)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition border ${
+                isEditing
+                  ? 'bg-blue-50 text-blue-700 border-blue-200'
+                  : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200 shadow-sm'
+              }`}
+            >
+              <Pencil className="w-3.5 h-3.5" />
+              <span>{isEditing ? 'Cancel Edit' : 'Edit Job'}</span>
+            </button>
+
+            <button
+              onClick={onClose}
+              className="p-2 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 transition"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Client Quick Contact Banner */}
@@ -204,7 +398,23 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
         {/* Navigation Tabs */}
         <div className="px-4 sm:px-5 border-b border-slate-200 flex items-center gap-2 bg-white shrink-0 overflow-x-auto no-scrollbar">
           <button
-            onClick={() => setActiveTab('quote')}
+            onClick={() => { setActiveTab('overview'); }}
+            className={`py-3 px-3 text-xs font-bold border-b-2 flex items-center gap-1.5 whitespace-nowrap transition-all ${
+              activeTab === 'overview'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            <ListTodo className="w-3.5 h-3.5 text-blue-600" /> Scope & Checklist
+            {totalTasksCount > 0 && (
+              <span className="text-[10px] bg-blue-100 text-blue-800 px-1.5 py-0.2 rounded-full font-bold">
+                {completedTasksCount}/{totalTasksCount}
+              </span>
+            )}
+          </button>
+
+          <button
+            onClick={() => { setActiveTab('quote'); }}
             className={`py-3 px-3 text-xs font-bold border-b-2 flex items-center gap-1.5 whitespace-nowrap transition-all ${
               activeTab === 'quote'
                 ? 'border-blue-600 text-blue-600'
@@ -215,18 +425,7 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
           </button>
 
           <button
-            onClick={() => setActiveTab('overview')}
-            className={`py-3 px-3 text-xs font-bold border-b-2 flex items-center gap-1.5 whitespace-nowrap transition-all ${
-              activeTab === 'overview'
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            <FileText className="w-3.5 h-3.5" /> Scope & Notes
-          </button>
-
-          <button
-            onClick={() => setActiveTab('photos')}
+            onClick={() => { setActiveTab('photos'); }}
             className={`py-3 px-3 text-xs font-bold border-b-2 flex items-center gap-1.5 whitespace-nowrap transition-all ${
               activeTab === 'photos'
                 ? 'border-blue-600 text-blue-600'
@@ -237,7 +436,7 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
           </button>
 
           <button
-            onClick={() => setActiveTab('time')}
+            onClick={() => { setActiveTab('time'); }}
             className={`py-3 px-3 text-xs font-bold border-b-2 flex items-center gap-1.5 whitespace-nowrap transition-all ${
               activeTab === 'time'
                 ? 'border-blue-600 text-blue-600'
@@ -250,17 +449,188 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
 
         {/* Tab Content Body */}
         <div className="p-4 sm:p-6 overflow-y-auto flex-1 bg-slate-50/50">
-          {activeTab === 'quote' && (
-            <QuoteBuilder
-              job={job}
-              profile={profile}
-              onUpdateJob={onUpdateJob}
-            />
-          )}
+          
+          {/* ========================================================================= */}
+          {/* EDIT JOB & SCOPE MODE OVERLAY */}
+          {/* ========================================================================= */}
+          {isEditing ? (
+            <form onSubmit={handleSaveAllJobEdits} className="bg-white rounded-3xl border border-blue-200 p-5 shadow-lg flex flex-col gap-4 text-xs animate-in fade-in">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 bg-blue-50 text-blue-600 rounded-xl border border-blue-200/60">
+                    <Pencil className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900">Edit Job Scope & Details</h3>
+                    <p className="text-[11px] text-slate-500">Update title, description, trade category, or client address.</p>
+                  </div>
+                </div>
 
-          {activeTab === 'overview' && (
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsEditing(false)}
+                    className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs transition"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md shadow-blue-600/30 flex items-center gap-1.5 transition"
+                  >
+                    <Save className="w-3.5 h-3.5" /> Save Changes
+                  </button>
+                </div>
+              </div>
+
+              {/* Title */}
+              <div>
+                <label className="text-slate-700 font-bold block mb-1">Job Title *</label>
+                <input
+                  type="text"
+                  required
+                  value={editTitle}
+                  onChange={e => setEditTitle(e.target.value)}
+                  placeholder="Job summary title..."
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-900 focus:border-blue-500 focus:bg-white outline-none"
+                />
+              </div>
+
+              {/* Category, Priority & Duration */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="text-slate-700 font-bold block mb-1">Category</label>
+                  <select
+                    value={editCategory}
+                    onChange={e => setEditCategory(e.target.value as JobCategory)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-900 focus:border-blue-500 focus:bg-white outline-none"
+                  >
+                    {CATEGORIES.map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-slate-700 font-bold block mb-1">Priority</label>
+                  <select
+                    value={editPriority}
+                    onChange={e => setEditPriority(e.target.value as JobPriority)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-900 focus:border-blue-500 focus:bg-white outline-none"
+                  >
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                    <option value="urgent">Urgent</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-slate-700 font-bold block mb-1">Est. Duration (Mins)</label>
+                  <input
+                    type="number"
+                    min="10"
+                    step="5"
+                    value={editDuration}
+                    onChange={e => setEditDuration(parseInt(e.target.value, 10) || 45)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-900 focus:border-blue-500 focus:bg-white outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Full Description / Scope */}
+              <div>
+                <label className="text-slate-700 font-bold block mb-1">Scope Description & Task Details</label>
+                <textarea
+                  rows={4}
+                  value={editDescription}
+                  onChange={e => setEditDescription(e.target.value)}
+                  placeholder="Detailed breakdown of repair tasks..."
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-slate-900 focus:border-blue-500 focus:bg-white outline-none resize-y"
+                />
+              </div>
+
+              {/* Client Name & Phone */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-slate-700 font-bold block mb-1">Client Name</label>
+                  <input
+                    type="text"
+                    value={editClientName}
+                    onChange={e => setEditClientName(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-900 focus:border-blue-500 focus:bg-white outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-slate-700 font-bold block mb-1">Client Phone</label>
+                  <input
+                    type="tel"
+                    value={editClientPhone}
+                    onChange={e => setEditClientPhone(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-900 focus:border-blue-500 focus:bg-white outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Address with Autocomplete & Suburb */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="sm:col-span-2">
+                  <label className="text-slate-700 font-bold block mb-1">Street Address</label>
+                  <AddressAutocomplete
+                    value={editAddress}
+                    onChange={setEditAddress}
+                    onAddressSelect={(res: AddressResult) => {
+                      setEditAddress(res.address);
+                      if (res.suburb) setEditSuburb(res.suburb);
+                      if (res.coordinates) setEditCoordinates(res.coordinates);
+                    }}
+                    currentLocation={currentLocation}
+                  />
+                </div>
+
+                <div>
+                  <label className="text-slate-700 font-bold block mb-1">Suburb</label>
+                  <select
+                    value={editSuburb}
+                    onChange={e => setEditSuburb(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-900 font-semibold focus:border-blue-500 focus:bg-white outline-none"
+                  >
+                    {SUBURBS_LIST.map(sub => (
+                      <option key={sub} value={sub}>{sub}</option>
+                    ))}
+                    {!SUBURBS_LIST.includes(editSuburb) && editSuburb && (
+                      <option value={editSuburb}>{editSuburb}</option>
+                    )}
+                  </select>
+                </div>
+              </div>
+
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsEditing(false)}
+                  className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md shadow-blue-600/30 flex items-center gap-1.5 transition"
+                >
+                  <Save className="w-4 h-4" /> Save Scope & Job Changes
+                </button>
+              </div>
+            </form>
+          ) : null}
+
+          {/* ========================================================================= */}
+          {/* SCOPE & CHECKLIST TAB */}
+          {/* ========================================================================= */}
+          {activeTab === 'overview' && !isEditing && (
             <div className="flex flex-col gap-5 text-slate-900">
-              {/* Real Estate Agency B2B Work Order Info */}
+              
+              {/* Real Estate Agency B2B Work Order Info (Only if Agency Partner exists) */}
               {job.isAgencyJob && job.realEstateAgency && (
                 <div className="bg-purple-50/80 border border-purple-200 rounded-2xl p-4 shadow-sm flex flex-col gap-3">
                   <div className="flex items-center justify-between">
@@ -283,7 +653,7 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                     {/* Property Manager Column */}
                     <div className="bg-white/90 p-3 rounded-xl border border-purple-100 flex flex-col justify-between gap-2">
                       <div>
-                        <p className="text-[10px] uppercase font-bold text-purple-600">Property Manager (Billing & Approval)</p>
+                        <p className="text-[10px] uppercase font-bold text-purple-600">Property Manager</p>
                         <p className="font-bold text-slate-900 mt-0.5">{job.realEstateAgentName || 'Agency PM'}</p>
                         <p className="text-[11px] text-slate-500">{job.realEstateAgentPhone || 'No phone listed'}</p>
                       </div>
@@ -311,7 +681,7 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                     {/* Tenant / Occupant Column */}
                     <div className="bg-white/90 p-3 rounded-xl border border-purple-100 flex flex-col justify-between gap-2">
                       <div>
-                        <p className="text-[10px] uppercase font-bold text-blue-600">Tenant / On-Site Occupant (Access)</p>
+                        <p className="text-[10px] uppercase font-bold text-blue-600">Tenant / On-Site Occupant</p>
                         <p className="font-bold text-slate-900 mt-0.5">{job.tenantName || job.clientName}</p>
                         <p className="text-[11px] text-slate-500">{job.tenantPhone || job.clientPhone}</p>
                       </div>
@@ -337,15 +707,208 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                 </div>
               )}
 
-              {/* Scope Description */}
-              <div className="bg-white rounded-2xl border border-slate-200/90 p-4 shadow-sm">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
-                  Client Request Details
-                </h3>
-                <p className="text-xs sm:text-sm text-slate-700 leading-relaxed font-normal">
-                  {job.description}
+              {/* --------------------------------------------------------------------- */}
+              {/* INTERACTIVE TASK CHECKLIST (DONE VS PENDING TRACKER) */}
+              {/* --------------------------------------------------------------------- */}
+              <div className="bg-white rounded-2xl border border-slate-200/90 p-4 shadow-sm flex flex-col gap-3.5">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-2">
+                    <div className="p-2 rounded-xl bg-blue-50 text-blue-600 border border-blue-200/60">
+                      <ListTodo className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900">
+                        Task Checklist & Action Items
+                      </h3>
+                      <p className="text-[11px] text-slate-500">
+                        Check off completed tasks on-site to track job completion.
+                      </p>
+                    </div>
+                  </div>
+
+                  {totalTasksCount > 0 && (
+                    <div className="flex items-center gap-2">
+                      <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full border ${
+                        completedTasksCount === totalTasksCount
+                          ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                          : 'bg-blue-50 text-blue-800 border-blue-200'
+                      }`}>
+                        {completedTasksCount} of {totalTasksCount} Done ({progressPercent}%)
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Progress Bar */}
+                {totalTasksCount > 0 && (
+                  <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                    <div
+                      className={`h-full transition-all duration-300 rounded-full ${
+                        completedTasksCount === totalTasksCount ? 'bg-emerald-500' : 'bg-blue-600'
+                      }`}
+                      style={{ width: `${progressPercent}%` }}
+                    />
+                  </div>
+                )}
+
+                {/* Add Subtask Input */}
+                <form onSubmit={handleAddTask} className="flex gap-2 pt-1">
+                  <input
+                    type="text"
+                    value={newTaskInput}
+                    onChange={e => setNewTaskInput(e.target.value)}
+                    placeholder="Add a new checklist task (e.g., Replace mixer washer, Test flow)..."
+                    className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:border-blue-500 focus:bg-white outline-none"
+                  />
+                  <button
+                    type="submit"
+                    disabled={!newTaskInput.trim()}
+                    className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center gap-1 shadow-sm disabled:opacity-50 transition"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> Add Task
+                  </button>
+                </form>
+
+                {/* Task Checklist Items */}
+                <div className="flex flex-col divide-y divide-slate-100 mt-1">
+                  {totalTasksCount === 0 ? (
+                    <div className="text-center py-6 px-4 bg-slate-50/70 rounded-2xl border border-dashed border-slate-200 flex flex-col items-center gap-2">
+                      <ListTodo className="w-8 h-8 text-slate-300" />
+                      <p className="text-xs text-slate-500">No individual checklist tasks yet.</p>
+                      {job.description && job.description.length > 5 && (
+                        <button
+                          type="button"
+                          onClick={handleAutoExtractTasks}
+                          className="mt-1 px-3 py-1.5 rounded-xl bg-white hover:bg-blue-50 text-blue-700 font-bold text-xs border border-blue-200 shadow-sm flex items-center gap-1.5 transition"
+                        >
+                          <Sparkles className="w-3.5 h-3.5 text-blue-600" /> Convert Scope Notes to Checklist
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    currentTasks.map((task) => {
+                      const isEditingThis = editingTaskId === task.id;
+                      return (
+                        <div
+                          key={task.id}
+                          className={`py-2.5 px-2 flex items-start justify-between gap-3 group rounded-xl transition ${
+                            task.isCompleted ? 'bg-slate-50/70' : 'hover:bg-slate-50'
+                          }`}
+                        >
+                          <div className="flex items-start gap-2.5 flex-1 min-w-0">
+                            <button
+                              type="button"
+                              onClick={() => handleToggleTask(task.id)}
+                              className="mt-0.5 text-slate-400 hover:text-blue-600 transition shrink-0"
+                            >
+                              {task.isCompleted ? (
+                                <CheckCircle2 className="w-4 h-4 text-emerald-600 fill-emerald-100" />
+                              ) : (
+                                <Circle className="w-4 h-4 text-slate-300 hover:text-blue-500" />
+                              )}
+                            </button>
+
+                            {isEditingThis ? (
+                              <div className="flex items-center gap-2 flex-1">
+                                <input
+                                  type="text"
+                                  autoFocus
+                                  value={editingTaskTitle}
+                                  onChange={e => setEditingTaskTitle(e.target.value)}
+                                  onKeyDown={e => {
+                                    if (e.key === 'Enter') handleSaveEditTask();
+                                    if (e.key === 'Escape') setEditingTaskId(null);
+                                  }}
+                                  className="flex-1 bg-white border border-blue-400 rounded-lg px-2 py-1 text-xs text-slate-900 outline-none"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={handleSaveEditTask}
+                                  className="p-1 rounded-md bg-blue-600 text-white hover:bg-blue-700"
+                                >
+                                  <Check className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setEditingTaskId(null)}
+                                  className="p-1 rounded-md bg-slate-200 text-slate-600 hover:bg-slate-300"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            ) : (
+                              <div
+                                onClick={() => handleToggleTask(task.id)}
+                                className="flex-1 cursor-pointer select-none"
+                              >
+                                <p className={`text-xs font-medium ${
+                                  task.isCompleted
+                                    ? 'line-through text-slate-400 font-normal'
+                                    : 'text-slate-800'
+                                }`}>
+                                  {task.title}
+                                </p>
+                                {task.completedAt && task.isCompleted && (
+                                  <span className="text-[10px] text-emerald-600 font-semibold block mt-0.5">
+                                    ✓ Done {new Date(task.completedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+
+                          {!isEditingThis && (
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingTaskId(task.id);
+                                  setEditingTaskTitle(task.title);
+                                }}
+                                className="p-1 text-slate-400 hover:text-slate-700 rounded transition"
+                                title="Edit task title"
+                              >
+                                <Pencil className="w-3 h-3" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteTask(task.id)}
+                                className="p-1 text-slate-400 hover:text-red-600 rounded transition"
+                                title="Delete task"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+
+              {/* --------------------------------------------------------------------- */}
+              {/* SCOPE DESCRIPTION CARD */}
+              {/* --------------------------------------------------------------------- */}
+              <div className="bg-white rounded-2xl border border-slate-200/90 p-4 shadow-sm flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                    Full Scope & Request Details
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => setIsEditing(true)}
+                    className="text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1"
+                  >
+                    <Pencil className="w-3 h-3" /> Edit Scope
+                  </button>
+                </div>
+
+                <p className="text-xs sm:text-sm text-slate-700 leading-relaxed font-normal whitespace-pre-line bg-slate-50/70 p-3 rounded-xl border border-slate-100">
+                  {job.description || 'No detailed scope description provided.'}
                 </p>
-                <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+
+                <div className="mt-1 pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
                   <span>Requested: {formatDateTime(job.quoteRequestedDate)}</span>
                   <span>Est. Visit Duration: {job.estimatedDurationMinutes} mins</span>
                 </div>
@@ -391,7 +954,7 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                     onClick={handleAddNote}
                     className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs"
                   >
-                    Add
+                    Add Note
                   </button>
                 </div>
 
@@ -425,6 +988,20 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
             </div>
           )}
 
+          {/* ========================================================================= */}
+          {/* QUOTE BUILDER TAB */}
+          {/* ========================================================================= */}
+          {activeTab === 'quote' && (
+            <QuoteBuilder
+              job={job}
+              profile={profile}
+              onUpdateJob={onUpdateJob}
+            />
+          )}
+
+          {/* ========================================================================= */}
+          {/* PHOTOS TAB */}
+          {/* ========================================================================= */}
           {activeTab === 'photos' && (
             <div className="flex flex-col gap-5 text-slate-900">
               {/* Add Photo form */}
@@ -463,55 +1040,50 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                   <button
                     onClick={handleAddPhoto}
                     disabled={!photoUrlInput.trim()}
-                    className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center gap-1 disabled:opacity-40"
+                    className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs disabled:opacity-50 transition"
                   >
-                    <Plus className="w-3.5 h-3.5" /> Attach
+                    Attach
                   </button>
                 </div>
               </div>
 
-              {/* Photos Gallery */}
-              {job.photos.length === 0 ? (
-                <div className="text-center py-10 text-slate-400 text-xs">
-                  No photos uploaded for this job yet.
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {job.photos.map(photo => (
-                    <div
-                      key={photo.id}
-                      className="bg-white border border-slate-200 rounded-2xl overflow-hidden group shadow-sm"
-                    >
-                      <img
-                        src={photo.url}
-                        alt={photo.caption}
-                        className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
-                      />
-                      <div className="p-3 bg-white border-t border-slate-200 flex items-center justify-between">
+              {/* Photo gallery */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {job.photos.length === 0 ? (
+                  <p className="text-xs text-slate-400 col-span-2 text-center py-8">
+                    No photos uploaded yet. Add before/after photos above.
+                  </p>
+                ) : (
+                  job.photos.map(p => (
+                    <div key={p.id} className="relative bg-white rounded-2xl border border-slate-200 overflow-hidden group shadow-sm">
+                      <img src={p.url} alt={p.caption} className="w-full h-44 object-cover" />
+                      <div className="p-2.5 flex items-center justify-between text-xs bg-white">
                         <div>
-                          <span className="text-[10px] uppercase font-bold text-blue-600 block">
-                            {photo.type}
-                          </span>
-                          <p className="text-xs font-semibold text-slate-800 mt-0.5">{photo.caption}</p>
+                          <span className="text-[10px] uppercase font-bold text-blue-600 block">{p.type}</span>
+                          <span className="text-slate-800 font-medium">{p.caption}</span>
                         </div>
-
                         <button
-                          onClick={() => handleDeletePhoto(photo.id)}
-                          className="p-1.5 rounded-lg bg-slate-100 text-slate-500 hover:text-red-600 transition"
-                          title="Delete photo"
+                          onClick={() => handleDeletePhoto(p.id)}
+                          className="text-red-500 hover:text-red-700 p-1"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     </div>
-                  ))}
-                </div>
-              )}
+                  ))
+                )}
+              </div>
             </div>
           )}
 
+          {/* ========================================================================= */}
+          {/* TIME TRACKER TAB */}
+          {/* ========================================================================= */}
           {activeTab === 'time' && (
-            <TimeTracker job={job} onUpdateJob={onUpdateJob} />
+            <TimeTracker
+              job={job}
+              onUpdateJob={onUpdateJob}
+            />
           )}
         </div>
       </div>
