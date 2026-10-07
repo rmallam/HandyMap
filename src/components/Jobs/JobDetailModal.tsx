@@ -5,6 +5,7 @@ import { STATUS_CONFIG, formatDateTime, formatCurrency, buildLiveNavigationUrl, 
 import { buildGoogleCalendarUrl, downloadIcsCalendarFile } from '../../utils/calendarExport';
 import { stitchBeforeAndAfterPhotos, processImageFile } from '../../utils/photoStitcher';
 import { generateQuotePDF } from '../../services/pdfGenerator';
+import { triggerHapticFeedback } from '../../services/nativeMobile';
 import { SignaturePadModal } from '../Common/SignaturePadModal';
 import { SUBURBS_LIST } from '../../data/mockJobs';
 import { AddressAutocomplete, AddressResult } from '../Common/AddressAutocomplete';
@@ -372,6 +373,7 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
   };
 
   const handleCompleteAndInvoice = () => {
+    triggerHapticFeedback('success');
     confetti({
       particleCount: 80,
       spread: 70,

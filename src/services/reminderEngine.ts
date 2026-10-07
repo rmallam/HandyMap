@@ -283,10 +283,6 @@ export function checkAndSendMorningDailyDigest(
   profile: HandymanProfile,
   force = false
 ): boolean {
-  if (!isBrowserNotificationSupported() || Notification.permission !== 'granted') {
-    return false;
-  }
-
   const todayKey = new Date().toISOString().slice(0, 10);
   const lastSentDate = localStorage.getItem(LAST_MORNING_DIGEST_KEY);
 
@@ -303,7 +299,7 @@ export function checkAndSendMorningDailyDigest(
   const { title, body } = formatMorningDigest(todayJobs, profile);
   const sent = sendBrowserNotification(title, body, '/#schedule');
 
-  if (sent) {
+  if (sent || isBrowserNotificationSupported()) {
     localStorage.setItem(LAST_MORNING_DIGEST_KEY, todayKey);
   }
 

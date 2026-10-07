@@ -22,6 +22,11 @@ import {
   saveSnoozedReminderIds,
   checkAndSendMorningDailyDigest
 } from './services/reminderEngine';
+import {
+  initNativeDevice,
+  getNativeCurrentPosition,
+  triggerHapticFeedback
+} from './services/nativeMobile';
 import { Plus } from 'lucide-react';
 import { Header } from './components/Navigation/Header';
 import { BottomNav } from './components/Navigation/BottomNav';
@@ -90,21 +95,25 @@ export function App() {
     }
   };
 
-  // Initialize GPS location lock and Auth session
+  // Initialize Native Mobile features, GPS location lock, and Auth session
   useEffect(() => {
-    // 1. Attempt automatic GPS location lock
-    if ('geolocation' in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        pos => {
-          setCurrentLocation([pos.coords.latitude, pos.coords.longitude]);
-          setIsUsingGPS(true);
-        },
-        () => {
-          // Keep default Point Cook base coordinates if permission denied
-        },
-        { enableHighAccuracy: true, timeout: 6000 }
-      );
-    }
+    // 1. Initialize native status bar & Android hardware back button
+    initNativeDevice(() => {
+      // Android back button: close modals first if open
+      if (isJobDetailOpen) setIsJobDetailOpen(false);
+      else if (isNewJobOpen) setIsNewJobOpen(false);
+      else if (isRemindersDrawerOpen) setIsRemindersDrawerOpen(false);
+      else if (isProfileModalOpen) setIsProfileModalOpen(false);
+      else if (activeTab !== 'map') setActiveTab('map');
+    });
+
+    // 2. High accuracy GPS lock (Native hardware GPS with web fallback)
+    getNativeCurrentPosition().then(coords => {
+      if (coords) {
+        setCurrentLocation(coords);
+        setIsUsingGPS(true);
+      }
+    });
 
     // 2. Initialize Auth state & Supabase data sync
     async function initAuthAndData() {

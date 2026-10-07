@@ -3,6 +3,7 @@ import confetti from 'canvas-confetti';
 import { Job, JobQuote, QuoteItem, HandymanProfile } from '../../types';
 import { formatCurrency, buildWhatsAppQuoteText, buildWhatsAppLink } from '../../utils/helpers';
 import { generateQuotePDF } from '../../services/pdfGenerator';
+import { triggerHapticFeedback } from '../../services/nativeMobile';
 import { PayIdPaymentCard } from '../Common/PayIdPaymentCard';
 import {
   Plus,
@@ -209,6 +210,7 @@ export const QuoteBuilder: React.FC<QuoteBuilderProps> = ({
 
   // Handle Accept with celebration
   const handleAcceptQuote = () => {
+    triggerHapticFeedback('success');
     confetti({
       particleCount: 80,
       spread: 70,
