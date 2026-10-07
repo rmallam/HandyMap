@@ -9,7 +9,9 @@ import {
 import {
   isBrowserNotificationSupported,
   getBrowserNotificationPermission,
-  requestBrowserNotificationPermission
+  requestBrowserNotificationPermission,
+  checkAndSendMorningDailyDigest,
+  getJobsScheduledForToday
 } from '../../services/reminderEngine';
 import {
   X,
@@ -27,7 +29,9 @@ import {
   RotateCcw,
   Volume2,
   Check,
-  ChevronRight
+  ChevronRight,
+  Sun,
+  CalendarCheck
 } from 'lucide-react';
 
 interface RemindersDrawerProps {
@@ -53,6 +57,10 @@ export const RemindersDrawer: React.FC<RemindersDrawerProps> = ({
 
   const [filterType, setFilterType] = useState<'all' | ReminderType>('all');
   const [browserPerm, setBrowserPerm] = useState<string>(getBrowserNotificationPermission());
+  const [digestSentToast, setDigestSentToast] = useState<string | null>(null);
+
+  const allJobs = reminders.map(r => r.job);
+  const todayJobs = getJobsScheduledForToday(allJobs);
 
   const activeReminders = reminders.filter(r => !r.isSnoozed);
   const snoozedReminders = reminders.filter(r => r.isSnoozed);
@@ -65,6 +73,30 @@ export const RemindersDrawer: React.FC<RemindersDrawerProps> = ({
   const handleRequestPush = async () => {
     const granted = await requestBrowserNotificationPermission();
     setBrowserPerm(granted ? 'granted' : 'denied');
+  };
+
+  const handleTriggerMorningDigest = async () => {
+    if (browserPerm !== 'granted') {
+      const granted = await requestBrowserNotificationPermission();
+      setBrowserPerm(granted ? 'granted' : 'denied');
+      if (!granted) {
+        alert('Please allow browser notifications in your browser settings to receive the Morning Daily Digest.');
+        return;
+      }
+    }
+
+    const sent = checkAndSendMorningDailyDigest(allJobs, profile, true);
+    if (sent) {
+      setDigestSentToast(`☀️ Morning Daily Digest sent for ${todayJobs.length} job(s) scheduled today!`);
+      setTimeout(() => setDigestSentToast(null), 4000);
+    } else {
+      if (todayJobs.length === 0) {
+        setDigestSentToast(`ℹ️ No site visits scheduled for today yet.`);
+      } else {
+        setDigestSentToast(`⚠️ Notification could not be sent. Check notification permissions.`);
+      }
+      setTimeout(() => setDigestSentToast(null), 4000);
+    }
   };
 
   const getUrgencyStyles = (urgency: ReminderItem['urgency']) => {
@@ -130,12 +162,44 @@ export const RemindersDrawer: React.FC<RemindersDrawerProps> = ({
           </button>
         </div>
 
+        {/* Morning Daily Digest Card */}
+        <div className="mx-3 sm:mx-4 mt-3 p-3.5 rounded-2xl bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-amber-500/5 border border-amber-200 flex flex-col gap-2 shrink-0">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="p-1.5 rounded-xl bg-amber-500 text-white shadow-xs shrink-0">
+                <Sun className="w-4 h-4" />
+              </div>
+              <div className="min-w-0">
+                <h4 className="text-xs font-black text-slate-900 truncate">Morning Daily Digest</h4>
+                <p className="text-[11px] text-slate-600 truncate">
+                  {todayJobs.length} {todayJobs.length === 1 ? 'job visit' : 'job visits'} scheduled today
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={handleTriggerMorningDigest}
+              className="px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-[11px] flex items-center gap-1 shadow-sm transition active:scale-95 shrink-0"
+              title="Send test / manual morning push notification digest"
+            >
+              <Bell className="w-3 h-3" />
+              <span>Send Digest</span>
+            </button>
+          </div>
+
+          {digestSentToast && (
+            <div className="p-2 bg-amber-100/90 rounded-xl text-amber-900 text-[11px] font-bold border border-amber-300 animate-in fade-in">
+              {digestSentToast}
+            </div>
+          )}
+        </div>
+
         {/* Optional Browser Push Notification Banner */}
         {isBrowserNotificationSupported() && browserPerm !== 'granted' && (
-          <div className="px-4 py-2.5 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-blue-100 flex items-center justify-between gap-3 text-xs shrink-0">
+          <div className="mx-3 sm:mx-4 mt-2 px-3.5 py-2.5 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-2xl flex items-center justify-between gap-3 text-xs shrink-0">
             <div className="flex items-center gap-2 text-blue-900">
               <Volume2 className="w-4 h-4 text-blue-600 shrink-0" />
-              <span>Enable native alerts for urgent job inquiries?</span>
+              <span>Enable native browser alerts for daily digest?</span>
             </div>
             <button
               onClick={handleRequestPush}
@@ -147,7 +211,7 @@ export const RemindersDrawer: React.FC<RemindersDrawerProps> = ({
         )}
 
         {/* Filter Navigation Tabs */}
-        <div className="px-3 sm:px-4 py-2 border-b border-slate-200 flex items-center gap-1.5 overflow-x-auto no-scrollbar bg-slate-50/70 shrink-0">
+        <div className="px-3 sm:px-4 py-2 border-b border-slate-200 flex items-center gap-1.5 overflow-x-auto no-scrollbar bg-slate-50/70 shrink-0 mt-2">
           <button
             onClick={() => setFilterType('all')}
             className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition ${

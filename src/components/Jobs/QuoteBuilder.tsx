@@ -524,29 +524,29 @@ export const QuoteBuilder: React.FC<QuoteBuilderProps> = ({
       </div>
 
       {/* Save & Workflow Transition CTA */}
-      <div className="flex items-center justify-between gap-3 pt-2">
+      <div className="flex flex-col-reverse sm:flex-row sm:items-center justify-between gap-2.5 pt-2">
         <button
           onClick={() => saveQuoteChanges('draft', 'quote_requested')}
-          className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition"
+          className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition text-center"
         >
           Save as Draft
         </button>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
           <button
             onClick={() => saveQuoteChanges('sent', 'quoted')}
-            className="px-4 py-2.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-800 border border-purple-200 text-xs font-bold flex items-center gap-1.5 transition active:scale-95 shadow-sm"
+            className="flex-1 sm:flex-initial px-3.5 sm:px-4 py-2.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-800 border border-purple-200 text-xs font-bold flex items-center justify-center gap-1.5 transition active:scale-95 shadow-sm"
           >
             <Send className="w-3.5 h-3.5" />
-            <span>Mark as Quoted / Sent</span>
+            <span>Mark as Quoted</span>
           </button>
 
           <button
             onClick={handleAcceptQuote}
-            className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold flex items-center gap-1.5 shadow-sm transition active:scale-95"
+            className="flex-1 sm:flex-initial px-4 sm:px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold flex items-center justify-center gap-1.5 shadow-sm transition active:scale-95"
           >
             <FileCheck2 className="w-4 h-4" />
-            <span>Accept & Convert to Job</span>
+            <span>Accept & Convert</span>
           </button>
         </div>
       </div>

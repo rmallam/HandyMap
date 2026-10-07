@@ -35,11 +35,13 @@ export const MapFilters: React.FC<MapFiltersProps> = ({
   const [isMobileFilterDrawerOpen, setIsMobileFilterDrawerOpen] = useState(false);
 
   // Counts by status
+  const activeJobsCount = jobs.filter(j => j.status !== 'invoiced').length;
   const quoteReqCount = jobs.filter(j => j.status === 'quote_requested').length;
   const inProgressCount = jobs.filter(j => j.status === 'in_progress').length;
   const quotedCount = jobs.filter(j => j.status === 'quoted').length;
   const urgentCount = jobs.filter(j => j.status === 'urgent').length;
-  const completedCount = jobs.filter(j => j.status === 'completed' || j.status === 'invoiced').length;
+  const completedCount = jobs.filter(j => j.status === 'completed').length;
+  const invoicedCount = jobs.filter(j => j.status === 'invoiced').length;
   const agencyCount = jobs.filter(j => j.isAgencyJob && j.realEstateAgency && j.realEstateAgency.trim().length > 0).length;
 
   // Extract unique agencies from current jobs
@@ -66,7 +68,7 @@ export const MapFilters: React.FC<MapFiltersProps> = ({
 
   // Calculate visible matching jobs count
   const matchingJobsCount = jobs.filter(job => {
-    const matchesStatus = selectedStatus === 'all' || job.status === selectedStatus;
+    const matchesStatus = selectedStatus === 'all' ? job.status !== 'invoiced' : job.status === selectedStatus;
     const matchesSuburb = selectedSuburb === 'all' || extractSuburb(job) === selectedSuburb;
     let matchesAgency = true;
     if (selectedAgency === 'agency_only') {
@@ -92,14 +94,15 @@ export const MapFilters: React.FC<MapFiltersProps> = ({
         in_progress: 'In Progress',
         quoted: 'Quoted',
         urgent: 'Urgent',
-        completed: 'Done'
+        completed: 'Completed',
+        invoiced: 'Paid Archive'
       };
       parts.push(statusLabels[selectedStatus] || selectedStatus);
     }
     if (selectedAgency !== 'all') {
       parts.push(selectedAgency === 'agency_only' ? 'Agencies' : selectedAgency === 'direct_only' ? 'Direct' : selectedAgency.split(' ')[0]);
     }
-    return parts.length > 0 ? parts.join(' • ') : `All Jobs (${jobs.length})`;
+    return parts.length > 0 ? parts.join(' • ') : `Active Jobs (${activeJobsCount})`;
   };
 
   const handleResetFilters = () => {
@@ -226,8 +229,8 @@ export const MapFilters: React.FC<MapFiltersProps> = ({
                         : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
                     }`}
                   >
-                    <span>All Statuses</span>
-                    <span className="text-[10px] opacity-75">{jobs.length}</span>
+                    <span>All Active</span>
+                    <span className="text-[10px] opacity-75">{activeJobsCount}</span>
                   </button>
 
                   <button
@@ -300,9 +303,23 @@ export const MapFilters: React.FC<MapFiltersProps> = ({
                         : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
                     }`}
                   >
-                    <span>Done / Invoiced</span>
+                    <span>Completed</span>
                     <span className="text-[10px]">{completedCount}</span>
                   </button>
+
+                  {invoicedCount > 0 && (
+                    <button
+                      onClick={() => onSelectStatus('invoiced')}
+                      className={`py-2.5 px-3 rounded-xl font-bold flex items-center justify-between border transition ${
+                        selectedStatus === 'invoiced'
+                          ? 'bg-blue-600 text-white border-blue-700 shadow-sm'
+                          : 'bg-blue-50/60 text-blue-800 border-blue-200 hover:bg-blue-100'
+                      }`}
+                    >
+                      <span>Paid Archive</span>
+                      <span className="text-[10px] font-bold">{invoicedCount}</span>
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -451,7 +468,7 @@ export const MapFilters: React.FC<MapFiltersProps> = ({
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
               }`}
             >
-              <Filter className="w-3 h-3" /> All ({jobs.length})
+              <Filter className="w-3 h-3" /> All Active ({activeJobsCount})
             </button>
 
             <button
@@ -513,8 +530,22 @@ export const MapFilters: React.FC<MapFiltersProps> = ({
               }`}
             >
               <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
-              <span>Done ({completedCount})</span>
+              <span>Completed ({completedCount})</span>
             </button>
+
+            {invoicedCount > 0 && (
+              <button
+                onClick={() => onSelectStatus('invoiced')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 border ${
+                  selectedStatus === 'invoiced'
+                    ? 'bg-blue-600 text-white border-blue-700 shadow-sm'
+                    : 'text-blue-800 bg-blue-50/70 border-blue-200 hover:bg-blue-100'
+                }`}
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+                <span>Paid Archive ({invoicedCount})</span>
+              </button>
+            )}
           </div>
 
           {/* Right Action Controls */}

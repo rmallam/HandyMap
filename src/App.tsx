@@ -19,7 +19,8 @@ import { calculateOptimizedRoute } from './services/routeOptimizer';
 import {
   generateReminders,
   loadSnoozedReminderIds,
-  saveSnoozedReminderIds
+  saveSnoozedReminderIds,
+  checkAndSendMorningDailyDigest
 } from './services/reminderEngine';
 import { Plus } from 'lucide-react';
 import { Header } from './components/Navigation/Header';
@@ -172,6 +173,13 @@ export function App() {
 
     initAuthAndData();
   }, []);
+
+  // Check and dispatch single consolidated Morning Daily Digest for today's scheduled jobs
+  useEffect(() => {
+    if (jobs.length > 0) {
+      checkAndSendMorningDailyDigest(jobs, profile);
+    }
+  }, [jobs, profile]);
 
   // Update jobs state and localStorage
   const handleUpdateJobsList = (newJobs: Job[]) => {

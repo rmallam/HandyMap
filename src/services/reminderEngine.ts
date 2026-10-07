@@ -2,6 +2,7 @@ import { Job, HandymanProfile, ReminderItem, ReminderType, ReminderUrgency } fro
 import { formatCurrency, formatDate, formatTime } from '../utils/helpers';
 
 const SNOOZED_STORAGE_KEY = 'handymap_snoozed_reminders';
+const LAST_MORNING_DIGEST_KEY = 'handymap_last_morning_digest_date';
 
 export function loadSnoozedReminderIds(): string[] {
   try {
@@ -21,7 +22,37 @@ export function saveSnoozedReminderIds(ids: string[]): void {
 }
 
 /**
- * Generates an actionable list of reminders based on active job states and time thresholds.
+ * Checks if a date string falls on today's local date.
+ */
+export function isDateToday(dateStr?: string): boolean {
+  if (!dateStr) return false;
+  const target = new Date(dateStr);
+  if (isNaN(target.getTime())) return false;
+  const today = new Date();
+  return (
+    target.getDate() === today.getDate() &&
+    target.getMonth() === today.getMonth() &&
+    target.getFullYear() === today.getFullYear()
+  );
+}
+
+/**
+ * Returns all active jobs scheduled for today.
+ */
+export function getJobsScheduledForToday(jobs: Job[]): Job[] {
+  return jobs.filter(j => {
+    if (j.status === 'invoiced') return false; // Exclude paid/archived jobs
+    return isDateToday(j.appointmentTime) || (j.status === 'in_progress' && isDateToday(j.updatedAt));
+  }).sort((a, b) => {
+    const timeA = a.appointmentTime ? new Date(a.appointmentTime).getTime() : 0;
+    const timeB = b.appointmentTime ? new Date(b.appointmentTime).getTime() : 0;
+    return timeA - timeB;
+  });
+}
+
+/**
+ * Generates an actionable list of high-value reminders based on active job states.
+ * Filters out noise so only truly critical & urgent items appear in Alerts.
  */
 export function generateReminders(
   jobs: Job[],
@@ -33,6 +64,9 @@ export function generateReminders(
   const ONE_HOUR = 60 * 60 * 1000;
 
   for (const job of jobs) {
+    // Exclude finished & paid jobs from active alerts
+    if (job.status === 'invoiced') continue;
+
     // 1. URGENT / EMERGENCY UNATTENDED LEADS
     if (job.priority === 'urgent' && (job.status === 'quote_requested' || job.status === 'in_progress')) {
       const reminderId = `urgent-${job.id}`;
@@ -43,7 +77,7 @@ export function generateReminders(
         type: 'urgent_unattended',
         urgency: 'urgent',
         title: `🚨 Urgent Job: ${job.title}`,
-        message: `High-priority emergency lead from ${job.clientName} (${job.address}). Needs immediate contact or dispatch.`,
+        message: `High-priority emergency lead from ${job.clientName} (${job.address}). Immediate response needed.`,
         suggestedActionLabel: 'Call Client Now',
         suggestedActionType: 'call',
         actionDraftText: `Hi ${job.clientName}, Alex from ${profile.businessName} responding urgently regarding ${job.title}. I am available to attend immediately.`,
@@ -53,116 +87,88 @@ export function generateReminders(
       });
     }
 
-    // 2. WAITING QUOTE REQUESTS (Overdue / Delayed Site Visits)
-    if (job.status === 'quote_requested' && job.priority !== 'urgent') {
+    // 2. APPOINTMENTS SCHEDULED FOR TODAY
+    if (job.appointmentTime && isDateToday(job.appointmentTime) && job.status !== 'completed') {
+      const apptTime = new Date(job.appointmentTime).getTime();
+      const diffHours = (apptTime - now) / ONE_HOUR;
+      const reminderId = `today-appt-${job.id}`;
+      const timeFormatted = formatTime(job.appointmentTime);
+      const isImminent = diffHours > 0 && diffHours <= 1.5;
+
+      reminders.push({
+        id: reminderId,
+        jobId: job.id,
+        job,
+        type: 'upcoming_appointment',
+        urgency: isImminent ? 'urgent' : 'warning',
+        title: `⏰ Today: ${job.title} at ${timeFormatted}`,
+        message: `Scheduled site visit with ${job.clientName} at ${job.address}.`,
+        suggestedActionLabel: 'Send Arrival SMS',
+        suggestedActionType: 'sms_followup',
+        actionDraftText: `Hi ${job.clientName}, Alex from ${profile.businessName} here. Confirming our appointment today around ${timeFormatted} for "${job.title}". See you soon!`,
+        dueText: diffHours < 0 ? 'Happening now' : `At ${timeFormatted}`,
+        createdAt: job.appointmentTime,
+        isSnoozed: snoozedIds.includes(reminderId)
+      });
+    }
+
+    // 3. OVERDUE QUOTE REQUESTS (> 24 Hours Unscheduled)
+    if (job.status === 'quote_requested' && job.priority !== 'urgent' && !job.appointmentTime) {
       const requestedTime = new Date(job.quoteRequestedDate || job.createdAt).getTime();
       const elapsedHours = Math.max(1, Math.round((now - requestedTime) / ONE_HOUR));
-      const isDelayed = elapsedHours >= 12 || !job.appointmentTime;
 
-      if (isDelayed) {
-        const reminderId = `quote-delayed-${job.id}`;
-        const urgency: ReminderUrgency = elapsedHours >= 24 ? 'urgent' : 'warning';
-        const draftSms = `Hi ${job.clientName}, this is Alex from ${profile.businessName}. We received your quote request for "${job.title}" and would love to arrange a quick on-site inspection. When suits you best today or tomorrow?`;
+      // Only alert if waiting over 24 hours to avoid spamming brand-new leads
+      if (elapsedHours >= 24) {
+        const reminderId = `quote-overdue-${job.id}`;
+        const draftSms = `Hi ${job.clientName}, this is Alex from ${profile.businessName}. We received your quote request for "${job.title}" and would love to arrange a quick on-site inspection. When suits you best this week?`;
 
         reminders.push({
           id: reminderId,
           jobId: job.id,
           job,
           type: 'delayed_quote_visit',
-          urgency,
-          title: `🟠 Quote Visit Pending (${elapsedHours}h elapsed)`,
-          message: `${job.clientName} requested an estimate for "${job.title}". No appointment locked in yet.`,
+          urgency: elapsedHours >= 48 ? 'urgent' : 'warning',
+          title: `🟠 Quote Pending (${Math.round(elapsedHours / 24)}d unscheduled)`,
+          message: `${job.clientName} requested an estimate for "${job.title}". Book a site visit before the lead goes cold.`,
           suggestedActionLabel: 'Send Visit Invite SMS',
           suggestedActionType: 'sms_followup',
           actionDraftText: draftSms,
-          dueText: elapsedHours >= 24 ? `${Math.round(elapsedHours / 24)}d overdue` : `${elapsedHours}h ago`,
+          dueText: `${Math.round(elapsedHours / 24)}d pending`,
           createdAt: job.quoteRequestedDate || job.createdAt,
           isSnoozed: snoozedIds.includes(reminderId)
         });
       }
     }
 
-    // 3. QUOTED FOLLOW-UPS (Sent quotes awaiting customer approval)
+    // 4. QUOTE FOLLOW-UPS (> 48 Hours Awaiting Customer Approval)
     if (job.status === 'quoted') {
       const quoteTime = job.quote?.createdAt ? new Date(job.quote.createdAt).getTime() : new Date(job.updatedAt).getTime();
       const elapsedHours = Math.max(1, Math.round((now - quoteTime) / ONE_HOUR));
-      const quoteTotal = job.quote ? formatCurrency(job.quote.totalAmount) : '$0';
 
-      const reminderId = `quoted-followup-${job.id}`;
-      const draftSms = `Hi ${job.clientName}, Alex from ${profile.businessName} here! Just checking in to see if you had any questions regarding the estimate for "${job.title}" (${quoteTotal})? Let me know if you'd like to lock in a start date!`;
-
-      reminders.push({
-        id: reminderId,
-        jobId: job.id,
-        job,
-        type: 'quote_followup',
-        urgency: elapsedHours >= 48 ? 'warning' : 'info',
-        title: `🟣 Follow Up on Quote (${quoteTotal})`,
-        message: `Estimate presented to ${job.clientName}. Follow up to answer questions and close the job.`,
-        suggestedActionLabel: 'Send Follow-Up SMS',
-        suggestedActionType: 'sms_followup',
-        actionDraftText: draftSms,
-        dueText: elapsedHours >= 24 ? `${Math.round(elapsedHours / 24)}d pending` : `${elapsedHours}h pending`,
-        createdAt: job.quote?.createdAt || job.updatedAt,
-        isSnoozed: snoozedIds.includes(reminderId)
-      });
-    }
-
-    // 4. UPCOMING SITE APPOINTMENTS (Within today or next 6 hours)
-    if (job.appointmentTime && (job.status === 'quote_requested' || job.status === 'in_progress')) {
-      const apptTime = new Date(job.appointmentTime).getTime();
-      const diffHours = (apptTime - now) / ONE_HOUR;
-
-      // Appointment within the next 8 hours or slightly past (today's appointment)
-      if (diffHours >= -2 && diffHours <= 8) {
-        const reminderId = `appt-${job.id}`;
-        const isImminent = diffHours > 0 && diffHours <= 1.5;
-        const timeFormatted = formatTime(job.appointmentTime);
-        const draftSms = `Hi ${job.clientName}, Alex from ${profile.businessName} here. I am confirming our appointment today around ${timeFormatted} for "${job.title}". See you soon!`;
+      if (elapsedHours >= 48) {
+        const quoteTotal = job.quote ? formatCurrency(job.quote.totalAmount) : '$0';
+        const reminderId = `quoted-followup-${job.id}`;
+        const draftSms = `Hi ${job.clientName}, Alex from ${profile.businessName} here! Just following up on the estimate for "${job.title}" (${quoteTotal}). Let me know if you have any questions or want to lock in a date!`;
 
         reminders.push({
           id: reminderId,
           jobId: job.id,
           job,
-          type: 'upcoming_appointment',
-          urgency: isImminent ? 'urgent' : 'info',
-          title: `⏰ Appointment Today at ${timeFormatted}`,
-          message: `Site visit scheduled with ${job.clientName} at ${job.address}.`,
-          suggestedActionLabel: 'Send Arrival SMS',
+          type: 'quote_followup',
+          urgency: 'info',
+          title: `🟣 Follow Up on Quote (${quoteTotal})`,
+          message: `Quote sent to ${job.clientName} ${Math.round(elapsedHours / 24)} days ago. Follow up to secure the job.`,
+          suggestedActionLabel: 'Send Follow-Up SMS',
           suggestedActionType: 'sms_followup',
           actionDraftText: draftSms,
-          dueText: diffHours < 0 ? 'Happening now' : `In ${Math.max(1, Math.round(diffHours * 60))} mins`,
-          createdAt: job.appointmentTime,
+          dueText: `${Math.round(elapsedHours / 24)}d ago`,
+          createdAt: job.quote?.createdAt || job.updatedAt,
           isSnoozed: snoozedIds.includes(reminderId)
         });
       }
     }
 
-    // 5. IN-PROGRESS ACTIVE JOBS (Checkpoints)
-    if (job.status === 'in_progress') {
-      const hasPhotos = job.photos && job.photos.length > 0;
-      const hasTimeLogs = job.timeLogs && job.timeLogs.length > 0;
-
-      if (!hasPhotos || !hasTimeLogs) {
-        const reminderId = `active-check-${job.id}`;
-        reminders.push({
-          id: reminderId,
-          jobId: job.id,
-          job,
-          type: 'in_progress_check',
-          urgency: 'info',
-          title: `🟢 Active Job: Log Time & Photos`,
-          message: `"${job.title}" for ${job.clientName} is in progress. Remember to track on-site labor & snap completion photos.`,
-          suggestedActionLabel: 'Open Job Tracker',
-          suggestedActionType: 'open_job',
-          dueText: 'In Progress',
-          createdAt: job.updatedAt,
-          isSnoozed: snoozedIds.includes(reminderId)
-        });
-      }
-    }
-
-    // 6. UNINVOICED COMPLETED JOBS (Collect Payment)
+    // 5. UNINVOICED COMPLETED JOBS (Collect Payment)
     if (job.status === 'completed') {
       const reminderId = `uninvoiced-${job.id}`;
       const totalAmount = job.quote?.totalAmount ? formatCurrency(job.quote.totalAmount) : 'Tax Invoice';
@@ -172,9 +178,9 @@ export function generateReminders(
         job,
         type: 'uninvoiced_completion',
         urgency: 'warning',
-        title: `🔵 Send Invoice & Collect (${totalAmount})`,
-        message: `Work completed for ${job.clientName}. Send tax invoice to finalize payment.`,
-        suggestedActionLabel: 'Generate Invoice & Bill',
+        title: `🔵 Unbilled Job: Send Invoice (${totalAmount})`,
+        message: `Work completed for ${job.clientName}. Generate Tax Invoice to collect payment.`,
+        suggestedActionLabel: 'Generate Tax Invoice',
         suggestedActionType: 'invoice',
         actionDraftText: `Hi ${job.clientName}, thank you for choosing ${profile.businessName}. The work on "${job.title}" is complete. Please find your invoice attached.`,
         dueText: 'Ready to bill',
@@ -246,3 +252,61 @@ export function sendBrowserNotification(title: string, body: string, onClickUrl?
     return false;
   }
 }
+
+/**
+ * Formats a clean, consolidated Morning Daily Digest of all jobs scheduled for today.
+ */
+export function formatMorningDigest(todayJobs: Job[], profile: HandymanProfile): { title: string; body: string } {
+  const count = todayJobs.length;
+  const title = `☀️ Good Morning, ${profile.name}! (${count} ${count === 1 ? 'Job' : 'Jobs'} Today)`;
+
+  const lines = todayJobs.slice(0, 4).map((j, idx) => {
+    const timeStr = j.appointmentTime ? formatTime(j.appointmentTime) : 'Site Visit';
+    const suburbStr = j.suburb || j.address.split(',')[1]?.trim() || 'Site';
+    return `${idx + 1}. ${timeStr} • ${suburbStr} — ${j.title.slice(0, 30)}`;
+  });
+
+  if (todayJobs.length > 4) {
+    lines.push(`+ ${todayJobs.length - 4} more scheduled visits`);
+  }
+
+  const body = lines.join('\n');
+  return { title, body };
+}
+
+/**
+ * Checks and sends ONE single consolidated push notification in the morning
+ * listing all jobs scheduled for that day. Does not spam multiple alerts.
+ */
+export function checkAndSendMorningDailyDigest(
+  jobs: Job[],
+  profile: HandymanProfile,
+  force = false
+): boolean {
+  if (!isBrowserNotificationSupported() || Notification.permission !== 'granted') {
+    return false;
+  }
+
+  const todayKey = new Date().toISOString().slice(0, 10);
+  const lastSentDate = localStorage.getItem(LAST_MORNING_DIGEST_KEY);
+
+  // Send only once per calendar day (unless forced for testing)
+  if (!force && lastSentDate === todayKey) {
+    return false;
+  }
+
+  const todayJobs = getJobsScheduledForToday(jobs);
+  if (todayJobs.length === 0) {
+    return false;
+  }
+
+  const { title, body } = formatMorningDigest(todayJobs, profile);
+  const sent = sendBrowserNotification(title, body, '/#schedule');
+
+  if (sent) {
+    localStorage.setItem(LAST_MORNING_DIGEST_KEY, todayKey);
+  }
+
+  return sent;
+}
+

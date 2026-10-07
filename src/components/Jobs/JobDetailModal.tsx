@@ -482,7 +482,7 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
               <button
                 type="button"
                 onClick={() => generateQuotePDF(job, profile)}
-                className="px-3 py-1.5 rounded-xl text-xs font-extrabold bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-1.5 shadow-sm transition active:scale-95 cursor-pointer"
+                className="px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-extrabold bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-1 shadow-sm transition active:scale-95 cursor-pointer shrink-0"
                 title="Generate & Download Official Tax Invoice PDF"
               >
                 <Download className="w-3.5 h-3.5" />
@@ -493,19 +493,20 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
 
             <button
               onClick={() => setIsEditing(!isEditing)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition border ${
+              className={`px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 transition border shrink-0 ${
                 isEditing
                   ? 'bg-blue-50 text-blue-700 border-blue-200'
                   : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200 shadow-sm'
               }`}
             >
               <Pencil className="w-3.5 h-3.5" />
-              <span>{isEditing ? 'Cancel Edit' : 'Edit Job'}</span>
+              <span className="hidden sm:inline">{isEditing ? 'Cancel Edit' : 'Edit Job'}</span>
+              <span className="sm:hidden">{isEditing ? 'Cancel' : 'Edit'}</span>
             </button>
 
             <button
               onClick={onClose}
-              className="p-2 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 transition"
+              className="p-1.5 sm:p-2 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 transition shrink-0"
             >
               <X className="w-5 h-5" />
             </button>
@@ -513,19 +514,20 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
         </div>
 
         {/* Client Quick Contact & Calendar Sync Banner */}
-        <div className="px-4 sm:px-5 py-3 bg-slate-50 border-b border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0 text-xs">
-          <div>
-            <p className="font-bold text-slate-900 text-sm">{job.clientName}</p>
+        <div className="px-4 sm:px-5 py-3 bg-slate-50 border-b border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 shrink-0 text-xs">
+          <div className="min-w-0">
+            <p className="font-bold text-slate-900 text-sm truncate">{job.clientName}</p>
             <div className="flex items-center gap-1 text-slate-500 mt-0.5">
               <MapPin className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-              <span>{job.address}</span>
+              <span className="truncate">{job.address}</span>
             </div>
           </div>
 
-          <div className="flex items-center gap-1.5 self-end sm:self-auto flex-wrap">
+          <div className="flex items-center gap-1.5 flex-wrap sm:flex-nowrap shrink-0">
             <a
               href={`tel:${job.clientPhone}`}
-              className="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-100 text-slate-800 font-semibold flex items-center gap-1.5 transition border border-slate-200 shadow-sm"
+              className="flex-1 sm:flex-initial justify-center px-2.5 py-1.5 rounded-xl bg-white hover:bg-slate-100 text-slate-800 font-semibold flex items-center gap-1 transition border border-slate-200 shadow-sm"
+              title="Call Client"
             >
               <Phone className="w-3.5 h-3.5 text-emerald-600" />
               <span>Call</span>
@@ -535,7 +537,8 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
               href={buildWhatsAppLink(job.clientPhone, quickSmsTemplates[0].text)}
               target="_blank"
               rel="noopener noreferrer"
-              className="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-100 text-emerald-800 font-semibold flex items-center gap-1.5 transition border border-slate-200 shadow-sm"
+              className="flex-1 sm:flex-initial justify-center px-2.5 py-1.5 rounded-xl bg-white hover:bg-slate-100 text-emerald-800 font-semibold flex items-center gap-1 transition border border-slate-200 shadow-sm"
+              title="WhatsApp Client"
             >
               <Send className="w-3.5 h-3.5 text-emerald-600" />
               <span>WhatsApp</span>
@@ -545,7 +548,8 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
               href={googleNavUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-100 text-amber-800 font-semibold flex items-center gap-1.5 transition border border-slate-200 shadow-sm"
+              className="flex-1 sm:flex-initial justify-center px-2.5 py-1.5 rounded-xl bg-white hover:bg-slate-100 text-amber-800 font-semibold flex items-center gap-1 transition border border-slate-200 shadow-sm"
+              title="Google Maps Navigation Directions"
             >
               <Navigation2 className="w-3.5 h-3.5 text-amber-600" />
               <span>Directions</span>
@@ -555,17 +559,17 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
             <button
               type="button"
               onClick={() => window.open(buildGoogleCalendarUrl(job, profile), '_blank')}
-              className="px-2.5 py-1.5 rounded-xl bg-white hover:bg-blue-50 text-blue-800 font-semibold flex items-center gap-1 transition border border-blue-200 shadow-sm"
+              className="flex-1 sm:flex-initial justify-center px-2 py-1.5 rounded-xl bg-white hover:bg-blue-50 text-blue-800 font-semibold flex items-center gap-1 transition border border-blue-200 shadow-sm"
               title="Add to Google Calendar"
             >
               <Calendar className="w-3.5 h-3.5 text-blue-600" />
-              <span>Google Cal</span>
+              <span>G-Cal</span>
             </button>
 
             <button
               type="button"
               onClick={() => downloadIcsCalendarFile(job, profile)}
-              className="px-2.5 py-1.5 rounded-xl bg-white hover:bg-slate-100 text-slate-800 font-semibold flex items-center gap-1 transition border border-slate-200 shadow-sm"
+              className="flex-1 sm:flex-initial justify-center px-2 py-1.5 rounded-xl bg-white hover:bg-slate-100 text-slate-800 font-semibold flex items-center gap-1 transition border border-slate-200 shadow-sm"
               title="Download Apple / Outlook iCal (.ics) file"
             >
               <Download className="w-3.5 h-3.5 text-slate-600" />
