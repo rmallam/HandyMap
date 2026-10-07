@@ -125,7 +125,7 @@ export async function parseSpreadsheetFile(file: File): Promise<{
           let realEstateAgentName = String(findValue(row, ['realestateagentname', 'agentname', 'agent', 'propertymanager', 'pmname']) || '');
           let realEstateAgentPhone = String(findValue(row, ['realestateagentphone', 'agentphone', 'pmphone']) || '');
           let realEstateAgentEmail = String(findValue(row, ['realestateagentemail', 'agentemail', 'pmemail']) || '');
-          let workOrderNumber = String(findValue(row, ['workordernumber', 'workorder', 'wo', 'wonumber', 'jobnumber', 'jobno', 'ref', 'reference']) || '');
+          let workOrderNumber = String(findValue(row, ['workordernumber', 'workorder', 'wo', 'wonumber', 'jobnumber', 'jobno', 'jobid', 'invoicenumber', 'invoiceno', 'invno', 'bookkeepid', 'bookkeepingid', 'bookkeep', 'ref', 'reference', 'customid', 'externalid', 'id']) || '');
           let tenantName = String(findValue(row, ['tenantname', 'tenant', 'occupant', 'resident']) || '');
           let tenantPhone = String(findValue(row, ['tenantphone', 'occupantphone', 'residentphone']) || '');
 

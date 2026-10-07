@@ -47,6 +47,7 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
   const [appointmentTime, setAppointmentTime] = useState('');
   const [tasks, setTasks] = useState<string[]>([]);
   const [taskInput, setTaskInput] = useState('');
+  const [customJobNumber, setCustomJobNumber] = useState('');
 
   // Real Estate Agency Fields
   const [isAgencyJob, setIsAgencyJob] = useState(false);
@@ -87,7 +88,7 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
     }
 
     const randomNum = Math.floor(1000 + Math.random() * 9000);
-    const jobNumber = status === 'quote_requested' ? `REQ-${randomNum}` : `JOB-${randomNum}`;
+    const jobNumber = customJobNumber.trim() || (status === 'quote_requested' ? `REQ-${randomNum}` : `JOB-${randomNum}`);
 
     let initialTasks: JobTask[] = tasks.map((t, i) => ({
       id: `task-${Date.now()}-${i}`,
@@ -181,18 +182,33 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
 
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="p-4 sm:p-6 overflow-y-auto flex flex-col gap-4 text-xs">
-          <div>
-            <label className="text-slate-700 font-bold block mb-1">
-              Job / Quote Title *
-            </label>
-            <input
-              type="text"
-              required
-              value={title}
-              onChange={e => setTitle(e.target.value)}
-              placeholder="e.g., Kitchen Tap Mixer Replacement & Leak Check"
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:bg-white outline-none transition"
-            />
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="sm:col-span-2">
+              <label className="text-slate-700 font-bold block mb-1">
+                Job / Quote Title *
+              </label>
+              <input
+                type="text"
+                required
+                value={title}
+                onChange={e => setTitle(e.target.value)}
+                placeholder="e.g., Kitchen Tap Mixer Replacement & Leak Check"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:bg-white outline-none transition"
+              />
+            </div>
+
+            <div>
+              <label className="text-slate-700 font-bold block mb-1">
+                Job / Bookkeep ID <span className="text-[10px] text-slate-400 font-normal">(Optional)</span>
+              </label>
+              <input
+                type="text"
+                value={customJobNumber}
+                onChange={e => setCustomJobNumber(e.target.value)}
+                placeholder="e.g., BK-1042 / INV-99"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-900 font-mono text-xs placeholder:text-slate-400 focus:border-blue-500 focus:bg-white outline-none transition"
+              />
+            </div>
           </div>
 
           {/* Real Estate Agency Checkbox Toggle */}

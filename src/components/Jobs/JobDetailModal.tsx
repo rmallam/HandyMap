@@ -75,6 +75,7 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
 
   // Full Scope / Job Edit Mode
   const [isEditing, setIsEditing] = useState(false);
+  const [editJobNumber, setEditJobNumber] = useState(job.jobNumber);
   const [editTitle, setEditTitle] = useState(job.title);
   const [editDescription, setEditDescription] = useState(job.description);
   const [editCategory, setEditCategory] = useState<JobCategory>(job.category);
@@ -90,6 +91,7 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
 
   // Sync edit form when job prop changes
   useEffect(() => {
+    setEditJobNumber(job.jobNumber);
     setEditTitle(job.title);
     setEditDescription(job.description);
     setEditCategory(job.category);
@@ -213,6 +215,7 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
     e.preventDefault();
     const updatedJob: Job = {
       ...job,
+      jobNumber: editJobNumber.trim() || job.jobNumber,
       title: editTitle.trim() || job.title,
       description: editDescription.trim() || job.description,
       category: editCategory,
@@ -483,17 +486,30 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                 </div>
               </div>
 
-              {/* Title */}
-              <div>
-                <label className="text-slate-700 font-bold block mb-1">Job Title *</label>
-                <input
-                  type="text"
-                  required
-                  value={editTitle}
-                  onChange={e => setEditTitle(e.target.value)}
-                  placeholder="Job summary title..."
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-900 focus:border-blue-500 focus:bg-white outline-none"
-                />
+              {/* Title & Job Number */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="sm:col-span-2">
+                  <label className="text-slate-700 font-bold block mb-1">Job Title *</label>
+                  <input
+                    type="text"
+                    required
+                    value={editTitle}
+                    onChange={e => setEditTitle(e.target.value)}
+                    placeholder="Job summary title..."
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-900 focus:border-blue-500 focus:bg-white outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-slate-700 font-bold block mb-1">Job / Bookkeep ID</label>
+                  <input
+                    type="text"
+                    value={editJobNumber}
+                    onChange={e => setEditJobNumber(e.target.value)}
+                    placeholder="e.g., BK-1042 / INV-99"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-900 font-mono text-xs focus:border-blue-500 focus:bg-white outline-none"
+                  />
+                </div>
               </div>
 
               {/* Category, Priority & Duration */}

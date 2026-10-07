@@ -224,8 +224,20 @@ export function App() {
   };
 
   const handleBatchImportJobs = async (importedJobs: Job[]) => {
-    const nextJobs = [...importedJobs, ...jobs];
-    handleUpdateJobsList(nextJobs);
+    // Non-destructive merge by ID or Job Number to allow re-syncing from bookkeeping exports
+    const mergedJobs = [...jobs];
+    importedJobs.forEach(imp => {
+      const matchIndex = mergedJobs.findIndex(
+        j => j.id === imp.id || (imp.jobNumber && j.jobNumber.toLowerCase() === imp.jobNumber.toLowerCase() && !imp.jobNumber.startsWith('JOB-'))
+      );
+      if (matchIndex >= 0) {
+        mergedJobs[matchIndex] = { ...mergedJobs[matchIndex], ...imp, id: mergedJobs[matchIndex].id };
+      } else {
+        mergedJobs.unshift(imp);
+      }
+    });
+
+    handleUpdateJobsList(mergedJobs);
     setActiveTab('jobs');
     if (isSupabaseConfigured && currentUserId) {
       await batchUpsertJobsInSupabase(importedJobs, currentUserId);
