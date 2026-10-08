@@ -25,6 +25,7 @@ import {
   sendEmailOtp,
   isSupabaseConfigured
 } from '../../services/supabase';
+import { triggerHapticFeedback } from '../../services/nativeMobile';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -71,6 +72,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       return;
     }
 
+    triggerHapticFeedback('light');
     setErrorMessage(null);
     setInfoMessage(null);
     setIsLoading(true);
@@ -78,6 +80,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     if (!isSupabaseConfigured) {
       setTimeout(() => {
         setIsLoading(false);
+        triggerHapticFeedback('success');
         setMode('success');
         setTimeout(() => {
           onLoginSuccess(email);
@@ -91,10 +94,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setIsLoading(false);
 
     if (error || !user) {
+      triggerHapticFeedback('error');
       setErrorMessage(
         error || 'Invalid email or password. If you have not created an account yet, click Create Account below.'
       );
     } else {
+      triggerHapticFeedback('success');
       setMode('success');
       setTimeout(() => {
         onLoginSuccess(user.email || email);
@@ -115,6 +120,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       return;
     }
 
+    triggerHapticFeedback('light');
     setErrorMessage(null);
     setInfoMessage(null);
     setIsLoading(true);
@@ -122,6 +128,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     if (!isSupabaseConfigured) {
       setTimeout(() => {
         setIsLoading(false);
+        triggerHapticFeedback('success');
         setMode('success');
         setTimeout(() => {
           onLoginSuccess(email);
@@ -135,8 +142,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setIsLoading(false);
 
     if (error) {
+      triggerHapticFeedback('error');
       setErrorMessage(error);
     } else if (user) {
+      triggerHapticFeedback('success');
       setMode('success');
       setTimeout(() => {
         onLoginSuccess(user.email || email);
@@ -153,6 +162,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       return;
     }
 
+    triggerHapticFeedback('light');
     setErrorMessage(null);
     setIsLoading(true);
 
@@ -166,8 +176,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setIsLoading(false);
 
     if (error) {
+      triggerHapticFeedback('error');
       setErrorMessage(error);
     } else {
+      triggerHapticFeedback('success');
       setInfoMessage(`A password reset link has been sent to ${email}. Check your inbox.`);
     }
   };
@@ -180,6 +192,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       return;
     }
 
+    triggerHapticFeedback('light');
     setErrorMessage(null);
     setInfoMessage(null);
     setIsLoading(true);
@@ -194,17 +207,21 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setIsLoading(false);
 
     if (error) {
+      triggerHapticFeedback('error');
       setErrorMessage(error);
     } else {
+      triggerHapticFeedback('success');
       setMode('link_sent');
     }
   };
 
   // 5. 1-Click Demo Login
   const handleQuickDemoLogin = () => {
+    triggerHapticFeedback('light');
     setIsLoading(true);
     setTimeout(() => {
       setIsLoading(false);
+      triggerHapticFeedback('success');
       setMode('success');
       setTimeout(() => {
         onLoginSuccess('alex@apexhandyman.com.au');
@@ -214,8 +231,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[3000] bg-slate-900/70 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-y-auto animate-in fade-in duration-200">
-      <div className="bg-white rounded-t-[32px] sm:rounded-3xl max-w-md w-full shadow-2xl border-t sm:border border-slate-200/90 overflow-hidden flex flex-col pb-[env(safe-area-inset-bottom,0px)]">
+    <div className="fixed inset-0 z-[3000] bg-slate-950/70 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-y-auto animate-in fade-in duration-200">
+      <div className="bg-white rounded-t-[32px] sm:rounded-3xl max-w-md w-full shadow-2xl border-t sm:border border-slate-200/90 overflow-hidden flex flex-col pb-[calc(1rem+env(safe-area-inset-bottom,0px))]">
         {/* Mobile Pull Handle */}
         <div className="w-12 h-1.5 bg-slate-300 rounded-full mx-auto my-2.5 sm:hidden shrink-0" />
 
@@ -232,34 +249,38 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   PRO
                 </span>
               </h2>
-              <p className="text-[11px] sm:text-xs text-slate-300">
+              <p className="text-[11px] sm:text-xs text-slate-400 mt-0.5">
                 Isolated Database & Profile Management
               </p>
             </div>
           </div>
 
           <button
-            onClick={onClose}
+            onClick={() => {
+              triggerHapticFeedback('light');
+              onClose();
+            }}
             className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition active:scale-95"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Auth Mode Tabs */}
+        {/* Auth Mode Segmented Bar */}
         {mode !== 'success' && mode !== 'link_sent' && (
-          <div className="flex items-center p-1.5 bg-slate-100 border-b border-slate-200 text-xs font-bold text-slate-600 select-none">
+          <div className="flex items-center p-1.5 bg-slate-100/90 border-b border-slate-200 text-xs font-bold text-slate-600 select-none">
             <button
               type="button"
               onClick={() => {
+                triggerHapticFeedback('light');
                 setMode('password_login');
                 setErrorMessage(null);
                 setInfoMessage(null);
               }}
               className={`flex-1 py-2 rounded-xl transition flex items-center justify-center gap-1.5 ${
                 mode === 'password_login' || mode === 'forgot_password'
-                  ? 'bg-white text-blue-600 shadow-xs'
-                  : 'hover:text-slate-900'
+                  ? 'bg-white text-blue-600 shadow-sm font-black'
+                  : 'hover:text-slate-900 font-semibold'
               }`}
             >
               <KeyRound className="w-3.5 h-3.5" />
@@ -269,14 +290,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             <button
               type="button"
               onClick={() => {
+                triggerHapticFeedback('light');
                 setMode('register');
                 setErrorMessage(null);
                 setInfoMessage(null);
               }}
               className={`flex-1 py-2 rounded-xl transition flex items-center justify-center gap-1.5 ${
                 mode === 'register'
-                  ? 'bg-white text-blue-600 shadow-xs'
-                  : 'hover:text-slate-900'
+                  ? 'bg-white text-blue-600 shadow-sm font-black'
+                  : 'hover:text-slate-900 font-semibold'
               }`}
             >
               <UserPlus className="w-3.5 h-3.5" />
@@ -286,14 +308,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             <button
               type="button"
               onClick={() => {
+                triggerHapticFeedback('light');
                 setMode('magic_link');
                 setErrorMessage(null);
                 setInfoMessage(null);
               }}
               className={`flex-1 py-2 rounded-xl transition flex items-center justify-center gap-1.5 ${
                 mode === 'magic_link'
-                  ? 'bg-white text-blue-600 shadow-xs'
-                  : 'hover:text-slate-900'
+                  ? 'bg-white text-blue-600 shadow-sm font-black'
+                  : 'hover:text-slate-900 font-semibold'
               }`}
             >
               <Mail className="w-3.5 h-3.5" />
@@ -306,10 +329,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         <div className="p-5 sm:p-6 space-y-4 text-slate-900">
           {/* Error Message Toast */}
           {errorMessage && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-3.5 py-2.5 rounded-xl text-xs flex flex-col gap-1.5 animate-in fade-in">
+            <div className="bg-red-50 border border-red-200 text-red-700 px-3.5 py-2.5 rounded-2xl text-xs flex flex-col gap-1.5 animate-in fade-in">
               <div className="flex items-start gap-2">
                 <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-600" />
-                <div className="flex-1 leading-relaxed">{errorMessage}</div>
+                <div className="flex-1 leading-relaxed font-medium">{errorMessage}</div>
               </div>
 
               {mode === 'password_login' && (
@@ -329,76 +352,79 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
           {/* Info Message Toast */}
           {infoMessage && (
-            <div className="bg-blue-50 border border-blue-200 text-blue-800 px-3.5 py-2.5 rounded-xl text-xs flex items-start gap-2 animate-in fade-in">
+            <div className="bg-blue-50 border border-blue-200 text-blue-800 px-3.5 py-2.5 rounded-2xl text-xs flex items-start gap-2 animate-in fade-in">
               <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5 text-blue-600" />
-              <div className="flex-1 leading-relaxed">{infoMessage}</div>
+              <div className="flex-1 leading-relaxed font-medium">{infoMessage}</div>
             </div>
           )}
 
           {/* TAB 1: PASSWORD SIGN IN */}
           {mode === 'password_login' && (
             <form onSubmit={handlePasswordSignIn} className="space-y-3.5">
-              <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">
-                  Email Address
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-                    <Mail className="w-4 h-4" />
-                  </div>
-                  <input
-                    type="email"
-                    required
-                    value={email}
-                    onChange={e => setEmail(e.target.value)}
-                    placeholder="e.g. alex@apexhandyman.com.au"
-                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-medium focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-100 outline-none transition"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-xs font-bold text-slate-700">
-                    Password
+              <div className="bg-slate-50/80 rounded-2xl border border-slate-200/80 p-3.5 space-y-3">
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-wider text-slate-500 block mb-1">
+                    Email Address
                   </label>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMode('forgot_password');
-                      setErrorMessage(null);
-                    }}
-                    className="text-[11px] text-blue-600 hover:underline font-semibold"
-                  >
-                    Forgot password?
-                  </button>
-                </div>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-                    <Lock className="w-4 h-4" />
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                      <Mail className="w-4 h-4" />
+                    </div>
+                    <input
+                      type="email"
+                      required
+                      value={email}
+                      onChange={e => setEmail(e.target.value)}
+                      placeholder="e.g. alex@apexhandyman.com.au"
+                      className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition"
+                    />
                   </div>
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    required
-                    value={password}
-                    onChange={e => setPassword(e.target.value)}
-                    placeholder="Enter password"
-                    className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-medium focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-100 outline-none transition"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 transition"
-                  >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">
+                      Password
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        triggerHapticFeedback('light');
+                        setMode('forgot_password');
+                        setErrorMessage(null);
+                      }}
+                      className="text-[11px] text-blue-600 hover:underline font-bold"
+                    >
+                      Forgot password?
+                    </button>
+                  </div>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                      <Lock className="w-4 h-4" />
+                    </div>
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      value={password}
+                      onChange={e => setPassword(e.target.value)}
+                      placeholder="Enter password"
+                      className="w-full pl-10 pr-10 py-2.5 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 transition"
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
                 </div>
               </div>
 
               <button
                 type="submit"
                 disabled={isLoading || !email || !password}
-                className="w-full py-3 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:bg-slate-200 disabled:text-slate-400 text-white font-bold text-xs sm:text-sm shadow-md hover:shadow-lg transition flex items-center justify-center gap-2 active:scale-[0.99] mt-2"
+                className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 text-white font-black text-xs sm:text-sm shadow-lg shadow-blue-500/25 transition flex items-center justify-center gap-2 active:scale-[0.99] mt-2"
               >
                 {isLoading ? (
                   <>
@@ -407,8 +433,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   </>
                 ) : (
                   <>
-                    <span>Sign In</span>
-                    <ArrowRight className="w-4 h-4" />
+                    <span>Sign In to Handyman Portal</span>
+                    <ArrowRight className="w-4 h-4 stroke-[2.5]" />
                   </>
                 )}
               </button>
@@ -418,75 +444,77 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           {/* TAB 2: REGISTER / CREATE ACCOUNT */}
           {mode === 'register' && (
             <form onSubmit={handleRegister} className="space-y-3.5">
-              <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">
-                  Full Name or Business Name
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-                    <UserCheck className="w-4 h-4" />
+              <div className="bg-slate-50/80 rounded-2xl border border-slate-200/80 p-3.5 space-y-3">
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-wider text-slate-500 block mb-1">
+                    Full Name or Business Name
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                      <UserCheck className="w-4 h-4" />
+                    </div>
+                    <input
+                      type="text"
+                      required
+                      value={fullName}
+                      onChange={e => setFullName(e.target.value)}
+                      placeholder="e.g. Alex Miller (Apex Handyman)"
+                      className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition"
+                    />
                   </div>
-                  <input
-                    type="text"
-                    required
-                    value={fullName}
-                    onChange={e => setFullName(e.target.value)}
-                    placeholder="e.g. Alex Miller (Apex Handyman)"
-                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-medium focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-100 outline-none transition"
-                  />
                 </div>
-              </div>
 
-              <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">
-                  Email Address
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-                    <Mail className="w-4 h-4" />
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-wider text-slate-500 block mb-1">
+                    Email Address
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                      <Mail className="w-4 h-4" />
+                    </div>
+                    <input
+                      type="email"
+                      required
+                      value={email}
+                      onChange={e => setEmail(e.target.value)}
+                      placeholder="e.g. alex@apexhandyman.com.au"
+                      className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition"
+                    />
                   </div>
-                  <input
-                    type="email"
-                    required
-                    value={email}
-                    onChange={e => setEmail(e.target.value)}
-                    placeholder="e.g. alex@apexhandyman.com.au"
-                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-medium focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-100 outline-none transition"
-                  />
                 </div>
-              </div>
 
-              <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">
-                  Password (min 6 characters)
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-                    <Lock className="w-4 h-4" />
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-wider text-slate-500 block mb-1">
+                    Password (min 6 characters)
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                      <Lock className="w-4 h-4" />
+                    </div>
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      minLength={6}
+                      value={password}
+                      onChange={e => setPassword(e.target.value)}
+                      placeholder="Choose a secure password"
+                      className="w-full pl-10 pr-10 py-2.5 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 transition"
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
                   </div>
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    required
-                    minLength={6}
-                    value={password}
-                    onChange={e => setPassword(e.target.value)}
-                    placeholder="Choose a password"
-                    className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-medium focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-100 outline-none transition"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 transition"
-                  >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
                 </div>
               </div>
 
               <button
                 type="submit"
                 disabled={isLoading || !email || !password}
-                className="w-full py-3 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:bg-slate-200 disabled:text-slate-400 text-white font-bold text-xs sm:text-sm shadow-md hover:shadow-lg transition flex items-center justify-center gap-2 active:scale-[0.99] mt-2"
+                className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 text-white font-black text-xs sm:text-sm shadow-lg shadow-blue-500/25 transition flex items-center justify-center gap-2 active:scale-[0.99] mt-2"
               >
                 {isLoading ? (
                   <>
@@ -495,7 +523,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   </>
                 ) : (
                   <>
-                    <UserPlus className="w-4 h-4" />
+                    <UserPlus className="w-4 h-4 stroke-[2.5]" />
                     <span>Register Account & Log In</span>
                   </>
                 )}
@@ -509,7 +537,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               <div className="text-center space-y-1">
                 <h3 className="text-sm font-bold text-slate-900">Reset Password</h3>
                 <p className="text-xs text-slate-500">
-                  Enter your email to receive a password reset link.
+                  Enter your email to receive a secure password reset link.
                 </p>
               </div>
 
@@ -520,14 +548,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                   placeholder="e.g. alex@apexhandyman.com.au"
-                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-medium focus:border-blue-500 focus:bg-white outline-none transition"
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold focus:border-blue-500 focus:bg-white outline-none transition"
                 />
               </div>
 
               <button
                 type="submit"
                 disabled={isLoading || !email}
-                className="w-full py-3 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:bg-slate-200 text-white font-bold text-xs sm:text-sm shadow-md transition"
+                className="w-full py-3 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold text-xs sm:text-sm shadow-md transition"
               >
                 {isLoading ? 'Sending...' : 'Send Reset Link'}
               </button>
@@ -545,8 +573,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           {/* TAB 4: 1-CLICK MAGIC LINK */}
           {mode === 'magic_link' && (
             <form onSubmit={handleSendMagicLink} className="space-y-3.5">
-              <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">
+              <div className="bg-slate-50/80 rounded-2xl border border-slate-200/80 p-3.5 space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-wider text-slate-500 block mb-1">
                   Email Address
                 </label>
                 <div className="relative">
@@ -559,18 +587,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     value={email}
                     onChange={e => setEmail(e.target.value)}
                     placeholder="e.g. alex@apexhandyman.com.au"
-                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-medium focus:border-blue-500 focus:bg-white outline-none transition"
+                    className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition"
                   />
                 </div>
-                <p className="text-[11px] text-slate-500 mt-1.5">
-                  We will email you a secure 1-click link to log in directly without a password.
+                <p className="text-[11px] text-slate-500">
+                  We will email you a secure 1-click passwordless link to sign in automatically.
                 </p>
               </div>
 
               <button
                 type="submit"
                 disabled={isLoading || !email}
-                className="w-full py-3 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:bg-slate-200 text-white font-bold text-xs sm:text-sm shadow-md transition flex items-center justify-center gap-2 active:scale-[0.99]"
+                className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 text-white font-black text-xs sm:text-sm shadow-lg shadow-blue-500/25 transition flex items-center justify-center gap-2 active:scale-[0.99]"
               >
                 {isLoading ? (
                   <>
@@ -580,7 +608,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 ) : (
                   <>
                     <span>Send Sign-In Link to Email</span>
-                    <ArrowRight className="w-4 h-4" />
+                    <ArrowRight className="w-4 h-4 stroke-[2.5]" />
                   </>
                 )}
               </button>
@@ -590,12 +618,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           {/* TAB 5: LINK SENT NOTIFICATION */}
           {mode === 'link_sent' && (
             <div className="py-4 text-center space-y-3 animate-in zoom-in-95">
-              <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto border border-blue-100">
+              <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto border border-blue-100 shadow-sm">
                 <Mail className="w-6 h-6" />
               </div>
               <h3 className="text-sm font-black text-slate-900">Check Your Email</h3>
               <p className="text-xs text-slate-600 max-w-xs mx-auto leading-relaxed">
-                We sent a sign-in link to <strong className="text-slate-800">{email}</strong>. Open the email on this device and click the link to log in automatically.
+                We sent a sign-in link to <strong className="text-slate-800">{email}</strong>. Open the email on this device and tap the link to log in automatically.
               </p>
               <button
                 type="button"
@@ -610,12 +638,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           {/* TAB 6: SUCCESS */}
           {mode === 'success' && (
             <div className="py-8 text-center space-y-3 animate-in zoom-in-95 duration-200">
-              <div className="w-16 h-16 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto border-2 border-emerald-200 shadow-lg shadow-emerald-500/10 animate-bounce">
-                <CheckCircle2 className="w-8 h-8" />
+              <div className="w-16 h-16 rounded-3xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto border-2 border-emerald-200 shadow-lg shadow-emerald-500/10">
+                <CheckCircle2 className="w-8 h-8 stroke-[2.5]" />
               </div>
               <h3 className="text-base font-black text-slate-900">Signed In Successfully!</h3>
               <p className="text-xs text-slate-500 max-w-xs mx-auto">
-                Your profile, ABN, and handyman jobs are now securely loaded.
+                Your profile, ABN, and handyman jobs are securely loaded.
               </p>
             </div>
           )}
@@ -627,7 +655,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 type="button"
                 onClick={handleQuickDemoLogin}
                 disabled={isLoading}
-                className="w-full py-2.5 px-4 rounded-xl bg-indigo-50 hover:bg-indigo-100/80 border border-indigo-200/80 text-indigo-700 font-bold text-xs shadow-xs transition flex items-center justify-center gap-2 active:scale-[0.99]"
+                className="w-full py-2.5 px-4 rounded-xl bg-indigo-50/90 hover:bg-indigo-100/90 border border-indigo-200/80 text-indigo-700 font-black text-xs shadow-xs transition flex items-center justify-center gap-2 active:scale-[0.99]"
               >
                 <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
                 <span>1-Click Demo Preview (Alex Miller • Point Cook)</span>
@@ -637,7 +665,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <button
                   type="button"
                   onClick={() => setShowStorageInfo(!showStorageInfo)}
-                  className="text-[11px] text-slate-500 hover:text-slate-800 font-semibold inline-flex items-center gap-1"
+                  className="text-[11px] text-slate-500 hover:text-slate-800 font-bold inline-flex items-center gap-1"
                 >
                   <Database className="w-3 h-3 text-slate-400" />
                   <span>How is my data stored?</span>
@@ -646,12 +674,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               </div>
 
               {showStorageInfo && (
-                <div className="bg-slate-50 rounded-2xl p-3 border border-slate-200/80 text-[11px] text-slate-600 space-y-1.5 animate-in fade-in">
-                  <div className="font-bold text-slate-800 flex items-center gap-1.5">
+                <div className="bg-slate-50 rounded-2xl p-3.5 border border-slate-200/80 text-[11px] text-slate-600 space-y-1.5 animate-in fade-in">
+                  <div className="font-black text-slate-800 flex items-center gap-1.5">
                     <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
                     <span>Multi-Tenant PostgreSQL Isolation</span>
                   </div>
-                  <p>
+                  <p className="leading-relaxed">
                     Every handyman has a private account. Your database records are strictly isolated to your user account and are never visible to other users.
                   </p>
                 </div>

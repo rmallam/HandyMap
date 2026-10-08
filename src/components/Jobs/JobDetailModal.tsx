@@ -661,185 +661,215 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
           {/* ========================================================================= */}
           {/* EDIT JOB & SCOPE MODE OVERLAY */}
           {/* ========================================================================= */}
+          {/* ========================================================================= */}
+          {/* EDIT JOB & SCOPE MODE OVERLAY */}
+          {/* ========================================================================= */}
           {isEditing ? (
-            <form onSubmit={handleSaveAllJobEdits} className="bg-white rounded-3xl border border-blue-200 p-5 shadow-lg flex flex-col gap-4 text-xs animate-in fade-in">
+            <form onSubmit={handleSaveAllJobEdits} className="bg-white rounded-3xl border border-blue-200/90 p-4 sm:p-5 shadow-xl flex flex-col gap-4 text-xs animate-in fade-in">
               <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                <div className="flex items-center gap-2">
-                  <div className="p-2 bg-blue-50 text-blue-600 rounded-xl border border-blue-200/60">
-                    <Pencil className="w-4 h-4" />
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center border border-blue-200/60 shadow-xs">
+                    <Pencil className="w-4 h-4 stroke-[2.2]" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold text-slate-900">Edit Job Scope & Details</h3>
-                    <p className="text-[11px] text-slate-500">Update title, description, trade category, or client address.</p>
+                    <h3 className="text-sm font-black text-slate-900">Edit Job Scope & Details</h3>
+                    <p className="text-[11px] text-slate-500 font-medium">Update title, description, trade category, or client address.</p>
                   </div>
                 </div>
 
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => setIsEditing(false)}
-                    className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs transition"
+                    onClick={() => {
+                      triggerHapticFeedback('light');
+                      setIsEditing(false);
+                    }}
+                    className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition active:scale-95"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md shadow-blue-600/30 flex items-center gap-1.5 transition"
+                    className="px-4 py-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-black text-xs shadow-md shadow-blue-500/25 flex items-center gap-1.5 transition active:scale-95"
                   >
-                    <Save className="w-3.5 h-3.5" /> Save Changes
+                    <Save className="w-3.5 h-3.5 stroke-[2.5]" /> Save
                   </button>
                 </div>
               </div>
 
-              {/* Title & Job Number */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="sm:col-span-2">
-                  <label className="text-slate-700 font-bold block mb-1">Job Title *</label>
-                  <input
-                    type="text"
-                    required
-                    value={editTitle}
-                    onChange={e => setEditTitle(e.target.value)}
-                    placeholder="Job summary title..."
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-900 focus:border-blue-500 focus:bg-white outline-none"
-                  />
+              {/* Group 1: Title & ID */}
+              <div className="bg-slate-50/80 rounded-2xl border border-slate-200/80 p-3.5 space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="sm:col-span-2">
+                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-500 block mb-1">
+                      Job Title *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={editTitle}
+                      onChange={e => setEditTitle(e.target.value)}
+                      placeholder="Job summary title..."
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2 text-slate-900 font-semibold focus:border-blue-500 outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-500 block mb-1">
+                      Job / Bookkeep ID
+                    </label>
+                    <input
+                      type="text"
+                      value={editJobNumber}
+                      onChange={e => setEditJobNumber(e.target.value)}
+                      placeholder="e.g., BK-1042 / INV-99"
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-900 font-mono text-xs font-bold focus:border-blue-500 outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-500 block mb-1">
+                      Category
+                    </label>
+                    <select
+                      value={editCategory}
+                      onChange={e => setEditCategory(e.target.value as JobCategory)}
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-900 font-semibold focus:border-blue-500 outline-none"
+                    >
+                      {CATEGORIES.map(cat => (
+                        <option key={cat} value={cat}>{cat}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-500 block mb-1">
+                      Priority
+                    </label>
+                    <select
+                      value={editPriority}
+                      onChange={e => setEditPriority(e.target.value as JobPriority)}
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-900 font-semibold focus:border-blue-500 outline-none"
+                    >
+                      <option value="low">Low</option>
+                      <option value="medium">Medium</option>
+                      <option value="high">High</option>
+                      <option value="urgent">Urgent</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-500 block mb-1">
+                      Est. Duration (Mins)
+                    </label>
+                    <input
+                      type="number"
+                      min="10"
+                      step="5"
+                      value={editDuration}
+                      onChange={e => setEditDuration(parseInt(e.target.value, 10) || 45)}
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-900 font-bold focus:border-blue-500 outline-none"
+                    />
+                  </div>
                 </div>
 
                 <div>
-                  <label className="text-slate-700 font-bold block mb-1">Job / Bookkeep ID</label>
-                  <input
-                    type="text"
-                    value={editJobNumber}
-                    onChange={e => setEditJobNumber(e.target.value)}
-                    placeholder="e.g., BK-1042 / INV-99"
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-900 font-mono text-xs focus:border-blue-500 focus:bg-white outline-none"
-                  />
-                </div>
-              </div>
-
-              {/* Category, Priority & Duration */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div>
-                  <label className="text-slate-700 font-bold block mb-1">Category</label>
-                  <select
-                    value={editCategory}
-                    onChange={e => setEditCategory(e.target.value as JobCategory)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-900 focus:border-blue-500 focus:bg-white outline-none"
-                  >
-                    {CATEGORIES.map(cat => (
-                      <option key={cat} value={cat}>{cat}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="text-slate-700 font-bold block mb-1">Priority</label>
-                  <select
-                    value={editPriority}
-                    onChange={e => setEditPriority(e.target.value as JobPriority)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-900 focus:border-blue-500 focus:bg-white outline-none"
-                  >
-                    <option value="low">Low</option>
-                    <option value="medium">Medium</option>
-                    <option value="high">High</option>
-                    <option value="urgent">Urgent</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="text-slate-700 font-bold block mb-1">Est. Duration (Mins)</label>
-                  <input
-                    type="number"
-                    min="10"
-                    step="5"
-                    value={editDuration}
-                    onChange={e => setEditDuration(parseInt(e.target.value, 10) || 45)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-900 focus:border-blue-500 focus:bg-white outline-none"
-                  />
-                </div>
-              </div>
-
-              {/* Full Description / Scope */}
-              <div>
-                <label className="text-slate-700 font-bold block mb-1">Scope Description & Task Details</label>
-                <textarea
-                  rows={4}
-                  value={editDescription}
-                  onChange={e => setEditDescription(e.target.value)}
-                  placeholder="Detailed breakdown of repair tasks..."
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-slate-900 focus:border-blue-500 focus:bg-white outline-none resize-y"
-                />
-              </div>
-
-              {/* Client Name & Phone */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="text-slate-700 font-bold block mb-1">Client Name</label>
-                  <input
-                    type="text"
-                    value={editClientName}
-                    onChange={e => setEditClientName(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-900 focus:border-blue-500 focus:bg-white outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-slate-700 font-bold block mb-1">Client Phone</label>
-                  <input
-                    type="tel"
-                    value={editClientPhone}
-                    onChange={e => setEditClientPhone(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-900 focus:border-blue-500 focus:bg-white outline-none"
+                  <label className="text-[10px] font-black uppercase tracking-wider text-slate-500 block mb-1">
+                    Scope Description & Task Details
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={editDescription}
+                    onChange={e => setEditDescription(e.target.value)}
+                    placeholder="Detailed breakdown of repair tasks..."
+                    className="w-full bg-white border border-slate-200 rounded-xl p-3 text-slate-900 focus:border-blue-500 outline-none resize-none"
                   />
                 </div>
               </div>
 
-              {/* Address with Autocomplete & Suburb */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="sm:col-span-2">
-                  <label className="text-slate-700 font-bold block mb-1">Street Address</label>
-                  <AddressAutocomplete
-                    value={editAddress}
-                    onChange={setEditAddress}
-                    onAddressSelect={(res: AddressResult) => {
-                      setEditAddress(res.address);
-                      if (res.suburb) setEditSuburb(res.suburb);
-                      if (res.coordinates) setEditCoordinates(res.coordinates);
-                    }}
-                    currentLocation={currentLocation}
-                  />
+              {/* Group 2: Client & Address */}
+              <div className="bg-slate-50/80 rounded-2xl border border-slate-200/80 p-3.5 space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-500 block mb-1">
+                      Client Full Name
+                    </label>
+                    <input
+                      type="text"
+                      value={editClientName}
+                      onChange={e => setEditClientName(e.target.value)}
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-900 font-semibold focus:border-blue-500 outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-500 block mb-1">
+                      Client Phone
+                    </label>
+                    <input
+                      type="tel"
+                      value={editClientPhone}
+                      onChange={e => setEditClientPhone(e.target.value)}
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-900 font-semibold focus:border-blue-500 outline-none"
+                    />
+                  </div>
                 </div>
 
-                <div>
-                  <label className="text-slate-700 font-bold block mb-1">Suburb</label>
-                  <select
-                    value={editSuburb}
-                    onChange={e => setEditSuburb(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-900 font-semibold focus:border-blue-500 focus:bg-white outline-none"
-                  >
-                    {SUBURBS_LIST.map(sub => (
-                      <option key={sub} value={sub}>{sub}</option>
-                    ))}
-                    {!SUBURBS_LIST.includes(editSuburb) && editSuburb && (
-                      <option value={editSuburb}>{editSuburb}</option>
-                    )}
-                  </select>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="sm:col-span-2">
+                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-500 block mb-1">
+                      Street Address
+                    </label>
+                    <AddressAutocomplete
+                      value={editAddress}
+                      onChange={setEditAddress}
+                      onAddressSelect={(res: AddressResult) => {
+                        setEditAddress(res.address);
+                        if (res.suburb) setEditSuburb(res.suburb);
+                        if (res.coordinates) setEditCoordinates(res.coordinates);
+                      }}
+                      currentLocation={currentLocation}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-500 block mb-1">
+                      Suburb
+                    </label>
+                    <select
+                      value={editSuburb}
+                      onChange={e => setEditSuburb(e.target.value)}
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-900 font-semibold focus:border-blue-500 outline-none"
+                    >
+                      {SUBURBS_LIST.map(sub => (
+                        <option key={sub} value={sub}>{sub}</option>
+                      ))}
+                      {!SUBURBS_LIST.includes(editSuburb) && editSuburb && (
+                        <option value={editSuburb}>{editSuburb}</option>
+                      )}
+                    </select>
+                  </div>
                 </div>
               </div>
 
-              <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+              <div className="pt-2 border-t border-slate-100 flex items-center justify-end gap-2">
                 <button
                   type="button"
-                  onClick={() => setIsEditing(false)}
-                  className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs transition"
+                  onClick={() => {
+                    triggerHapticFeedback('light');
+                    setIsEditing(false);
+                  }}
+                  className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition active:scale-95"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md shadow-blue-600/30 flex items-center gap-1.5 transition"
+                  className="px-5 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-black text-xs shadow-lg shadow-blue-500/25 flex items-center gap-1.5 transition active:scale-95"
                 >
-                  <Save className="w-4 h-4" /> Save Scope & Job Changes
+                  <Save className="w-4 h-4 stroke-[2.5]" /> Save Scope & Job Changes
                 </button>
               </div>
             </form>

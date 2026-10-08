@@ -1,8 +1,27 @@
 import React, { useState } from 'react';
 import { Job, JobCategory, JobPriority, JobStatus, JobTask } from '../../types';
 import { REAL_ESTATE_AGENCIES, SUBURBS_LIST } from '../../data/mockJobs';
-import { X, Plus, MapPin, Building2, User, Phone, Tag } from 'lucide-react';
+import {
+  X,
+  Plus,
+  MapPin,
+  Building2,
+  User,
+  Phone,
+  Mail,
+  Tag,
+  Clock,
+  Calendar,
+  Sparkles,
+  CheckCircle2,
+  AlertCircle,
+  FileText,
+  ListTodo,
+  Check,
+  Briefcase
+} from 'lucide-react';
 import { AddressAutocomplete, AddressResult } from '../Common/AddressAutocomplete';
+import { triggerHapticFeedback } from '../../services/nativeMobile';
 
 interface JobFormModalProps {
   isOpen: boolean;
@@ -23,6 +42,8 @@ const CATEGORIES: JobCategory[] = [
   'Drywall & Masonry',
   'Door & Window'
 ];
+
+const DURATION_PRESETS = [30, 45, 60, 90, 120, 180];
 
 export const JobFormModal: React.FC<JobFormModalProps> = ({
   isOpen,
@@ -57,6 +78,7 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
   const [workOrderNumber, setWorkOrderNumber] = useState('');
   const [tenantName, setTenantName] = useState('');
   const [tenantPhone, setTenantPhone] = useState('');
+
   const handleAddressSelect = (result: AddressResult) => {
     setAddress(result.address);
     if (result.suburb) {
@@ -70,9 +92,19 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
     setSelectedCoordinates(result.coordinates);
   };
 
+  const handleAddTask = () => {
+    if (taskInput.trim()) {
+      setTasks(prev => [...prev, taskInput.trim()]);
+      setTaskInput('');
+      triggerHapticFeedback('light');
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !clientName.trim()) return;
+
+    triggerHapticFeedback('medium');
 
     let coordinates: [number, number];
     if (selectedCoordinates) {
@@ -150,31 +182,33 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[3000] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/70 backdrop-blur-md overflow-y-auto animate-in fade-in duration-150 text-slate-900">
-      <div className="bg-white border-t sm:border border-slate-200 rounded-t-[32px] sm:rounded-3xl w-full max-w-lg max-h-[92dvh] flex flex-col shadow-2xl overflow-hidden pb-[env(safe-area-inset-bottom,0px)]">
-        {/* Mobile Drag Indicator Bar */}
+    <div className="fixed inset-0 z-[3000] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-950/70 backdrop-blur-md overflow-y-auto animate-in fade-in duration-200 text-slate-900">
+      <div className="bg-white border-t sm:border border-slate-200/90 rounded-t-[32px] sm:rounded-3xl w-full max-w-xl max-h-[92dvh] flex flex-col shadow-2xl overflow-hidden pb-[calc(1rem+env(safe-area-inset-bottom,0px))]">
+        {/* Mobile Pull Handle Indicator */}
         <div className="w-12 h-1.5 bg-slate-300 rounded-full mx-auto my-2.5 sm:hidden shrink-0" />
 
-
-        {/* Header */}
-        <div className="p-4 sm:p-5 border-b border-slate-200/80 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-2">
-            <div className="p-2 rounded-xl bg-blue-50 text-blue-600 border border-blue-200/60">
+        {/* Modal Header */}
+        <div className="px-5 py-4 sm:px-6 sm:py-5 border-b border-slate-100 flex items-center justify-between shrink-0 bg-white">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center shadow-md shadow-blue-500/20 shrink-0">
               <Plus className="w-5 h-5 stroke-[2.5]" />
             </div>
             <div>
-              <h2 className="text-base sm:text-lg font-bold text-slate-900">
-                New Job Lead / Quote Request
+              <h2 className="text-base sm:text-lg font-black text-slate-900 tracking-tight">
+                New Job Lead / Work Order
               </h2>
-              <p className="text-xs text-slate-500">
-                Log a residential or real estate work order onto your map.
+              <p className="text-[11px] sm:text-xs text-slate-500">
+                Place an active quote or agency job directly onto your map
               </p>
             </div>
           </div>
 
           <button
-            onClick={onClose}
-            className="p-1.5 rounded-xl bg-slate-100 text-slate-500 hover:text-slate-800 transition"
+            onClick={() => {
+              triggerHapticFeedback('light');
+              onClose();
+            }}
+            className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 transition active:scale-95"
           >
             <X className="w-5 h-5" />
           </button>
@@ -182,54 +216,106 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
 
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="p-4 sm:p-6 overflow-y-auto flex flex-col gap-4 text-xs">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div className="sm:col-span-2">
-              <label className="text-slate-700 font-bold block mb-1">
-                Job / Quote Title *
-              </label>
+          
+          {/* SECTION 1: JOB SCOPE & TITLE */}
+          <div className="bg-slate-50/80 rounded-2xl border border-slate-200/80 p-3.5 sm:p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                <Briefcase className="w-3.5 h-3.5 text-blue-600" />
+                Job Title & Categorization
+              </span>
+              <span className="text-[10px] text-blue-600 font-bold">* Required</span>
+            </div>
+
+            <div className="space-y-1">
               <input
                 type="text"
                 required
                 value={title}
                 onChange={e => setTitle(e.target.value)}
-                placeholder="e.g., Kitchen Tap Mixer Replacement & Leak Check"
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:bg-white outline-none transition"
+                placeholder="e.g., Kitchen Tap Mixer Replacement & Leak Inspection"
+                className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-slate-900 text-xs sm:text-sm font-semibold placeholder:text-slate-400 placeholder:font-normal focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition"
               />
             </div>
 
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+              <div>
+                <label className="text-[10px] font-bold text-slate-600 block mb-1">
+                  Trade Category
+                </label>
+                <select
+                  value={category}
+                  onChange={e => setCategory(e.target.value as JobCategory)}
+                  className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-900 font-semibold focus:border-blue-500 outline-none"
+                >
+                  {CATEGORIES.map(cat => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-bold text-slate-600 block mb-1">
+                  Job / Invoice ID <span className="text-slate-400 font-normal">(Optional)</span>
+                </label>
+                <input
+                  type="text"
+                  value={customJobNumber}
+                  onChange={e => setCustomJobNumber(e.target.value)}
+                  placeholder="e.g., BK-1042 / INV-99"
+                  className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-900 font-mono text-xs placeholder:text-slate-400 focus:border-blue-500 outline-none"
+                />
+              </div>
+            </div>
+
             <div>
-              <label className="text-slate-700 font-bold block mb-1">
-                Job / Bookkeep ID <span className="text-[10px] text-slate-400 font-normal">(Optional)</span>
+              <label className="text-[10px] font-bold text-slate-600 block mb-1">
+                Scope of Work & Notes
               </label>
-              <input
-                type="text"
-                value={customJobNumber}
-                onChange={e => setCustomJobNumber(e.target.value)}
-                placeholder="e.g., BK-1042 / INV-99"
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-900 font-mono text-xs placeholder:text-slate-400 focus:border-blue-500 focus:bg-white outline-none transition"
+              <textarea
+                rows={2}
+                value={description}
+                onChange={e => setDescription(e.target.value)}
+                placeholder="Details of client request, parts required, or site access instructions..."
+                className="w-full bg-white border border-slate-200 rounded-xl p-3 text-slate-900 text-xs placeholder:text-slate-400 focus:border-blue-500 outline-none resize-none transition"
               />
             </div>
           </div>
 
-          {/* Real Estate Agency Checkbox Toggle */}
-          <div className="p-3 bg-purple-50/70 border border-purple-200 rounded-2xl flex flex-col gap-3">
-            <label className="flex items-center gap-2 cursor-pointer select-none">
+          {/* SECTION 2: REAL ESTATE AGENCY TOGGLE */}
+          <div className={`rounded-2xl border transition-all ${
+            isAgencyJob
+              ? 'bg-purple-50/70 border-purple-200 p-3.5 sm:p-4'
+              : 'bg-slate-50/80 border-slate-200/80 p-3.5'
+          }`}>
+            <label className="flex items-center justify-between cursor-pointer select-none">
+              <div className="flex items-center gap-2">
+                <div className={`w-7 h-7 rounded-xl flex items-center justify-center transition ${
+                  isAgencyJob ? 'bg-purple-600 text-white' : 'bg-slate-200 text-slate-600'
+                }`}>
+                  <Building2 className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="font-bold text-slate-900 text-xs">Real Estate Agency Work Order</div>
+                  <div className="text-[11px] text-slate-500">Enable if dispatched by a property manager (e.g. Ray White)</div>
+                </div>
+              </div>
+
               <input
                 type="checkbox"
                 checked={isAgencyJob}
-                onChange={e => setIsAgencyJob(e.target.checked)}
+                onChange={e => {
+                  triggerHapticFeedback('light');
+                  setIsAgencyJob(e.target.checked);
+                }}
                 className="w-4 h-4 rounded text-purple-600 focus:ring-purple-500 border-slate-300 cursor-pointer"
               />
-              <span className="font-bold text-purple-950 flex items-center gap-1.5">
-                <Building2 className="w-4 h-4 text-purple-700" />
-                This is a Real Estate Agency / Property Manager Work Order
-              </span>
             </label>
 
             {isAgencyJob && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-purple-200/80 animate-in fade-in">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3 mt-3 border-t border-purple-200/80 animate-in fade-in">
                 <div>
-                  <label className="text-purple-900 font-bold block mb-1">
+                  <label className="text-[10px] font-bold text-purple-950 block mb-1">
                     Agency Partner *
                   </label>
                   <input
@@ -237,8 +323,8 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
                     list="agency-suggestions"
                     value={realEstateAgency}
                     onChange={e => setRealEstateAgency(e.target.value)}
-                    placeholder="e.g., Ray White, Barry Plant, LJ Hooker..."
-                    className="w-full bg-white border border-purple-200 rounded-xl px-3 py-2 text-slate-900 font-medium outline-none focus:border-purple-600"
+                    placeholder="e.g., Ray White Point Cook"
+                    className="w-full bg-white border border-purple-200 rounded-xl px-3 py-2 text-slate-900 font-semibold outline-none focus:border-purple-600"
                   />
                   <datalist id="agency-suggestions">
                     {REAL_ESTATE_AGENCIES.map(a => (
@@ -248,7 +334,7 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
                 </div>
 
                 <div>
-                  <label className="text-purple-900 font-bold block mb-1">
+                  <label className="text-[10px] font-bold text-purple-950 block mb-1">
                     Work Order # (PO)
                   </label>
                   <input
@@ -256,12 +342,12 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
                     value={workOrderNumber}
                     onChange={e => setWorkOrderNumber(e.target.value)}
                     placeholder="e.g., WO-RW-9021"
-                    className="w-full bg-white border border-purple-200 rounded-xl px-3 py-2 text-slate-900 outline-none"
+                    className="w-full bg-white border border-purple-200 rounded-xl px-3 py-2 text-slate-900 font-mono text-xs outline-none"
                   />
                 </div>
 
                 <div>
-                  <label className="text-purple-900 font-bold block mb-1">
+                  <label className="text-[10px] font-bold text-purple-950 block mb-1">
                     Property Manager Name
                   </label>
                   <input
@@ -274,14 +360,14 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
                 </div>
 
                 <div>
-                  <label className="text-purple-900 font-bold block mb-1">
-                    PM Phone Number
+                  <label className="text-[10px] font-bold text-purple-950 block mb-1">
+                    Property Manager Phone
                   </label>
                   <input
                     type="tel"
                     value={realEstateAgentPhone}
                     onChange={e => setRealEstateAgentPhone(e.target.value)}
-                    placeholder="0412 888 901"
+                    placeholder="e.g., 0412 888 901"
                     className="w-full bg-white border border-purple-200 rounded-xl px-3 py-2 text-slate-900 outline-none"
                   />
                 </div>
@@ -289,42 +375,58 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
             )}
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="text-slate-700 font-bold block mb-1">
-                {isAgencyJob ? 'Tenant / Occupant Name *' : 'Client Name *'}
-              </label>
-              <input
-                type="text"
-                required
-                value={clientName}
-                onChange={e => setClientName(e.target.value)}
-                placeholder="e.g., Jordan Miller"
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:bg-white outline-none transition"
-              />
+          {/* SECTION 3: CLIENT & ADDRESS DETAILS */}
+          <div className="bg-slate-50/80 rounded-2xl border border-slate-200/80 p-3.5 sm:p-4 space-y-3">
+            <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+              <User className="w-3.5 h-3.5 text-blue-600" />
+              {isAgencyJob ? 'Tenant & Site Location' : 'Client & Site Location'}
+            </span>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="text-[10px] font-bold text-slate-600 block mb-1">
+                  {isAgencyJob ? 'Tenant / Occupant Name *' : 'Client Full Name *'}
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                    <User className="w-3.5 h-3.5" />
+                  </div>
+                  <input
+                    type="text"
+                    required
+                    value={clientName}
+                    onChange={e => setClientName(e.target.value)}
+                    placeholder="e.g., Jordan Miller"
+                    className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-slate-900 font-semibold focus:border-blue-500 outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-bold text-slate-600 block mb-1">
+                  {isAgencyJob ? 'Tenant Contact Phone' : 'Client Phone'}
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                    <Phone className="w-3.5 h-3.5" />
+                  </div>
+                  <input
+                    type="tel"
+                    value={clientPhone}
+                    onChange={e => setClientPhone(e.target.value)}
+                    placeholder="0412 345 678"
+                    className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-slate-900 focus:border-blue-500 outline-none"
+                  />
+                </div>
+              </div>
             </div>
 
             <div>
-              <label className="text-slate-700 font-bold block mb-1">
-                {isAgencyJob ? 'Tenant On-Site Phone' : 'Client Phone'}
-              </label>
-              <input
-                type="tel"
-                value={clientPhone}
-                onChange={e => setClientPhone(e.target.value)}
-                placeholder="0412 345 678"
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:bg-white outline-none transition"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div className="sm:col-span-2">
-              <label className="text-slate-700 font-bold block mb-1 flex items-center justify-between">
+              <label className="text-[10px] font-bold text-slate-600 block mb-1 flex items-center justify-between">
                 <span>Street Address *</span>
                 {selectedCoordinates && (
-                  <span className="text-[10px] text-emerald-600 font-semibold flex items-center gap-1">
-                    ✓ Exact Map Pin Linked
+                  <span className="text-[10px] text-emerald-600 font-black flex items-center gap-1">
+                    <Check className="w-3 h-3 stroke-[3]" /> Exact GPS Pin Linked
                   </span>
                 )}
               </label>
@@ -332,98 +434,170 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
                 value={address}
                 onChange={setAddress}
                 onAddressSelect={handleAddressSelect}
-                placeholder="Start typing street address or place (e.g. 20 Banjo Paterson)..."
+                placeholder="Start typing street address (e.g. 20 Banjo Paterson)..."
                 currentLocation={currentLocation}
               />
             </div>
 
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="text-[10px] font-bold text-slate-600 block mb-1">
+                  Suburb *
+                </label>
+                <select
+                  value={suburb}
+                  onChange={e => setSuburb(e.target.value)}
+                  className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-900 font-semibold focus:border-blue-500 outline-none"
+                >
+                  {SUBURBS_LIST.map(sub => (
+                    <option key={sub} value={sub}>{sub}</option>
+                  ))}
+                  {!SUBURBS_LIST.includes(suburb) && suburb && (
+                    <option value={suburb}>{suburb}</option>
+                  )}
+                </select>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-bold text-slate-600 block mb-1">
+                  Client Email <span className="text-slate-400 font-normal">(For Quotes)</span>
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                    <Mail className="w-3.5 h-3.5" />
+                  </div>
+                  <input
+                    type="email"
+                    value={clientEmail}
+                    onChange={e => setClientEmail(e.target.value)}
+                    placeholder="e.g. jordan@gmail.com"
+                    className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-slate-900 focus:border-blue-500 outline-none"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* SECTION 4: STATUS, PRIORITY & DURATION */}
+          <div className="bg-slate-50/80 rounded-2xl border border-slate-200/80 p-3.5 sm:p-4 space-y-3">
+            <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+              <Clock className="w-3.5 h-3.5 text-blue-600" />
+              Status, Urgency & Estimated Time
+            </span>
+
+            {/* Status Pills */}
             <div>
-              <label className="text-slate-700 font-bold block mb-1">
-                Suburb *
+              <label className="text-[10px] font-bold text-slate-600 block mb-1.5">
+                Initial Pipeline Status
               </label>
-              <select
-                value={suburb}
-                onChange={e => setSuburb(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-900 font-semibold focus:border-blue-500 focus:bg-white outline-none"
-              >
-                {SUBURBS_LIST.map(sub => (
-                  <option key={sub} value={sub}>{sub}</option>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { id: 'quote_requested', label: 'Needs Quote' },
+                  { id: 'in_progress', label: 'In Progress' },
+                  { id: 'urgent', label: 'Urgent Work' }
+                ].map(s => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => {
+                      triggerHapticFeedback('light');
+                      setStatus(s.id as JobStatus);
+                    }}
+                    className={`py-2 px-2.5 rounded-xl text-xs font-bold transition text-center ${
+                      status === s.id
+                        ? 'bg-blue-600 text-white shadow-sm'
+                        : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
+                    }`}
+                  >
+                    {s.label}
+                  </button>
                 ))}
-                {!SUBURBS_LIST.includes(suburb) && suburb && (
-                  <option value={suburb}>{suburb}</option>
-                )}
-              </select>
+              </div>
             </div>
-          </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            {/* Priority Pills */}
             <div>
-              <label className="text-slate-700 font-bold block mb-1">
-                Trade Category
+              <label className="text-[10px] font-bold text-slate-600 block mb-1.5">
+                Priority Level
               </label>
-              <select
-                value={category}
-                onChange={e => setCategory(e.target.value as JobCategory)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-900 focus:border-blue-500 focus:bg-white outline-none"
-              >
-                {CATEGORIES.map(cat => (
-                  <option key={cat} value={cat}>{cat}</option>
+              <div className="grid grid-cols-4 gap-1.5">
+                {(['low', 'medium', 'high', 'urgent'] as JobPriority[]).map(p => (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => {
+                      triggerHapticFeedback('light');
+                      setPriority(p);
+                    }}
+                    className={`py-1.5 px-2 rounded-xl text-xs font-bold uppercase tracking-wider transition text-center ${
+                      priority === p
+                        ? p === 'urgent'
+                          ? 'bg-red-600 text-white shadow-sm'
+                          : 'bg-slate-900 text-white shadow-sm'
+                        : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
+                    }`}
+                  >
+                    {p}
+                  </button>
                 ))}
-              </select>
+              </div>
+            </div>
+
+            {/* Duration Presets */}
+            <div>
+              <label className="text-[10px] font-bold text-slate-600 block mb-1.5 flex items-center justify-between">
+                <span>Estimated Time on Site</span>
+                <span className="font-extrabold text-blue-600">{durationMin} minutes</span>
+              </label>
+              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+                {DURATION_PRESETS.map(mins => (
+                  <button
+                    key={mins}
+                    type="button"
+                    onClick={() => {
+                      triggerHapticFeedback('light');
+                      setDurationMin(mins);
+                    }}
+                    className={`flex-1 min-w-[50px] py-1.5 rounded-xl text-xs font-bold transition ${
+                      durationMin === mins
+                        ? 'bg-blue-600 text-white shadow-xs'
+                        : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
+                    }`}
+                  >
+                    {mins >= 60 ? `${mins / 60}h` : `${mins}m`}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div>
-              <label className="text-slate-700 font-bold block mb-1">
-                Initial Status
+              <label className="text-[10px] font-bold text-slate-600 block mb-1">
+                Scheduled Appointment Date / Time <span className="text-slate-400 font-normal">(Optional)</span>
               </label>
-              <select
-                value={status}
-                onChange={e => setStatus(e.target.value as JobStatus)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-900 focus:border-blue-500 focus:bg-white outline-none"
-              >
-                <option value="quote_requested">Needs Quote</option>
-                <option value="in_progress">In Progress</option>
-                <option value="urgent">Urgent</option>
-              </select>
-            </div>
-
-            <div className="col-span-2 sm:col-span-1">
-              <label className="text-slate-700 font-bold block mb-1">
-                Priority
-              </label>
-              <select
-                value={priority}
-                onChange={e => setPriority(e.target.value as JobPriority)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-900 focus:border-blue-500 focus:bg-white outline-none"
-              >
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
-                <option value="urgent">Urgent</option>
-              </select>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                  <Calendar className="w-3.5 h-3.5" />
+                </div>
+                <input
+                  type="datetime-local"
+                  value={appointmentTime}
+                  onChange={e => setAppointmentTime(e.target.value)}
+                  className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-slate-900 focus:border-blue-500 outline-none font-medium"
+                />
+              </div>
             </div>
           </div>
 
-          <div>
-            <label className="text-slate-700 font-bold block mb-1">
-              Scope / Work Order Description
+          {/* SECTION 5: TASK CHECKLIST ITEMS */}
+          <div className="bg-slate-50/80 rounded-2xl border border-slate-200/80 p-3.5 sm:p-4 space-y-2.5">
+            <label className="text-[10px] font-black uppercase tracking-wider text-slate-500 flex items-center justify-between">
+              <span className="flex items-center gap-1.5">
+                <ListTodo className="w-3.5 h-3.5 text-blue-600" />
+                Sub-Task Checklist Items
+              </span>
+              <span className="text-slate-400 font-normal lowercase">mark done on-site</span>
             </label>
-            <textarea
-              rows={3}
-              value={description}
-              onChange={e => setDescription(e.target.value)}
-              placeholder="What needs to be estimated or repaired? (Bullet points will auto-convert into checkboxes)"
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:bg-white outline-none resize-none transition"
-            />
-          </div>
 
-          {/* Actionable Subtasks / Checklist Items */}
-          <div className="bg-slate-50/80 p-3 rounded-2xl border border-slate-200/80 flex flex-col gap-2">
-            <label className="text-slate-700 font-bold block flex items-center justify-between">
-              <span>Task Checklist Items (Optional)</span>
-              <span className="text-[10px] text-slate-500 font-normal">Mark done on-site</span>
-            </label>
-            
             <div className="flex gap-2">
               <input
                 type="text"
@@ -432,39 +606,34 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
                 onKeyDown={e => {
                   if (e.key === 'Enter') {
                     e.preventDefault();
-                    if (taskInput.trim()) {
-                      setTasks([...tasks, taskInput.trim()]);
-                      setTaskInput('');
-                    }
+                    handleAddTask();
                   }
                 }}
-                placeholder="e.g. Replace shower seal, check lock..."
+                placeholder="e.g. Replace shower seal, test pressure..."
                 className="flex-1 bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:border-blue-500 outline-none"
               />
               <button
                 type="button"
-                onClick={() => {
-                  if (taskInput.trim()) {
-                    setTasks([...tasks, taskInput.trim()]);
-                    setTaskInput('');
-                  }
-                }}
+                onClick={handleAddTask}
                 disabled={!taskInput.trim()}
-                className="px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs disabled:opacity-50 transition"
+                className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs disabled:opacity-40 transition active:scale-95"
               >
                 + Add
               </button>
             </div>
 
             {tasks.length > 0 && (
-              <div className="flex flex-col gap-1.5 mt-1">
+              <div className="flex flex-col gap-1.5 mt-2">
                 {tasks.map((t, idx) => (
-                  <div key={idx} className="flex items-center justify-between bg-white px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs">
-                    <span className="text-slate-800">☐ {t}</span>
+                  <div key={idx} className="flex items-center justify-between bg-white px-3 py-2 rounded-xl border border-slate-200 text-xs shadow-xs">
+                    <span className="text-slate-800 font-medium">☐ {t}</span>
                     <button
                       type="button"
-                      onClick={() => setTasks(tasks.filter((_, i) => i !== idx))}
-                      className="text-slate-400 hover:text-red-600 p-0.5"
+                      onClick={() => {
+                        triggerHapticFeedback('light');
+                        setTasks(tasks.filter((_, i) => i !== idx));
+                      }}
+                      className="text-slate-400 hover:text-red-600 p-1 rounded-lg transition"
                     >
                       <X className="w-3.5 h-3.5" />
                     </button>
@@ -474,19 +643,24 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
             )}
           </div>
 
-          <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-200 shrink-0">
+          {/* Modal Footer CTA */}
+          <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 shrink-0">
             <button
               type="button"
-              onClick={onClose}
-              className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold transition"
+              onClick={() => {
+                triggerHapticFeedback('light');
+                onClose();
+              }}
+              className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold transition active:scale-95"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold shadow-sm hover:shadow transition"
+              className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-black shadow-lg shadow-blue-500/25 active:scale-95 transition flex items-center gap-2"
             >
-              Create & Place on Map
+              <Plus className="w-4 h-4 stroke-[3]" />
+              <span>Create & Place on Map</span>
             </button>
           </div>
         </form>

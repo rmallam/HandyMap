@@ -87,7 +87,7 @@ export async function getNativeCurrentPosition(): Promise<[number, number] | nul
 /**
  * Tactile Haptic Vibration feedback (Light, Medium, Heavy, Success, Warning)
  */
-export async function triggerHapticFeedback(type: 'light' | 'medium' | 'heavy' | 'success' | 'warning' = 'light'): Promise<void> {
+export async function triggerHapticFeedback(type: 'light' | 'medium' | 'heavy' | 'success' | 'warning' | 'error' = 'light'): Promise<void> {
   if (!isNativePlatform || !Capacitor.isPluginAvailable('Haptics')) return;
 
   try {
@@ -106,6 +106,9 @@ export async function triggerHapticFeedback(type: 'light' | 'medium' | 'heavy' |
         break;
       case 'warning':
         await Haptics.notification({ type: NotificationType.Warning });
+        break;
+      case 'error':
+        await Haptics.notification({ type: NotificationType.Error });
         break;
     }
   } catch (err) {

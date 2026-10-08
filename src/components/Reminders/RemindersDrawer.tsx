@@ -13,6 +13,7 @@ import {
   checkAndSendMorningDailyDigest,
   getJobsScheduledForToday
 } from '../../services/reminderEngine';
+import { triggerHapticFeedback } from '../../services/nativeMobile';
 import {
   X,
   Bell,
@@ -71,22 +72,25 @@ export const RemindersDrawer: React.FC<RemindersDrawerProps> = ({
   });
 
   const handleRequestPush = async () => {
+    triggerHapticFeedback('light');
     const granted = await requestBrowserNotificationPermission();
     setBrowserPerm(granted ? 'granted' : 'denied');
   };
 
   const handleTriggerMorningDigest = async () => {
+    triggerHapticFeedback('medium');
     if (browserPerm !== 'granted') {
       const granted = await requestBrowserNotificationPermission();
       setBrowserPerm(granted ? 'granted' : 'denied');
       if (!granted) {
-        alert('Please allow browser notifications in your browser settings to receive the Morning Daily Digest.');
+        alert('Please allow notifications in your device or browser settings to receive the Morning Daily Digest.');
         return;
       }
     }
 
     const sent = checkAndSendMorningDailyDigest(allJobs, profile, true);
     if (sent) {
+      triggerHapticFeedback('success');
       setDigestSentToast(`☀️ Morning Daily Digest sent for ${todayJobs.length} job(s) scheduled today!`);
       setTimeout(() => setDigestSentToast(null), 4000);
     } else {
@@ -124,14 +128,14 @@ export const RemindersDrawer: React.FC<RemindersDrawerProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[3000] flex justify-end bg-slate-900/70 backdrop-blur-md animate-in fade-in duration-150">
-      <div className="bg-white w-full max-w-lg h-full flex flex-col shadow-2xl border-l border-slate-200 text-slate-900 pb-[env(safe-area-inset-bottom,0px)] overflow-hidden">
+    <div className="fixed inset-0 z-[3000] flex justify-end bg-slate-950/70 backdrop-blur-md animate-in fade-in duration-200">
+      <div className="bg-white w-full max-w-lg h-full flex flex-col shadow-2xl border-l border-slate-200 text-slate-900 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] overflow-hidden">
         
         {/* Mobile Drag Pill */}
         <div className="w-12 h-1.5 bg-slate-300 rounded-full mx-auto my-2.5 sm:hidden shrink-0" />
 
         {/* Top Header */}
-        <div className="p-4 sm:p-5 border-b border-slate-200 flex items-start justify-between gap-3 bg-white shrink-0">
+        <div className="p-4 sm:p-5 border-b border-slate-100 flex items-start justify-between gap-3 bg-white shrink-0">
           <div className="flex items-center gap-3">
             <div className="p-2.5 rounded-2xl bg-amber-50 text-amber-700 border border-amber-200/80 shadow-sm relative">
               <BellRing className="w-5 h-5 stroke-[2.3] animate-pulse" />
@@ -144,19 +148,22 @@ export const RemindersDrawer: React.FC<RemindersDrawerProps> = ({
                 <h2 className="text-base sm:text-lg font-black text-slate-900 tracking-tight">
                   Reminders & Follow-Ups
                 </h2>
-                <span className="text-xs font-black bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full border border-blue-200">
+                <span className="text-[10px] font-black bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full border border-blue-200">
                   {activeReminders.length} Active
                 </span>
               </div>
-              <p className="text-xs text-slate-500 mt-0.5">
+              <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5">
                 Automated alerts for pending quotes, follow-ups & billing
               </p>
             </div>
           </div>
 
           <button
-            onClick={onClose}
-            className="p-2 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 transition"
+            onClick={() => {
+              triggerHapticFeedback('light');
+              onClose();
+            }}
+            className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 transition active:scale-95"
           >
             <X className="w-5 h-5" />
           </button>
@@ -165,9 +172,9 @@ export const RemindersDrawer: React.FC<RemindersDrawerProps> = ({
         {/* Morning Daily Digest Card */}
         <div className="mx-3 sm:mx-4 mt-3 p-3.5 rounded-2xl bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-amber-500/5 border border-amber-200 flex flex-col gap-2 shrink-0">
           <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2 min-w-0">
-              <div className="p-1.5 rounded-xl bg-amber-500 text-white shadow-xs shrink-0">
-                <Sun className="w-4 h-4" />
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="p-2 rounded-xl bg-amber-500 text-white shadow-xs shrink-0">
+                <Sun className="w-4 h-4 stroke-[2.4]" />
               </div>
               <div className="min-w-0">
                 <h4 className="text-xs font-black text-slate-900 truncate">Morning Daily Digest</h4>
@@ -179,7 +186,7 @@ export const RemindersDrawer: React.FC<RemindersDrawerProps> = ({
 
             <button
               onClick={handleTriggerMorningDigest}
-              className="px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-[11px] flex items-center gap-1 shadow-sm transition active:scale-95 shrink-0"
+              className="px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-black text-[11px] flex items-center gap-1 shadow-sm transition active:scale-95 shrink-0"
               title="Send test / manual morning push notification digest"
             >
               <Bell className="w-3 h-3" />
@@ -194,16 +201,16 @@ export const RemindersDrawer: React.FC<RemindersDrawerProps> = ({
           )}
         </div>
 
-        {/* Optional Browser Push Notification Banner */}
+        {/* Optional Push Notification Permission Banner */}
         {isBrowserNotificationSupported() && browserPerm !== 'granted' && (
           <div className="mx-3 sm:mx-4 mt-2 px-3.5 py-2.5 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-2xl flex items-center justify-between gap-3 text-xs shrink-0">
             <div className="flex items-center gap-2 text-blue-900">
               <Volume2 className="w-4 h-4 text-blue-600 shrink-0" />
-              <span>Enable native browser alerts for daily digest?</span>
+              <span className="font-semibold text-[11px]">Enable native notifications for morning digest?</span>
             </div>
             <button
               onClick={handleRequestPush}
-              className="px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-[11px] shrink-0 shadow-sm transition"
+              className="px-3 py-1 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black text-[11px] shrink-0 shadow-sm transition active:scale-95"
             >
               Enable
             </button>
@@ -211,10 +218,13 @@ export const RemindersDrawer: React.FC<RemindersDrawerProps> = ({
         )}
 
         {/* Filter Navigation Tabs */}
-        <div className="px-3 sm:px-4 py-2 border-b border-slate-200 flex items-center gap-1.5 overflow-x-auto no-scrollbar bg-slate-50/70 shrink-0 mt-2">
+        <div className="px-3 sm:px-4 py-2 border-b border-slate-200/80 flex items-center gap-1.5 overflow-x-auto no-scrollbar bg-slate-50/70 shrink-0 mt-2">
           <button
-            onClick={() => setFilterType('all')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition ${
+            onClick={() => {
+              triggerHapticFeedback('light');
+              setFilterType('all');
+            }}
+            className={`px-3 py-1.5 rounded-xl text-xs font-black whitespace-nowrap transition ${
               filterType === 'all'
                 ? 'bg-blue-600 text-white shadow-sm'
                 : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
@@ -224,8 +234,11 @@ export const RemindersDrawer: React.FC<RemindersDrawerProps> = ({
           </button>
 
           <button
-            onClick={() => setFilterType('delayed_quote_visit')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition ${
+            onClick={() => {
+              triggerHapticFeedback('light');
+              setFilterType('delayed_quote_visit');
+            }}
+            className={`px-3 py-1.5 rounded-xl text-xs font-black whitespace-nowrap transition ${
               filterType === 'delayed_quote_visit'
                 ? 'bg-amber-600 text-white shadow-sm'
                 : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
@@ -235,8 +248,11 @@ export const RemindersDrawer: React.FC<RemindersDrawerProps> = ({
           </button>
 
           <button
-            onClick={() => setFilterType('quote_followup')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition ${
+            onClick={() => {
+              triggerHapticFeedback('light');
+              setFilterType('quote_followup');
+            }}
+            className={`px-3 py-1.5 rounded-xl text-xs font-black whitespace-nowrap transition ${
               filterType === 'quote_followup'
                 ? 'bg-purple-600 text-white shadow-sm'
                 : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
@@ -246,19 +262,25 @@ export const RemindersDrawer: React.FC<RemindersDrawerProps> = ({
           </button>
 
           <button
-            onClick={() => setFilterType('upcoming_appointment')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition ${
+            onClick={() => {
+              triggerHapticFeedback('light');
+              setFilterType('upcoming_appointment');
+            }}
+            className={`px-3 py-1.5 rounded-xl text-xs font-black whitespace-nowrap transition ${
               filterType === 'upcoming_appointment'
                 ? 'bg-emerald-600 text-white shadow-sm'
                 : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
             }`}
           >
-            ⏰ Today's Visits ({reminders.filter(r => r.type === 'upcoming_appointment').length})
+            ⏰ Today ({reminders.filter(r => r.type === 'upcoming_appointment').length})
           </button>
 
           <button
-            onClick={() => setFilterType('uninvoiced_completion')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition ${
+            onClick={() => {
+              triggerHapticFeedback('light');
+              setFilterType('uninvoiced_completion');
+            }}
+            className={`px-3 py-1.5 rounded-xl text-xs font-black whitespace-nowrap transition ${
               filterType === 'uninvoiced_completion'
                 ? 'bg-blue-800 text-white shadow-sm'
                 : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
@@ -273,10 +295,10 @@ export const RemindersDrawer: React.FC<RemindersDrawerProps> = ({
           {displayedReminders.length === 0 ? (
             <div className="text-center py-16 px-4">
               <div className="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center mx-auto mb-3">
-                <CheckCircle2 className="w-7 h-7" />
+                <CheckCircle2 className="w-7 h-7 stroke-[2.5]" />
               </div>
-              <h3 className="text-sm font-bold text-slate-900">All Caught Up!</h3>
-              <p className="text-xs text-slate-500 max-w-xs mx-auto mt-1">
+              <h3 className="text-sm font-black text-slate-900">All Caught Up!</h3>
+              <p className="text-xs text-slate-500 max-w-xs mx-auto mt-1 font-medium">
                 No pending follow-ups or overdue quotes matching this filter.
               </p>
             </div>
@@ -289,24 +311,27 @@ export const RemindersDrawer: React.FC<RemindersDrawerProps> = ({
               return (
                 <div
                   key={reminder.id}
-                  className={`p-3.5 sm:p-4 rounded-2xl border shadow-sm transition flex flex-col gap-3 relative ${styles.cardBg} ${styles.borderLeft} ${
+                  className={`p-4 rounded-2xl border shadow-sm transition flex flex-col gap-3 relative ${styles.cardBg} ${styles.borderLeft} ${
                     isSnoozed ? 'opacity-50 grayscale' : ''
                   }`}
                 >
                   {/* Top card header */}
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className={`text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-md ${styles.badgeBg}`}>
+                      <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md ${styles.badgeBg}`}>
                         {reminder.urgency}
                       </span>
-                      <span className="text-[11px] font-semibold text-slate-500 flex items-center gap-1">
+                      <span className="text-[11px] font-bold text-slate-600 flex items-center gap-1">
                         <Clock className="w-3 h-3 text-slate-400" /> {reminder.dueText}
                       </span>
                     </div>
 
                     <button
-                      onClick={() => onSnoozeReminder(reminder.id)}
-                      className="text-[11px] font-semibold text-slate-500 hover:text-slate-800 bg-white/80 hover:bg-white px-2 py-0.5 rounded-lg border border-slate-200 shadow-sm transition"
+                      onClick={() => {
+                        triggerHapticFeedback('light');
+                        onSnoozeReminder(reminder.id);
+                      }}
+                      className="text-[11px] font-bold text-slate-600 hover:text-slate-900 bg-white/90 hover:bg-white px-2 py-0.5 rounded-lg border border-slate-200 shadow-xs transition active:scale-95"
                       title={isSnoozed ? 'Un-snooze' : 'Dismiss / Snooze'}
                     >
                       {isSnoozed ? 'Snoozed' : 'Dismiss'}
@@ -315,28 +340,28 @@ export const RemindersDrawer: React.FC<RemindersDrawerProps> = ({
 
                   {/* Title & Description */}
                   <div>
-                    <h3 className="text-xs sm:text-sm font-bold text-slate-900 leading-snug">
+                    <h3 className="text-xs sm:text-sm font-black text-slate-900 leading-snug">
                       {reminder.title}
                     </h3>
-                    <p className="text-xs text-slate-600 mt-1">
+                    <p className="text-xs text-slate-600 mt-1 font-medium leading-relaxed">
                       {reminder.message}
                     </p>
                   </div>
 
                   {/* Client & Address Info */}
-                  <div className="bg-white/90 rounded-xl p-2.5 border border-slate-200/80 flex items-center justify-between text-xs">
+                  <div className="bg-white/95 rounded-xl p-3 border border-slate-200/80 flex items-center justify-between text-xs shadow-xs">
                     <div>
-                      <p className="font-bold text-slate-900">{job.clientName}</p>
-                      <p className="text-[11px] text-slate-500 truncate max-w-[200px]">{job.address}</p>
+                      <p className="font-black text-slate-900">{job.clientName}</p>
+                      <p className="text-[11px] text-slate-500 truncate max-w-[200px] font-medium">{job.address}</p>
                     </div>
-                    <span className="text-[11px] font-semibold bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md border border-slate-200/60">
+                    <span className="text-[11px] font-bold bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md border border-slate-200/60">
                       {job.category}
                     </span>
                   </div>
 
                   {/* Suggested Draft Text Preview */}
                   {reminder.actionDraftText && (
-                    <div className="bg-white/70 rounded-xl p-2.5 border border-slate-200/60 text-[11px] text-slate-600 italic">
+                    <div className="bg-white/80 rounded-xl p-2.5 border border-slate-200/60 text-[11px] text-slate-700 italic">
                       "{reminder.actionDraftText}"
                     </div>
                   )}
@@ -347,7 +372,8 @@ export const RemindersDrawer: React.FC<RemindersDrawerProps> = ({
                       <>
                         <a
                           href={buildSmsLink(job.clientPhone, reminder.actionDraftText)}
-                          className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center gap-1 shadow-sm transition active:scale-95"
+                          onClick={() => triggerHapticFeedback('light')}
+                          className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs flex items-center gap-1 shadow-sm transition active:scale-95"
                           title="Send Pre-Drafted SMS"
                         >
                           <MessageSquare className="w-3.5 h-3.5" />
@@ -356,9 +382,10 @@ export const RemindersDrawer: React.FC<RemindersDrawerProps> = ({
 
                         <a
                           href={buildWhatsAppLink(job.clientPhone, reminder.actionDraftText)}
+                          onClick={() => triggerHapticFeedback('light')}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1 shadow-sm transition active:scale-95"
+                          className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs flex items-center gap-1 shadow-sm transition active:scale-95"
                           title="Send via WhatsApp"
                         >
                           <Send className="w-3.5 h-3.5" />
@@ -369,7 +396,8 @@ export const RemindersDrawer: React.FC<RemindersDrawerProps> = ({
 
                     <a
                       href={`tel:${job.clientPhone}`}
-                      className="px-2.5 py-1.5 rounded-xl bg-white hover:bg-slate-100 text-slate-800 font-semibold text-xs flex items-center gap-1 border border-slate-200 shadow-sm transition active:scale-95"
+                      onClick={() => triggerHapticFeedback('light')}
+                      className="px-2.5 py-1.5 rounded-xl bg-white hover:bg-slate-100 text-slate-800 font-bold text-xs flex items-center gap-1 border border-slate-200 shadow-sm transition active:scale-95"
                       title="Call Client"
                     >
                       <Phone className="w-3.5 h-3.5 text-emerald-600" />
@@ -378,10 +406,11 @@ export const RemindersDrawer: React.FC<RemindersDrawerProps> = ({
 
                     <button
                       onClick={() => {
+                        triggerHapticFeedback('light');
                         onOpenJob(job);
                         onClose();
                       }}
-                      className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs flex items-center gap-1 ml-auto border border-slate-200/80 transition active:scale-95"
+                      className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-black text-xs flex items-center gap-1 ml-auto transition active:scale-95 shadow-sm"
                     >
                       <span>View Job</span>
                       <ChevronRight className="w-3.5 h-3.5" />
@@ -398,7 +427,10 @@ export const RemindersDrawer: React.FC<RemindersDrawerProps> = ({
           <div className="p-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500 shrink-0">
             <span>{snoozedReminders.length} reminder(s) dismissed</span>
             <button
-              onClick={onClearAllSnoozed}
+              onClick={() => {
+                triggerHapticFeedback('light');
+                onClearAllSnoozed();
+              }}
               className="text-blue-600 hover:text-blue-800 font-bold flex items-center gap-1"
             >
               <RotateCcw className="w-3 h-3" /> Restore All

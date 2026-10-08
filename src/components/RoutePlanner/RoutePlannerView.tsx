@@ -140,113 +140,149 @@ export const RoutePlannerView: React.FC<RoutePlannerViewProps> = ({
         )}
       </div>
 
-      {/* Control Panel: Goals, Suburbs, Agency Toggle */}
-      <div className="bg-white rounded-3xl border border-slate-200/90 p-5 mb-6 shadow-sm flex flex-col gap-4">
-        {/* Row 1: Route Goal */}
+      {/* Control Panel: Route Goals, Suburbs, Agency Toggle */}
+      <div className="bg-white rounded-3xl border border-slate-200/90 p-4 sm:p-5 mb-5 shadow-sm flex flex-col gap-4">
+        {/* Row 1: Segmented Route Goal Switcher */}
         <div>
-          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-2.5">
-            1. Select Route Goal
-          </label>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {/* Option 1: Quotes only */}
+          <div className="flex items-center justify-between mb-2">
+            <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+              Route Objective
+            </label>
+            <span className="text-[11px] font-bold text-slate-500">
+              {goalFilteredJobs.length} {goalFilteredJobs.length === 1 ? 'Job' : 'Jobs'} Eligible
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {/* Goal 1: Quotes only */}
             <button
               onClick={() => {
                 setSelectedGoal('quotes_only');
                 handleRunOptimization('quotes_only', selectedSuburb, prioritizeAgency);
               }}
               disabled={isOptimizing || quoteJobs.length === 0}
-              className={`p-3.5 rounded-2xl border text-left flex flex-col justify-between transition-all ${
+              className={`p-3 rounded-2xl border text-left flex flex-col justify-between transition-all active:scale-95 ${
                 selectedGoal === 'quotes_only'
-                  ? 'bg-amber-50/90 border-amber-400 ring-2 ring-amber-400/30 shadow-sm'
-                  : 'bg-slate-50 hover:bg-slate-100/80 border-slate-200'
-              } ${quoteJobs.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  ? 'bg-gradient-to-br from-amber-50 to-amber-100/50 border-amber-400 ring-2 ring-amber-400/20 shadow-xs'
+                  : 'bg-slate-50/80 hover:bg-slate-100/80 border-slate-200/80'
+              } ${quoteJobs.length === 0 ? 'opacity-40 cursor-not-allowed' : ''}`}
             >
               <div className="flex items-center justify-between w-full mb-1">
-                <span className="text-xs font-bold flex items-center gap-1.5 text-amber-900">
-                  <Sparkles className="w-3.5 h-3.5 text-amber-600" /> Quotes Tour
-                </span>
-                <span className="text-xs font-extrabold bg-amber-200/80 text-amber-900 px-2 py-0.5 rounded-md">
-                  {quoteJobs.length} Stops
+                <Sparkles className="w-4 h-4 text-amber-500" />
+                <span className={`text-[10px] font-black px-1.5 py-0.2 rounded-full ${
+                  selectedGoal === 'quotes_only' ? 'bg-amber-500 text-white' : 'bg-slate-200 text-slate-700'
+                }`}>
+                  {quoteJobs.length}
                 </span>
               </div>
-              <p className="text-[11px] text-slate-600">
-                Estimate requests & measurements
-              </p>
+              <div>
+                <p className="text-xs font-black text-slate-900 leading-snug">Quotes Tour</p>
+                <p className="text-[10px] text-slate-500 truncate">Estimate visits</p>
+              </div>
             </button>
 
-            {/* Option 2: Active Jobs */}
+            {/* Goal 2: Active Work */}
             <button
               onClick={() => {
                 setSelectedGoal('active_only');
                 handleRunOptimization('active_only', selectedSuburb, prioritizeAgency);
               }}
               disabled={isOptimizing || activeJobs.length === 0}
-              className={`p-3.5 rounded-2xl border text-left flex flex-col justify-between transition-all ${
+              className={`p-3 rounded-2xl border text-left flex flex-col justify-between transition-all active:scale-95 ${
                 selectedGoal === 'active_only'
-                  ? 'bg-emerald-50/90 border-emerald-400 ring-2 ring-emerald-400/30 shadow-sm'
-                  : 'bg-slate-50 hover:bg-slate-100/80 border-slate-200'
-              } ${activeJobs.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  ? 'bg-gradient-to-br from-emerald-50 to-emerald-100/50 border-emerald-400 ring-2 ring-emerald-400/20 shadow-xs'
+                  : 'bg-slate-50/80 hover:bg-slate-100/80 border-slate-200/80'
+              } ${activeJobs.length === 0 ? 'opacity-40 cursor-not-allowed' : ''}`}
             >
               <div className="flex items-center justify-between w-full mb-1">
-                <span className="text-xs font-bold flex items-center gap-1.5 text-emerald-900">
-                  <Zap className="w-3.5 h-3.5 text-emerald-600" /> Active Jobs
-                </span>
-                <span className="text-xs font-extrabold bg-emerald-200/80 text-emerald-900 px-2 py-0.5 rounded-md">
-                  {activeJobs.length} Stops
+                <Zap className="w-4 h-4 text-emerald-500" />
+                <span className={`text-[10px] font-black px-1.5 py-0.2 rounded-full ${
+                  selectedGoal === 'active_only' ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-700'
+                }`}>
+                  {activeJobs.length}
                 </span>
               </div>
-              <p className="text-[11px] text-slate-600">
-                Confirmed in-progress repairs
-              </p>
+              <div>
+                <p className="text-xs font-black text-slate-900 leading-snug">Active Work</p>
+                <p className="text-[10px] text-slate-500 truncate">In-progress jobs</p>
+              </div>
             </button>
 
-            {/* Option 3: Urgent & Quotes */}
+            {/* Goal 3: Urgent & Quotes */}
             <button
               onClick={() => {
                 setSelectedGoal('urgent_and_quotes');
                 handleRunOptimization('urgent_and_quotes', selectedSuburb, prioritizeAgency);
               }}
               disabled={isOptimizing || (urgentJobs.length === 0 && quoteJobs.length === 0)}
-              className={`p-3.5 rounded-2xl border text-left flex flex-col justify-between transition-all ${
+              className={`p-3 rounded-2xl border text-left flex flex-col justify-between transition-all active:scale-95 ${
                 selectedGoal === 'urgent_and_quotes'
-                  ? 'bg-red-50/90 border-red-400 ring-2 ring-red-400/30 shadow-sm'
-                  : 'bg-slate-50 hover:bg-slate-100/80 border-slate-200'
-              }`}
+                  ? 'bg-gradient-to-br from-rose-50 to-rose-100/50 border-rose-400 ring-2 ring-rose-400/20 shadow-xs'
+                  : 'bg-slate-50/80 hover:bg-slate-100/80 border-slate-200/80'
+              } ${(urgentJobs.length === 0 && quoteJobs.length === 0) ? 'opacity-40 cursor-not-allowed' : ''}`}
             >
               <div className="flex items-center justify-between w-full mb-1">
-                <span className="text-xs font-bold flex items-center gap-1.5 text-red-900">
-                  <Clock className="w-3.5 h-3.5 text-red-600" /> Urgent + Quotes
-                </span>
-                <span className="text-xs font-extrabold bg-red-200/80 text-red-900 px-2 py-0.5 rounded-md">
-                  {urgentJobs.length + quoteJobs.length} Stops
+                <Clock className="w-4 h-4 text-rose-500" />
+                <span className={`text-[10px] font-black px-1.5 py-0.2 rounded-full ${
+                  selectedGoal === 'urgent_and_quotes' ? 'bg-rose-500 text-white' : 'bg-slate-200 text-slate-700'
+                }`}>
+                  {urgentJobs.length + quoteJobs.length}
                 </span>
               </div>
-              <p className="text-[11px] text-slate-600">
-                Emergency dispatch + quote visits
-              </p>
+              <div>
+                <p className="text-xs font-black text-slate-900 leading-snug">Urgent + Quotes</p>
+                <p className="text-[10px] text-slate-500 truncate">Priority first</p>
+              </div>
+            </button>
+
+            {/* Goal 4: All Active */}
+            <button
+              onClick={() => {
+                setSelectedGoal('all');
+                handleRunOptimization('all', selectedSuburb, prioritizeAgency);
+              }}
+              disabled={isOptimizing || goalFilteredJobs.length === 0}
+              className={`p-3 rounded-2xl border text-left flex flex-col justify-between transition-all active:scale-95 ${
+                selectedGoal === 'all'
+                  ? 'bg-gradient-to-br from-blue-50 to-blue-100/50 border-blue-400 ring-2 ring-blue-400/20 shadow-xs'
+                  : 'bg-slate-50/80 hover:bg-slate-100/80 border-slate-200/80'
+              } ${goalFilteredJobs.length === 0 ? 'opacity-40 cursor-not-allowed' : ''}`}
+            >
+              <div className="flex items-center justify-between w-full mb-1">
+                <Layers className="w-4 h-4 text-blue-500" />
+                <span className={`text-[10px] font-black px-1.5 py-0.2 rounded-full ${
+                  selectedGoal === 'all' ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-700'
+                }`}>
+                  {jobs.filter(j => j.status !== 'completed' && j.status !== 'invoiced').length}
+                </span>
+              </div>
+              <div>
+                <p className="text-xs font-black text-slate-900 leading-snug">All Active</p>
+                <p className="text-[10px] text-slate-500 truncate">Full day loop</p>
+              </div>
             </button>
           </div>
         </div>
 
         {/* Row 2: Suburb Filter Chips */}
         <div className="pt-2 border-t border-slate-100">
-          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-2">
-            2. Suburb Focus (Prevents cross-suburb fatigue)
+          <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-2">
+            Target Neighborhood Cluster
           </label>
-          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
             <button
               onClick={() => {
                 setSelectedSuburb('all');
                 handleRunOptimization(selectedGoal, 'all', prioritizeAgency);
               }}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 rounded-xl text-xs font-black whitespace-nowrap transition-all flex items-center gap-1.5 ${
                 selectedSuburb === 'all'
-                  ? 'bg-slate-900 text-white shadow-sm'
-                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                  ? 'bg-slate-900 text-white shadow-xs'
+                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200/60'
               }`}
             >
               <Layers className="w-3.5 h-3.5" />
-              <span>All Suburbs (Clustered)</span>
+              <span>All Suburbs</span>
               <span className="text-[10px] opacity-75">({goalFilteredJobs.length})</span>
             </button>
 
@@ -260,15 +296,15 @@ export const RoutePlannerView: React.FC<RoutePlannerViewProps> = ({
                     setSelectedSuburb(sub);
                     handleRunOptimization(selectedGoal, sub, prioritizeAgency);
                   }}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition flex items-center gap-1.5 ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-black whitespace-nowrap transition-all flex items-center gap-1.5 ${
                     selectedSuburb === sub
-                      ? 'bg-blue-600 text-white shadow-sm'
-                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                      ? 'bg-blue-600 text-white shadow-xs'
+                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200/60'
                   }`}
                 >
-                  <MapPin className="w-3.5 h-3.5" />
-                  <span>{sub} Only</span>
-                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+                  <MapPin className="w-3.5 h-3.5 stroke-[2.2]" />
+                  <span>{sub}</span>
+                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${
                     selectedSuburb === sub ? 'bg-blue-700 text-white' : 'bg-slate-200 text-slate-800'
                   }`}>
                     {count}
@@ -279,39 +315,50 @@ export const RoutePlannerView: React.FC<RoutePlannerViewProps> = ({
           </div>
         </div>
 
-        {/* Row 3: Agency Preference Toggle (Only shown if jobs contain agency work orders) */}
-        {jobs.some(j => j.realEstateAgency && j.realEstateAgency.trim().length > 0) && (
-          <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <div className="p-1.5 rounded-lg bg-purple-50 text-purple-700 border border-purple-200">
-                <Building2 className="w-4 h-4" />
+        {/* Row 3: Agency Priority Toggle & Master Calculate CTA */}
+        <div className="pt-2 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          {jobs.some(j => j.realEstateAgency && j.realEstateAgency.trim().length > 0) ? (
+            <div className="flex items-center justify-between sm:justify-start gap-3">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-xl bg-purple-50 text-purple-700 border border-purple-200">
+                  <Building2 className="w-4 h-4" />
+                </div>
+                <div>
+                  <p className="text-xs font-extrabold text-slate-900">
+                    Real Estate Priority
+                  </p>
+                  <p className="text-[10px] text-slate-500">
+                    Agency orders sequenced first
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="text-xs font-bold text-slate-900">
-                  Prioritize Commercial & Agency Work Orders
-                </p>
-                <p className="text-[11px] text-slate-500">
-                  Sequences commercial contract jobs first within each suburb cluster.
-                </p>
-              </div>
-            </div>
 
-            <button
-              onClick={() => {
-                const next = !prioritizeAgency;
-                setPrioritizeAgency(next);
-                handleRunOptimization(selectedGoal, selectedSuburb, next);
-              }}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm border ${
-                prioritizeAgency
-                  ? 'bg-purple-700 text-white border-purple-800'
-                  : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
-              }`}
-            >
-              {prioritizeAgency ? '✓ Priority Enabled' : 'Off'}
-            </button>
-          </div>
-        )}
+              <button
+                onClick={() => {
+                  const next = !prioritizeAgency;
+                  setPrioritizeAgency(next);
+                  handleRunOptimization(selectedGoal, selectedSuburb, next);
+                }}
+                className={`px-3 py-1 rounded-xl text-xs font-black transition border ${
+                  prioritizeAgency
+                    ? 'bg-purple-700 text-white border-purple-800 shadow-xs'
+                    : 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200'
+                }`}
+              >
+                {prioritizeAgency ? '✓ On' : 'Off'}
+              </button>
+            </div>
+          ) : <div />}
+
+          <button
+            onClick={() => handleRunOptimization(selectedGoal, selectedSuburb, prioritizeAgency)}
+            disabled={isOptimizing || goalFilteredJobs.length === 0}
+            className="w-full sm:w-auto px-5 py-2.5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-black text-xs flex items-center justify-center gap-2 shadow-lg shadow-blue-500/25 transition active:scale-95 disabled:opacity-50"
+          >
+            <Navigation className={`w-3.5 h-3.5 stroke-[2.5] ${isOptimizing ? 'animate-spin' : ''}`} />
+            <span>{isOptimizing ? 'Calculating Route...' : 'Generate Optimal Route'}</span>
+          </button>
+        </div>
       </div>
 
       {/* Active Route Summary Stats Banner */}
