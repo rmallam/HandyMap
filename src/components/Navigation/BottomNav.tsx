@@ -1,5 +1,6 @@
 import React from 'react';
 import { Map, Navigation, ClipboardList, Calendar, BarChart3 } from 'lucide-react';
+import { triggerHapticFeedback } from '../../services/nativeMobile';
 
 interface BottomNavProps {
   activeTab: 'map' | 'route' | 'jobs' | 'schedule' | 'stats';
@@ -54,42 +55,58 @@ export const BottomNav: React.FC<BottomNavProps> = ({
     }
   ];
 
+  const handleTabClick = (tabId: 'map' | 'route' | 'jobs' | 'schedule' | 'stats') => {
+    triggerHapticFeedback('light');
+    onSelectTab(tabId);
+  };
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 h-[calc(4rem+env(safe-area-inset-bottom,0px))] pb-[env(safe-area-inset-bottom,0px)] bg-white/95 backdrop-blur-xl border-t border-slate-200/90 z-40 px-2 sm:px-6 flex items-center justify-around select-none shadow-[0_-2px_6px_rgba(0,0,0,0.03)]">
-      {navItems.map(item => {
-        const Icon = item.icon;
-        const isActive = activeTab === item.id;
+    <div className="fixed bottom-0 left-0 right-0 z-40 pointer-events-none flex justify-center px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))]">
+      <nav className="pointer-events-auto w-full max-w-lg bg-white/92 backdrop-blur-2xl border border-slate-200/90 rounded-[28px] p-1.5 shadow-[0_16px_40px_-10px_rgba(15,23,42,0.18)] flex items-center justify-between select-none ring-1 ring-black/5">
+        {navItems.map(item => {
+          const Icon = item.icon;
+          const isActive = activeTab === item.id;
 
-        return (
-          <button
-            key={item.id}
-            onClick={() => onSelectTab(item.id)}
-            className={`relative flex flex-col items-center justify-center py-1.5 px-3 sm:px-4 rounded-xl transition-all duration-150 active:scale-95 ${
-              isActive
-                ? 'text-blue-600 font-bold'
-                : 'text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            <div className="relative">
-              <Icon className={`w-5 h-5 transition-transform ${isActive ? 'scale-110 text-blue-600 stroke-[2.3]' : 'stroke-[1.8]'}`} />
-              {item.badge !== null && (
-                <span className={`absolute -top-1.5 -right-3 text-[10px] font-extrabold px-1.5 py-0.2 rounded-full shadow-sm ${item.badgeColor}`}>
-                  {item.badge}
-                </span>
-              )}
-            </div>
+          return (
+            <button
+              key={item.id}
+              onClick={() => handleTabClick(item.id)}
+              className={`relative flex-1 flex flex-col items-center justify-center py-2 px-1 rounded-2xl transition-all duration-200 active:scale-95 ${
+                isActive
+                  ? 'bg-slate-900 text-white shadow-md shadow-slate-900/20'
+                  : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100/70'
+              }`}
+            >
+              <div className="relative">
+                <Icon
+                  className={`w-[22px] h-[22px] transition-all duration-200 ${
+                    isActive
+                      ? 'text-white scale-105 stroke-[2.4]'
+                      : 'stroke-[1.8] text-slate-500'
+                  }`}
+                />
+                {item.badge !== null && (
+                  <span
+                    className={`absolute -top-1.5 -right-2.5 text-[9px] font-black px-1.5 py-0.2 rounded-full shadow-sm border border-white ${
+                      isActive ? 'bg-amber-400 text-slate-950 font-extrabold' : item.badgeColor
+                    }`}
+                  >
+                    {item.badge}
+                  </span>
+                )}
+              </div>
 
-            <span className="text-[11px] mt-1 font-medium tracking-tight">
-              {item.label}
-            </span>
-
-            {isActive && (
-              <span className="absolute bottom-0 w-6 h-0.5 bg-blue-600 rounded-full"></span>
-            )}
-          </button>
-        );
-      })}
-    </nav>
+              <span
+                className={`text-[10px] mt-0.5 tracking-tight transition-all duration-200 ${
+                  isActive ? 'font-black text-white' : 'font-semibold text-slate-500'
+                }`}
+              >
+                {item.label}
+              </span>
+            </button>
+          );
+        })}
+      </nav>
+    </div>
   );
 };

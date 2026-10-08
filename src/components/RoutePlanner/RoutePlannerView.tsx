@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Job, OptimizedRoute, HandymanProfile } from '../../types';
 import { extractSuburb } from '../../services/routeOptimizer';
 import { SUBURBS_LIST } from '../../data/mockJobs';
+import { triggerHapticFeedback } from '../../services/nativeMobile';
 import {
   STATUS_CONFIG,
   formatCurrency,
@@ -90,41 +91,50 @@ export const RoutePlannerView: React.FC<RoutePlannerViewProps> = ({
     suburb = selectedSuburb,
     agencyFirst = prioritizeAgency
   ) => {
+    triggerHapticFeedback('light');
     onGenerateRoute(goal, suburb, agencyFirst);
   };
 
   return (
-    <div className="flex flex-col h-full bg-slate-50 overflow-y-auto pb-[calc(6.5rem+env(safe-area-inset-bottom,0px))] text-slate-900 p-4 sm:p-6 max-w-4xl mx-auto w-full">
+    <div className="flex flex-col h-full bg-slate-50 overflow-y-auto pb-[calc(6.5rem+env(safe-area-inset-bottom,0px))] text-slate-900 p-3.5 sm:p-6 max-w-4xl mx-auto w-full">
       {/* View Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <div>
-          <div className="flex items-center gap-2">
-            <div className="p-2 bg-blue-50 text-blue-600 rounded-xl border border-blue-200">
-              <Navigation className="w-5 h-5 stroke-[2.2]" />
+          <div className="flex items-center gap-2.5">
+            <div className="p-2.5 bg-gradient-to-tr from-blue-600 to-indigo-600 text-white rounded-2xl shadow-md shadow-blue-500/20">
+              <Navigation className="w-5 h-5 stroke-[2.4]" />
             </div>
-            <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-              Optimal Multi-Stop Route Planner
-            </h1>
+            <div>
+              <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+                Optimal Multi-Stop Route
+              </h1>
+              <p className="text-xs text-slate-500 mt-0.5 font-medium">
+                Fastest road sequence with <strong>suburb clustering</strong> & <strong>agency priority</strong>.
+              </p>
+            </div>
           </div>
-          <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Compute the fastest road sequence with <strong>suburb clustering</strong> and <strong>real estate agency priority</strong>.
-          </p>
         </div>
 
         {activeRoute && (
           <div className="flex items-center gap-2 self-start sm:self-auto">
             <button
-              onClick={onSwitchToMap}
-              className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition"
+              onClick={() => {
+                triggerHapticFeedback('light');
+                onSwitchToMap();
+              }}
+              className="px-4 py-2 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-extrabold text-xs flex items-center gap-1.5 shadow-md shadow-blue-500/20 transition active:scale-95"
             >
-              <Map className="w-3.5 h-3.5" /> View on Map
+              <Map className="w-3.5 h-3.5 stroke-[2.2]" /> View Map
             </button>
             <button
-              onClick={onClearRoute}
-              className="p-2 rounded-xl bg-white hover:bg-slate-100 text-slate-500 hover:text-slate-800 border border-slate-200 shadow-sm transition"
+              onClick={() => {
+                triggerHapticFeedback('warning');
+                onClearRoute();
+              }}
+              className="p-2 rounded-2xl bg-white hover:bg-slate-100 text-slate-500 hover:text-slate-800 border border-slate-200/90 shadow-sm transition active:scale-95"
               title="Clear Route"
             >
-              <RotateCcw className="w-4 h-4" />
+              <RotateCcw className="w-4 h-4 stroke-[2.2]" />
             </button>
           </div>
         )}

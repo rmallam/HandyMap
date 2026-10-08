@@ -222,21 +222,21 @@ export const QuoteBuilder: React.FC<QuoteBuilderProps> = ({
   return (
     <div className="flex flex-col gap-6 text-slate-900">
       {/* Handyman Business Banner & ABN Header */}
-      <div className="bg-gradient-to-r from-slate-900 to-slate-800 text-white rounded-2xl p-4 border border-slate-700 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center justify-center font-bold text-sm shrink-0">
-            <Building2 className="w-5 h-5" />
+      <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-950 text-white rounded-3xl p-5 border border-slate-700/80 shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3.5">
+          <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-amber-500 to-amber-600 text-white flex items-center justify-center font-black text-sm shrink-0 shadow-md shadow-amber-500/20">
+            <Building2 className="w-5 h-5 stroke-[2.4]" />
           </div>
           <div>
             <div className="flex items-center gap-2 flex-wrap">
-              <h4 className="font-extrabold text-sm text-white">{profile.businessName}</h4>
+              <h4 className="font-black text-base text-white tracking-tight">{profile.businessName}</h4>
               {profile.abn && (
-                <span className="text-[10px] font-mono font-bold bg-amber-400/20 text-amber-300 border border-amber-400/40 px-2 py-0.5 rounded-md">
-                  ABN: {profile.abn}
+                <span className="text-[10px] font-mono font-black bg-amber-400/20 text-amber-300 border border-amber-400/30 px-2 py-0.5 rounded-lg">
+                  ABN {profile.abn}
                 </span>
               )}
             </div>
-            <p className="text-[11px] text-slate-300 mt-0.5">
+            <p className="text-xs text-slate-300 mt-0.5 font-medium">
               {profile.name} • Rate: {formatCurrency(profile.defaultHourlyRate, profile.currencySymbol)}/hr • GST: {profile.taxRatePercent}%
             </p>
           </div>
@@ -245,34 +245,40 @@ export const QuoteBuilder: React.FC<QuoteBuilderProps> = ({
         {/* WhatsApp & PDF Direct Action Bar */}
         <div className="flex items-center gap-2 shrink-0 flex-wrap">
           <button
-            onClick={handleSendWhatsAppQuote}
-            className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 transition shadow-sm active:scale-95 cursor-pointer"
+            onClick={() => {
+              triggerHapticFeedback('light');
+              handleSendWhatsAppQuote();
+            }}
+            className="px-4 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black flex items-center gap-1.5 transition shadow-lg shadow-emerald-600/25 active:scale-95 cursor-pointer"
             title={job.status === 'completed' || job.status === 'invoiced' ? 'Send Tax Invoice on WhatsApp' : 'Send formatted itemized quote on WhatsApp'}
           >
-            <MessageSquare className="w-3.5 h-3.5 fill-white/20" />
+            <MessageSquare className="w-4 h-4 fill-white/20 stroke-[2.2]" />
             <span>{job.status === 'completed' || job.status === 'invoiced' ? 'WhatsApp Invoice' : 'Send WhatsApp Quote'}</span>
           </button>
 
           <button
-            onClick={() => generateQuotePDF(job, profile)}
-            className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold flex items-center gap-1.5 transition shadow-md shadow-blue-600/30 active:scale-95 cursor-pointer"
+            onClick={() => {
+              triggerHapticFeedback('light');
+              generateQuotePDF(job, profile);
+            }}
+            className="px-4 py-2.5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-black flex items-center gap-1.5 transition shadow-lg shadow-blue-500/25 active:scale-95 cursor-pointer"
             title={job.status === 'completed' || job.status === 'invoiced' ? 'Generate official Tax Invoice PDF' : 'Export clean Estimate PDF with ABN and bank deposit details'}
           >
-            <Download className="w-3.5 h-3.5 text-white" />
+            <Download className="w-4 h-4 stroke-[2.4]" />
             <span>{job.status === 'completed' || job.status === 'invoiced' ? 'Tax Invoice (PDF)' : 'Quote (PDF)'}</span>
           </button>
         </div>
       </div>
 
       {/* Quote Status & Meta Header */}
-      <div className="bg-white rounded-2xl p-4 border border-slate-200/90 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
+      <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-200/90 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
         <div>
           <div className="flex items-center gap-2">
-            <span className="font-mono font-bold text-slate-900 text-sm">
+            <span className="font-mono font-black text-slate-900 text-sm">
               {quote.quoteNumber}
             </span>
             <span
-              className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full border ${
+              className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full border shadow-xs ${
                 quote.status === 'accepted'
                   ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
                   : quote.status === 'sent'
@@ -283,8 +289,8 @@ export const QuoteBuilder: React.FC<QuoteBuilderProps> = ({
               {quote.status.toUpperCase()}
             </span>
           </div>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Client: <strong className="text-slate-700">{job.clientName}</strong> • {job.address}
+          <p className="text-xs text-slate-500 mt-1 font-medium">
+            Client: <strong className="text-slate-900 font-extrabold">{job.clientName}</strong> • {job.address}
           </p>
         </div>
 
@@ -293,9 +299,9 @@ export const QuoteBuilder: React.FC<QuoteBuilderProps> = ({
           {quote.status !== 'accepted' && (
             <button
               onClick={handleAcceptQuote}
-              className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 transition shadow-sm active:scale-95"
+              className="px-4 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black flex items-center gap-1.5 transition shadow-md shadow-emerald-600/20 active:scale-95"
             >
-              <Check className="w-4 h-4" />
+              <Check className="w-4 h-4 stroke-[3]" />
               <span>Approve & Start</span>
             </button>
           )}

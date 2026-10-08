@@ -580,55 +580,78 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
           </div>
         </div>
 
-        {/* Navigation Tabs */}
-        <div className="px-4 sm:px-5 border-b border-slate-200 flex items-center gap-2 bg-white shrink-0 overflow-x-auto no-scrollbar">
+        {/* Navigation Tabs (Apple Segmented Bar Style) */}
+        <div className="px-4 sm:px-6 py-2.5 bg-slate-100/80 border-b border-slate-200/80 flex items-center gap-1.5 shrink-0 overflow-x-auto no-scrollbar">
           <button
-            onClick={() => { setActiveTab('overview'); }}
-            className={`py-3 px-3 text-xs font-bold border-b-2 flex items-center gap-1.5 whitespace-nowrap transition-all ${
+            onClick={() => {
+              triggerHapticFeedback('light');
+              setActiveTab('overview');
+            }}
+            className={`py-2 px-3.5 rounded-xl text-xs font-black flex items-center gap-1.5 whitespace-nowrap transition-all active:scale-95 ${
               activeTab === 'overview'
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-slate-500 hover:text-slate-800'
+                ? 'bg-white text-slate-900 shadow-sm border border-slate-200/60'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
             }`}
           >
-            <ListTodo className="w-3.5 h-3.5 text-blue-600" /> Scope & Checklist
+            <ListTodo className="w-3.5 h-3.5 text-blue-600 stroke-[2.4]" />
+            <span>Scope & Tasks</span>
             {totalTasksCount > 0 && (
-              <span className="text-[10px] bg-blue-100 text-blue-800 px-1.5 py-0.2 rounded-full font-bold">
+              <span className={`text-[10px] px-2 py-0.2 rounded-full font-black ${
+                activeTab === 'overview' ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-700'
+              }`}>
                 {completedTasksCount}/{totalTasksCount}
               </span>
             )}
           </button>
 
           <button
-            onClick={() => { setActiveTab('quote'); }}
-            className={`py-3 px-3 text-xs font-bold border-b-2 flex items-center gap-1.5 whitespace-nowrap transition-all ${
+            onClick={() => {
+              triggerHapticFeedback('light');
+              setActiveTab('quote');
+            }}
+            className={`py-2 px-3.5 rounded-xl text-xs font-black flex items-center gap-1.5 whitespace-nowrap transition-all active:scale-95 ${
               activeTab === 'quote'
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-slate-500 hover:text-slate-800'
+                ? 'bg-white text-slate-900 shadow-sm border border-slate-200/60'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
             }`}
           >
-            <Sparkles className="w-3.5 h-3.5 text-amber-500" /> Quote & Pricing
+            <Sparkles className="w-3.5 h-3.5 text-amber-500 stroke-[2.4]" />
+            <span>Quote & Pricing</span>
           </button>
 
           <button
-            onClick={() => { setActiveTab('photos'); }}
-            className={`py-3 px-3 text-xs font-bold border-b-2 flex items-center gap-1.5 whitespace-nowrap transition-all ${
+            onClick={() => {
+              triggerHapticFeedback('light');
+              setActiveTab('photos');
+            }}
+            className={`py-2 px-3.5 rounded-xl text-xs font-black flex items-center gap-1.5 whitespace-nowrap transition-all active:scale-95 ${
               activeTab === 'photos'
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-slate-500 hover:text-slate-800'
+                ? 'bg-white text-slate-900 shadow-sm border border-slate-200/60'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
             }`}
           >
-            <Camera className="w-3.5 h-3.5" /> Photos ({job.photos.length})
+            <Camera className="w-3.5 h-3.5 text-blue-600 stroke-[2.4]" />
+            <span>Photos & Stitcher</span>
+            <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${
+              activeTab === 'photos' ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-700'
+            }`}>
+              {job.photos.length}
+            </span>
           </button>
 
           <button
-            onClick={() => { setActiveTab('time'); }}
-            className={`py-3 px-3 text-xs font-bold border-b-2 flex items-center gap-1.5 whitespace-nowrap transition-all ${
+            onClick={() => {
+              triggerHapticFeedback('light');
+              setActiveTab('time');
+            }}
+            className={`py-2 px-3.5 rounded-xl text-xs font-black flex items-center gap-1.5 whitespace-nowrap transition-all active:scale-95 ${
               activeTab === 'time'
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-slate-500 hover:text-slate-800'
+                ? 'bg-white text-slate-900 shadow-sm border border-slate-200/60'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
             }`}
           >
-            <Clock className="w-3.5 h-3.5" /> Time Tracker
+            <Clock className="w-3.5 h-3.5 text-indigo-600 stroke-[2.4]" />
+            <span>Time Tracker</span>
           </button>
         </div>
 

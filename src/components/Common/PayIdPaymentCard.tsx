@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { HandymanProfile } from '../../types';
 import { formatCurrency } from '../../utils/helpers';
+import { triggerHapticFeedback } from '../../services/nativeMobile';
 import { QrCode, Copy, Check, Smartphone, Landmark, ShieldCheck } from 'lucide-react';
 
 interface PayIdPaymentCardProps {
@@ -23,6 +24,7 @@ export const PayIdPaymentCard: React.FC<PayIdPaymentCardProps> = ({
   const paymentRef = jobNumber.startsWith('INV') ? jobNumber : `INV-${jobNumber}`;
 
   const handleCopy = (text: string, fieldName: string) => {
+    triggerHapticFeedback('success');
     navigator.clipboard.writeText(text);
     setCopiedField(fieldName);
     setTimeout(() => setCopiedField(null), 2000);

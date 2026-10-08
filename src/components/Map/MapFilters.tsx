@@ -116,32 +116,32 @@ export const MapFilters: React.FC<MapFiltersProps> = ({
       {/* ========================================================================= */}
       {/* 1. MOBILE COMPACT FLOATING BAR (Phones only < 640px)                      */}
       {/* ========================================================================= */}
-      <div className="absolute top-2 left-2 right-2 z-20 flex items-center justify-between gap-1.5 sm:hidden pointer-events-none">
+      <div className="absolute top-2.5 left-2.5 right-2.5 z-20 flex items-center justify-between gap-2 sm:hidden pointer-events-none">
         {/* Mobile Filter Trigger Capsule */}
         <button
           onClick={() => setIsMobileFilterDrawerOpen(true)}
-          className={`pointer-events-auto flex-1 min-w-0 py-2 px-3 rounded-2xl bg-white/95 backdrop-blur-md border shadow-md flex items-center justify-between gap-2 transition active:scale-98 ${
+          className={`pointer-events-auto flex-1 min-w-0 py-2.5 px-3.5 rounded-2xl bg-white/90 backdrop-blur-xl border shadow-lg shadow-slate-900/5 flex items-center justify-between gap-2.5 transition active:scale-[0.98] ${
             activeFiltersCount > 0
-              ? 'border-blue-500 ring-2 ring-blue-500/20 text-slate-900'
+              ? 'border-blue-500/80 ring-2 ring-blue-500/20 text-slate-900'
               : 'border-slate-200/90 text-slate-800'
           }`}
         >
-          <div className="flex items-center gap-2 min-w-0">
-            <div className={`p-1.5 rounded-xl ${activeFiltersCount > 0 ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'}`}>
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className={`p-1.5 rounded-xl transition ${activeFiltersCount > 0 ? 'bg-gradient-to-tr from-blue-600 to-indigo-600 text-white shadow-sm shadow-blue-500/30' : 'bg-slate-100 text-slate-600'}`}>
               <Filter className="w-3.5 h-3.5" />
             </div>
             <div className="text-left min-w-0">
-              <p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
+              <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">
                 {activeFiltersCount > 0 ? `${activeFiltersCount} Filter${activeFiltersCount > 1 ? 's' : ''} Active` : 'Map Filters'}
               </p>
-              <p className="text-xs font-bold text-slate-900 truncate">
+              <p className="text-xs font-extrabold text-slate-900 truncate tracking-tight">
                 {getMobileFilterSummary()}
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-1 shrink-0">
-            <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span className="text-[11px] font-black px-2 py-0.5 rounded-full bg-slate-900 text-white shadow-xs">
               {matchingJobsCount}
             </span>
             <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
@@ -152,24 +152,24 @@ export const MapFilters: React.FC<MapFiltersProps> = ({
         <div className="pointer-events-auto flex items-center gap-1.5 shrink-0">
           <button
             onClick={onCenterMyLocation}
-            className="p-2.5 rounded-2xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200/90 shadow-md backdrop-blur-md transition active:scale-95"
+            className="p-2.5 rounded-2xl bg-white/90 hover:bg-white text-slate-700 border border-slate-200/90 shadow-lg shadow-slate-900/5 backdrop-blur-xl transition active:scale-95"
             title="Recenter GPS"
           >
-            <Compass className="w-4 h-4 text-blue-600" />
+            <Compass className="w-4 h-4 text-blue-600 stroke-[2.2]" />
           </button>
 
           <button
             onClick={onOptimizeQuotesRoute}
             disabled={isOptimizing || quoteReqCount === 0}
-            className={`px-3 py-2.5 rounded-2xl font-bold text-xs flex items-center gap-1 shadow-md border backdrop-blur-md transition active:scale-95 ${
+            className={`px-3.5 py-2.5 rounded-2xl font-black text-xs flex items-center gap-1.5 shadow-lg shadow-blue-600/20 border backdrop-blur-xl transition active:scale-95 ${
               hasActiveRoute
-                ? 'bg-blue-600 text-white border-blue-600'
-                : 'bg-gradient-to-r from-amber-500 to-amber-600 text-white border-amber-500'
-            } ${quoteReqCount === 0 ? 'opacity-50' : ''}`}
+                ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-blue-500'
+                : 'bg-gradient-to-r from-amber-500 to-amber-600 text-white border-amber-400'
+            } ${quoteReqCount === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
             title="Plan Optimal Route"
           >
-            <Navigation className={`w-3.5 h-3.5 ${isOptimizing ? 'animate-spin' : ''}`} />
-            <span className="text-[11px] font-bold">Route</span>
+            <Navigation className={`w-3.5 h-3.5 stroke-[2.5] ${isOptimizing ? 'animate-spin' : ''}`} />
+            <span className="text-[11px] font-extrabold">Route</span>
           </button>
         </div>
       </div>
@@ -455,28 +455,28 @@ export const MapFilters: React.FC<MapFiltersProps> = ({
       {/* ========================================================================= */}
       {/* 3. DESKTOP / TABLET EXPANDED PILL BARS (hidden on mobile, sm:flex)        */}
       {/* ========================================================================= */}
-      <div className="hidden sm:flex absolute top-3 left-3 right-3 z-20 flex-col gap-1.5 pointer-events-none">
+      <div className="hidden sm:flex absolute top-3 left-3 right-3 z-20 flex-col gap-2 pointer-events-none">
         {/* Row 1: Status Filter Pills + Primary Action Buttons */}
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center justify-between gap-2.5">
           {/* Status Pills Container */}
-          <div className="pointer-events-auto flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1 px-1.5 bg-white/95 backdrop-blur-md rounded-2xl border border-slate-200/90 shadow-md flex-1">
+          <div className="pointer-events-auto flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1.5 px-2 bg-white/90 backdrop-blur-xl rounded-2xl border border-slate-200/90 shadow-lg shadow-slate-900/5 flex-1">
             <button
               onClick={() => onSelectStatus('all')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 rounded-xl text-xs font-black whitespace-nowrap transition-all flex items-center gap-1.5 ${
                 selectedStatus === 'all'
-                  ? 'bg-slate-900 text-white shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                  ? 'bg-slate-900 text-white shadow-md'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/80'
               }`}
             >
-              <Filter className="w-3 h-3" /> All Active ({activeJobsCount})
+              <Filter className="w-3 h-3 stroke-[2.5]" /> All Active ({activeJobsCount})
             </button>
 
             <button
               onClick={() => onSelectStatus('quote_requested')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 border ${
+              className={`px-3 py-1.5 rounded-xl text-xs font-black whitespace-nowrap transition-all flex items-center gap-1.5 border ${
                 selectedStatus === 'quote_requested'
-                  ? 'bg-amber-500 text-white border-amber-600 shadow-sm'
-                  : 'text-amber-800 bg-amber-50 border-amber-200 hover:bg-amber-100'
+                  ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-white border-amber-500 shadow-md shadow-amber-500/20'
+                  : 'text-amber-800 bg-amber-50/80 border-amber-200 hover:bg-amber-100'
               }`}
             >
               <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
@@ -485,10 +485,10 @@ export const MapFilters: React.FC<MapFiltersProps> = ({
 
             <button
               onClick={() => onSelectStatus('in_progress')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 border ${
+              className={`px-3 py-1.5 rounded-xl text-xs font-black whitespace-nowrap transition-all flex items-center gap-1.5 border ${
                 selectedStatus === 'in_progress'
-                  ? 'bg-emerald-600 text-white border-emerald-700 shadow-sm'
-                  : 'text-emerald-800 bg-emerald-50 border-emerald-200 hover:bg-emerald-100'
+                  ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white border-emerald-500 shadow-md shadow-emerald-500/20'
+                  : 'text-emerald-800 bg-emerald-50/80 border-emerald-200 hover:bg-emerald-100'
               }`}
             >
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
@@ -497,10 +497,10 @@ export const MapFilters: React.FC<MapFiltersProps> = ({
 
             <button
               onClick={() => onSelectStatus('quoted')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 border ${
+              className={`px-3 py-1.5 rounded-xl text-xs font-black whitespace-nowrap transition-all flex items-center gap-1.5 border ${
                 selectedStatus === 'quoted'
-                  ? 'bg-purple-600 text-white border-purple-700 shadow-sm'
-                  : 'text-purple-800 bg-purple-50 border-purple-200 hover:bg-purple-100'
+                  ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white border-purple-500 shadow-md shadow-purple-500/20'
+                  : 'text-purple-800 bg-purple-50/80 border-purple-200 hover:bg-purple-100'
               }`}
             >
               <span className="w-1.5 h-1.5 rounded-full bg-purple-500"></span>
@@ -510,10 +510,10 @@ export const MapFilters: React.FC<MapFiltersProps> = ({
             {urgentCount > 0 && (
               <button
                 onClick={() => onSelectStatus('urgent')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 border ${
+                className={`px-3 py-1.5 rounded-xl text-xs font-black whitespace-nowrap transition-all flex items-center gap-1.5 border ${
                   selectedStatus === 'urgent'
-                    ? 'bg-red-600 text-white border-red-700 shadow-sm'
-                    : 'text-red-700 bg-red-50 border-red-200 hover:bg-red-100'
+                    ? 'bg-gradient-to-r from-red-600 to-rose-600 text-white border-red-500 shadow-md shadow-red-500/20'
+                    : 'text-red-700 bg-red-50/80 border-red-200 hover:bg-red-100'
                 }`}
               >
                 <span className="w-1.5 h-1.5 rounded-full bg-red-600 animate-ping"></span>
@@ -523,10 +523,10 @@ export const MapFilters: React.FC<MapFiltersProps> = ({
 
             <button
               onClick={() => onSelectStatus('completed')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 border ${
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 border ${
                 selectedStatus === 'completed'
-                  ? 'bg-slate-700 text-white border-slate-800 shadow-sm'
-                  : 'text-slate-600 bg-slate-50 border-slate-200 hover:bg-slate-100'
+                  ? 'bg-slate-700 text-white border-slate-800 shadow-md'
+                  : 'text-slate-600 bg-slate-50/80 border-slate-200 hover:bg-slate-100'
               }`}
             >
               <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
@@ -536,10 +536,10 @@ export const MapFilters: React.FC<MapFiltersProps> = ({
             {invoicedCount > 0 && (
               <button
                 onClick={() => onSelectStatus('invoiced')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 border ${
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 border ${
                   selectedStatus === 'invoiced'
-                    ? 'bg-blue-600 text-white border-blue-700 shadow-sm'
-                    : 'text-blue-800 bg-blue-50/70 border-blue-200 hover:bg-blue-100'
+                    ? 'bg-gradient-to-r from-blue-600 to-indigo-700 text-white border-blue-600 shadow-md shadow-blue-500/20'
+                    : 'text-blue-800 bg-blue-50/80 border-blue-200 hover:bg-blue-100'
                 }`}
               >
                 <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
@@ -552,22 +552,22 @@ export const MapFilters: React.FC<MapFiltersProps> = ({
           <div className="pointer-events-auto flex items-center gap-1.5 shrink-0">
             <button
               onClick={onCenterMyLocation}
-              className="p-2.5 rounded-2xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200/90 shadow-md backdrop-blur-md transition active:scale-95"
+              className="p-2.5 rounded-2xl bg-white/90 hover:bg-white text-slate-700 border border-slate-200/90 shadow-lg shadow-slate-900/5 backdrop-blur-xl transition active:scale-95"
               title="Recenter Map"
             >
-              <Compass className="w-4 h-4 text-blue-600" />
+              <Compass className="w-4 h-4 text-blue-600 stroke-[2.2]" />
             </button>
 
             <button
               onClick={onOptimizeQuotesRoute}
               disabled={isOptimizing || quoteReqCount === 0}
-              className={`px-3 py-2.5 rounded-2xl font-bold text-xs flex items-center gap-1.5 shadow-md border backdrop-blur-md transition-all active:scale-95 ${
+              className={`px-3.5 py-2.5 rounded-2xl font-black text-xs flex items-center gap-1.5 shadow-lg shadow-blue-600/20 border backdrop-blur-xl transition-all active:scale-95 ${
                 hasActiveRoute
-                  ? 'bg-blue-600 text-white border-blue-600 shadow-blue-500/20 hover:bg-blue-700'
-                  : 'bg-gradient-to-r from-amber-500 to-amber-600 text-white border-amber-500 shadow-amber-500/20 hover:from-amber-600 hover:to-amber-700'
+                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-blue-500 hover:brightness-110'
+                  : 'bg-gradient-to-r from-amber-500 to-amber-600 text-white border-amber-400 hover:brightness-110'
               } ${quoteReqCount === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
-              <Navigation className={`w-3.5 h-3.5 ${isOptimizing ? 'animate-spin' : ''}`} />
+              <Navigation className={`w-3.5 h-3.5 stroke-[2.5] ${isOptimizing ? 'animate-spin' : ''}`} />
               <span>
                 {isOptimizing ? 'Planning...' : hasActiveRoute ? 'Route Active' : 'Optimal Quote Route'}
               </span>

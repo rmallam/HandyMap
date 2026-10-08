@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -7,6 +9,7 @@
   --sab: env(safe-area-inset-bottom, 0px);
   --sal: env(safe-area-inset-left, 0px);
   --sar: env(safe-area-inset-right, 0px);
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
 }
 
 html, body, #root {
@@ -17,31 +20,86 @@ html, body, #root {
   padding: 0;
   overflow: hidden;
   background-color: #f8fafc;
-  color: #0f172a;
+  color: #090d16;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   -webkit-tap-highlight-color: transparent;
   user-select: none;
 }
 
-/* Safe Area Utility Classes for Mobile Notches & Bottom Home Bars */
-.safe-top-padding {
-  padding-top: max(0.5rem, env(safe-area-inset-top));
+/* Glassmorphism & Depth Utility Classes */
+.glass-surface {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.06);
 }
 
-.safe-bottom-padding {
-  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+.glass-surface-dark {
+  background: rgba(15, 23, 42, 0.92);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5);
 }
 
-.safe-bottom-height {
-  height: calc(4rem + env(safe-area-inset-bottom, 0px));
+.glass-floating-pill {
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(226, 232, 240, 0.85);
+  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.08), 0 4px 10px -2px rgba(0, 0, 0, 0.04);
 }
 
-/* Modern Leaflet Map Styling */
+/* Modern Gradient Accents */
+.brand-gradient {
+  background: linear-gradient(135deg, #2563eb 0%, #4f46e5 50%, #7c3aed 100%);
+}
+
+.brand-gradient-subtle {
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.08) 0%, rgba(79, 70, 229, 0.06) 100%);
+}
+
+.amber-gradient {
+  background: linear-gradient(135deg, #f59e0b 0%, #ea580c 100%);
+}
+
+.emerald-gradient {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+}
+
+.purple-gradient {
+  background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);
+}
+
+.dark-luxury-gradient {
+  background: linear-gradient(145deg, #0f172a 0%, #1e1b4b 50%, #090d16 100%);
+}
+
+/* Custom Pin Drop Shadows */
+.pin-shadow {
+  filter: drop-shadow(0 8px 12px rgba(0, 0, 0, 0.18)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+}
+
+.glow-blue {
+  box-shadow: 0 0 20px rgba(37, 99, 235, 0.35);
+}
+
+.glow-amber {
+  box-shadow: 0 0 20px rgba(245, 158, 11, 0.35);
+}
+
+.glow-emerald {
+  box-shadow: 0 0 20px rgba(16, 185, 129, 0.35);
+}
+
+/* Modern Leaflet Map Customization */
 .leaflet-container {
   width: 100% !important;
   height: 100% !important;
   min-height: 100% !important;
-  background: #f1f5f9 !important;
+  background: #edf2f7 !important;
   font-family: inherit;
   z-index: 10;
 }
@@ -50,6 +108,7 @@ html, body, #root {
   background: transparent !important;
   box-shadow: none !important;
   padding: 0 !important;
+  border-radius: 24px;
 }
 
 .leaflet-popup-content {
@@ -57,12 +116,11 @@ html, body, #root {
   line-height: inherit;
 }
 
-.leaflet-popup-tip {
-  background: #ffffff !important;
-  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1) !important;
+.leaflet-popup-tip-container {
+  display: none !important;
 }
 
-/* Hide scrollbar for clean horizontal pill rows */
+/* Hide scrollbars for clean horizontal pill bars */
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
@@ -71,21 +129,26 @@ html, body, #root {
   scrollbar-width: none;
 }
 
-/* Custom Pin Drop Shadows */
-.pin-shadow {
-  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.15)) drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1));
-}
-
 /* Mobile Bottom Sheet Smooth Animations */
 @keyframes sheet-up {
   from {
     transform: translateY(100%);
+    opacity: 0.7;
   }
   to {
     transform: translateY(0);
+    opacity: 1;
   }
 }
 
 .animate-sheet-up {
-  animation: sheet-up 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: sheet-up 0.32s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Touch active physics */
+.touch-press {
+  transition: transform 0.15s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.15s ease;
+}
+.touch-press:active {
+  transform: scale(0.97);
 }

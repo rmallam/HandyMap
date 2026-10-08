@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Job, JobStatus, HandymanProfile, ReminderItem } from '../../types';
 import { STATUS_CONFIG, formatCurrency, formatDateTime, buildLiveNavigationUrl, buildWhatsAppLink } from '../../utils/helpers';
 import { generateQuotePDF } from '../../services/pdfGenerator';
+import { triggerHapticFeedback } from '../../services/nativeMobile';
 import { REAL_ESTATE_AGENCIES } from '../../data/mockJobs';
 import {
   Search,
@@ -102,15 +103,18 @@ export const JobList: React.FC<JobListProps> = ({
   });
 
   return (
-    <div className="flex flex-col h-full bg-slate-50 overflow-y-auto pb-[calc(6.5rem+env(safe-area-inset-bottom,0px))] text-slate-900 p-4 sm:p-6 max-w-5xl mx-auto w-full">
+    <div className="flex flex-col h-full bg-slate-50 overflow-y-auto pb-[calc(6.5rem+env(safe-area-inset-bottom,0px))] text-slate-900 p-3 sm:p-6 max-w-5xl mx-auto w-full">
       {/* Top Title & Action Buttons */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 mb-4 sm:mb-5">
         <div>
-          <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
-            Jobs & Quotes Directory
+          <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+            <span>Jobs & Estimates</span>
+            <span className="text-[11px] font-black px-2 py-0.5 rounded-full bg-slate-200 text-slate-700">
+              {filteredJobs.length}
+            </span>
           </h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-            Manage customer requests, approved estimates, and real estate agency work orders.
+          <p className="text-xs text-slate-500 mt-0.5 font-medium">
+            Manage customer requests, approved estimates, and real estate work orders.
           </p>
         </div>
 
@@ -118,76 +122,84 @@ export const JobList: React.FC<JobListProps> = ({
           {onOpenImport && (
             <button
               onClick={onOpenImport}
-              className="px-3.5 py-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs transition active:scale-95"
+              className="px-3.5 py-2.5 rounded-2xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-extrabold text-xs flex items-center justify-center gap-1.5 shadow-sm transition active:scale-95"
               title="Bulk import jobs from Excel or CSV spreadsheet"
             >
               <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
-              <span>Import Excel / CSV</span>
+              <span>Import Excel</span>
             </button>
           )}
 
           <button
             onClick={onAddNewJob}
-            className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-sm hover:shadow transition active:scale-95"
+            className="px-4 py-2.5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-extrabold text-xs flex items-center justify-center gap-2 shadow-lg shadow-blue-500/25 transition active:scale-95"
           >
-            <Plus className="w-4 h-4 stroke-[2.5]" />
+            <Plus className="w-4 h-4 stroke-[3]" />
             <span>New Lead / Quote</span>
           </button>
         </div>
       </div>
 
       {/* Search & Status Controls */}
-      <div className="flex flex-col sm:flex-row gap-3 mb-3">
+      <div className="flex flex-col sm:flex-row gap-2.5 mb-3">
         {/* Search Box */}
         <div className="relative flex-1">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
+          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5 stroke-[2.2]" />
           <input
             type="text"
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
-            placeholder="Search client, address, agency, work order #, or title..."
-            className="w-full bg-white border border-slate-200/90 rounded-2xl pl-10 pr-4 py-2.5 text-xs text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none shadow-sm transition"
+            placeholder="Search client, address, agency, work order #, or trade..."
+            className="w-full bg-white border border-slate-200/90 rounded-2xl pl-10 pr-9 py-2.5 text-xs text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none shadow-sm transition font-medium"
           />
+          {searchTerm && (
+            <button
+              onClick={() => setSearchTerm('')}
+              className="absolute right-3 top-3 p-0.5 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-700"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
 
         {/* Status Filter Pills */}
         <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1">
           <button
             onClick={() => setStatusFilter('all')}
-            className={`px-3 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition ${
+            className={`px-3 py-2 rounded-2xl text-xs font-black whitespace-nowrap transition-all ${
               statusFilter === 'all'
-                ? 'bg-slate-900 text-white shadow-sm'
-                : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200/80'
+                ? 'bg-slate-900 text-white shadow-md shadow-slate-900/20'
+                : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200/80 shadow-xs'
             }`}
           >
             All Active ({activeJobsCount})
           </button>
           <button
             onClick={() => setStatusFilter('quote_requested')}
-            className={`px-3 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition border ${
+            className={`px-3 py-2 rounded-2xl text-xs font-black whitespace-nowrap transition-all border ${
               statusFilter === 'quote_requested'
-                ? 'bg-amber-500 text-white border-amber-600 shadow-sm'
-                : 'bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100'
+                ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-white border-amber-500 shadow-md shadow-amber-500/20'
+                : 'bg-amber-50/80 text-amber-800 border-amber-200 hover:bg-amber-100 shadow-xs'
             }`}
           >
             Needs Quote ({quoteReqCount})
           </button>
           <button
             onClick={() => setStatusFilter('in_progress')}
-            className={`px-3 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition border ${
+            className={`px-3 py-2 rounded-2xl text-xs font-black whitespace-nowrap transition-all border ${
               statusFilter === 'in_progress'
-                ? 'bg-emerald-600 text-white border-emerald-700 shadow-sm'
-                : 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100'
+                ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white border-emerald-500 shadow-md shadow-emerald-500/20'
+                : 'bg-emerald-50/80 text-emerald-800 border-emerald-200 hover:bg-emerald-100 shadow-xs'
             }`}
           >
             In Progress ({inProgressCount})
           </button>
           <button
             onClick={() => setStatusFilter('quoted')}
-            className={`px-3 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition border ${
+            className={`px-3 py-2 rounded-2xl text-xs font-black whitespace-nowrap transition-all border ${
               statusFilter === 'quoted'
-                ? 'bg-purple-600 text-white border-purple-700 shadow-sm'
-                : 'bg-purple-50 text-purple-800 border-purple-200 hover:bg-purple-100'
+                ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white border-purple-500 shadow-md shadow-purple-500/20'
+                : 'bg-purple-50/80 text-purple-800 border-purple-200 hover:bg-purple-100 shadow-xs'
             }`}
           >
             Quoted ({quotedCount})
@@ -195,10 +207,10 @@ export const JobList: React.FC<JobListProps> = ({
           {urgentCount > 0 && (
             <button
               onClick={() => setStatusFilter('urgent')}
-              className={`px-3 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition border ${
+              className={`px-3 py-2 rounded-2xl text-xs font-black whitespace-nowrap transition-all border ${
                 statusFilter === 'urgent'
-                  ? 'bg-red-600 text-white border-red-700 shadow-sm'
-                  : 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100'
+                  ? 'bg-gradient-to-r from-red-600 to-rose-600 text-white border-red-500 shadow-md shadow-red-500/20'
+                  : 'bg-red-50/80 text-red-700 border-red-200 hover:bg-red-100 shadow-xs'
               }`}
             >
               Urgent ({urgentCount})
@@ -206,20 +218,20 @@ export const JobList: React.FC<JobListProps> = ({
           )}
           <button
             onClick={() => setStatusFilter('completed')}
-            className={`px-3 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition border ${
+            className={`px-3 py-2 rounded-2xl text-xs font-bold whitespace-nowrap transition-all border ${
               statusFilter === 'completed'
-                ? 'bg-slate-700 text-white border-slate-800 shadow-sm'
-                : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                ? 'bg-slate-700 text-white border-slate-800 shadow-md'
+                : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 shadow-xs'
             }`}
           >
             Completed ({completedCount})
           </button>
           <button
             onClick={() => setStatusFilter('invoiced')}
-            className={`px-3 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition border ${
+            className={`px-3 py-2 rounded-2xl text-xs font-bold whitespace-nowrap transition-all border ${
               statusFilter === 'invoiced'
-                ? 'bg-blue-600 text-white border-blue-700 shadow-sm ring-2 ring-blue-400/30'
-                : 'bg-blue-50 text-blue-900 border-blue-200 hover:bg-blue-100'
+                ? 'bg-gradient-to-r from-blue-600 to-indigo-700 text-white border-blue-600 shadow-md shadow-blue-500/20'
+                : 'bg-blue-50 text-blue-900 border-blue-200 hover:bg-blue-100 shadow-xs'
             }`}
           >
             💼 Paid Archive ({invoicedCount})
@@ -393,34 +405,51 @@ export const JobList: React.FC<JobListProps> = ({
             const statusCfg = STATUS_CONFIG[job.status];
             const activeReminder = reminders.find(r => r.jobId === job.id && !r.isSnoozed);
 
+            // Left accent border color mapping
+            const statusBorderAccent =
+              job.status === 'urgent'
+                ? 'border-l-rose-500'
+                : job.status === 'quote_requested'
+                ? 'border-l-amber-500'
+                : job.status === 'in_progress'
+                ? 'border-l-emerald-500'
+                : job.status === 'quoted'
+                ? 'border-l-purple-500'
+                : job.status === 'completed'
+                ? 'border-l-slate-400'
+                : 'border-l-blue-600';
+
             return (
               <div
                 key={job.id}
-                onClick={() => onSelectJob(job)}
-                className={`bg-white hover:bg-slate-50/50 border rounded-3xl p-5 shadow-sm hover:shadow-md transition-all duration-200 flex flex-col justify-between gap-4 cursor-pointer group ${
+                onClick={() => {
+                  triggerHapticFeedback('light');
+                  onSelectJob(job);
+                }}
+                className={`bg-white hover:bg-slate-50/70 border border-slate-200/90 border-l-[5px] ${statusBorderAccent} rounded-3xl p-5 shadow-sm hover:shadow-xl hover:shadow-slate-900/5 transition-all duration-200 flex flex-col justify-between gap-4 cursor-pointer group active:scale-[0.99] ${
                   activeReminder?.urgency === 'urgent'
-                    ? 'border-red-300 ring-1 ring-red-300/40'
+                    ? 'ring-2 ring-red-400/40'
                     : activeReminder?.urgency === 'warning'
-                    ? 'border-amber-300 ring-1 ring-amber-300/30'
-                    : 'border-slate-200/90 hover:border-slate-300'
+                    ? 'ring-2 ring-amber-400/30'
+                    : ''
                 }`}
               >
                 <div>
                   {/* Top meta */}
-                  <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-mono text-xs font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
+                  <div className="flex items-center justify-between gap-2 mb-2.5 flex-wrap">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="font-mono text-xs font-black text-slate-600 bg-slate-100 px-2 py-0.5 rounded-lg border border-slate-200/60">
                         {job.jobNumber}
                       </span>
                       <span
-                        className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full border ${statusCfg.bgClass} ${statusCfg.textClass} ${statusCfg.borderClass}`}
+                        className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full border shadow-xs ${statusCfg.bgClass} ${statusCfg.textClass} ${statusCfg.borderClass}`}
                       >
                         {statusCfg.shortLabel}
                       </span>
                       {activeReminder && (
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 ${
+                        <span className={`text-[10px] font-black px-2 py-0.5 rounded-full flex items-center gap-1 shadow-xs ${
                           activeReminder.urgency === 'urgent'
-                            ? 'bg-red-50 text-red-700 border border-red-200 animate-pulse'
+                            ? 'bg-rose-50 text-rose-700 border border-rose-200 animate-pulse'
                             : 'bg-amber-50 text-amber-800 border border-amber-200'
                         }`}>
                           <BellRing className="w-2.5 h-2.5" />
@@ -429,30 +458,30 @@ export const JobList: React.FC<JobListProps> = ({
                       )}
                     </div>
 
-                    <span className="text-xs font-medium text-slate-600 bg-slate-100 px-2.5 py-0.5 rounded-lg border border-slate-200/60">
+                    <span className="text-[11px] font-extrabold text-slate-700 bg-slate-100/90 px-2.5 py-0.5 rounded-xl border border-slate-200/80">
                       {job.category}
                     </span>
                   </div>
 
                   {/* Title & Description */}
-                  <h3 className="font-bold text-base text-slate-900 group-hover:text-blue-600 transition leading-snug">
+                  <h3 className="font-extrabold text-base text-slate-900 group-hover:text-blue-600 transition leading-snug tracking-tight">
                     {job.title}
                   </h3>
 
-                  <p className="text-xs text-slate-600 mt-1.5 line-clamp-2 leading-relaxed">
+                  <p className="text-xs text-slate-600 mt-1.5 line-clamp-2 leading-relaxed font-normal">
                     {job.description}
                   </p>
 
                   {/* Real Estate Agency Work Order Pill */}
                   {job.isAgencyJob && job.realEstateAgency && (
-                    <div className="mt-2.5 px-2.5 py-1 rounded-xl bg-purple-50 border border-purple-200/80 text-[11px] font-bold text-purple-900 flex items-center justify-between">
+                    <div className="mt-3 px-3 py-1.5 rounded-2xl bg-gradient-to-r from-purple-50 to-indigo-50/40 border border-purple-200/80 text-[11px] font-extrabold text-purple-900 flex items-center justify-between">
                       <span className="flex items-center gap-1.5">
-                        <Building2 className="w-3 h-3 text-purple-600" />
+                        <Building2 className="w-3.5 h-3.5 text-purple-600 shrink-0" />
                         <span>{job.realEstateAgency}</span>
                       </span>
                       {job.workOrderNumber && (
-                        <span className="font-mono text-[10px] text-purple-700 bg-purple-100/80 px-1.5 py-0.2 rounded">
-                          {job.workOrderNumber}
+                        <span className="font-mono text-[10px] font-black text-purple-800 bg-purple-200/70 px-2 py-0.5 rounded-lg">
+                          WO #{job.workOrderNumber}
                         </span>
                       )}
                     </div>
@@ -460,19 +489,19 @@ export const JobList: React.FC<JobListProps> = ({
 
                   {/* Checklist Tasks Progress Bar (if job has checklist tasks) */}
                   {job.tasks && job.tasks.length > 0 && (
-                    <div className="mt-3 p-2.5 rounded-xl bg-slate-50 border border-slate-200/70 flex flex-col gap-1.5">
+                    <div className="mt-3.5 p-3 rounded-2xl bg-slate-50/80 border border-slate-200/70 flex flex-col gap-2">
                       <div className="flex items-center justify-between text-[11px]">
-                        <span className="font-bold text-slate-700 flex items-center gap-1">
+                        <span className="font-bold text-slate-700 flex items-center gap-1.5">
                           <ListTodo className="w-3.5 h-3.5 text-blue-600" />
                           <span>{job.tasks.filter(t => t.isCompleted).length} of {job.tasks.length} Tasks Done</span>
                         </span>
-                        <span className="font-extrabold text-blue-600">
+                        <span className="font-black text-blue-600">
                           {Math.round((job.tasks.filter(t => t.isCompleted).length / job.tasks.length) * 100)}%
                         </span>
                       </div>
-                      <div className="w-full h-1.5 bg-slate-200/80 rounded-full overflow-hidden">
+                      <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
                         <div
-                          className="h-full bg-blue-600 rounded-full transition-all duration-300"
+                          className="h-full bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full transition-all duration-300"
                           style={{ width: `${(job.tasks.filter(t => t.isCompleted).length / job.tasks.length) * 100}%` }}
                         />
                       </div>
@@ -481,25 +510,25 @@ export const JobList: React.FC<JobListProps> = ({
                 </div>
 
                 {/* Client & Pricing footer */}
-                <div className="pt-3 border-t border-slate-100 flex flex-col gap-2.5">
+                <div className="pt-3 border-t border-slate-100 flex flex-col gap-3">
                   <div className="flex items-center justify-between text-xs">
                     <div className="flex items-center gap-1.5 text-slate-600 min-w-0 flex-1">
-                      <MapPin className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-                      <span className="truncate">{job.address}</span>
+                      <MapPin className="w-3.5 h-3.5 text-blue-600 shrink-0 stroke-[2.2]" />
+                      <span className="truncate font-medium">{job.address}</span>
                     </div>
 
-                    <span className="font-semibold text-slate-800 shrink-0 ml-2">{job.clientName}</span>
+                    <span className="font-extrabold text-slate-900 shrink-0 ml-2">{job.clientName}</span>
                   </div>
 
                   <div className="flex items-center justify-between pt-1 text-xs gap-2 flex-wrap sm:flex-nowrap">
                     <div>
                       {job.quote ? (
-                        <span className="text-sm font-extrabold text-emerald-700 flex items-center gap-1">
+                        <span className="text-sm font-black text-emerald-700 flex items-center gap-1">
                           <Sparkles className="w-3.5 h-3.5 text-purple-600" />
                           {formatCurrency(job.quote.totalAmount, profile.currencySymbol)}
                         </span>
                       ) : (
-                        <span className="text-[11px] text-amber-700 font-semibold flex items-center gap-1 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200/60">
+                        <span className="text-[11px] text-amber-800 font-extrabold flex items-center gap-1 bg-amber-50 px-2.5 py-1 rounded-xl border border-amber-200/80 shadow-xs">
                           <Calendar className="w-3 h-3 text-amber-600" />
                           Visit: {formatDateTime(job.appointmentTime || job.quoteRequestedDate).split(' at ')[1] || 'Today'}
                         </span>
@@ -512,22 +541,28 @@ export const JobList: React.FC<JobListProps> = ({
                         <>
                           <a
                             href={`tel:${job.clientPhone}`}
-                            onClick={e => e.stopPropagation()}
-                            className="p-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200/60 transition active:scale-95"
+                            onClick={e => {
+                              e.stopPropagation();
+                              triggerHapticFeedback('light');
+                            }}
+                            className="p-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200/80 transition active:scale-95 shadow-xs"
                             title="Call Client"
                           >
-                            <Phone className="w-3.5 h-3.5" />
+                            <Phone className="w-3.5 h-3.5 stroke-[2.2]" />
                           </a>
 
                           <a
                             href={buildWhatsAppLink(job.clientPhone, `Hi ${job.clientName}, regarding your job ${job.title}...`)}
                             target="_blank"
                             rel="noopener noreferrer"
-                            onClick={e => e.stopPropagation()}
-                            className="p-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200/60 transition active:scale-95"
+                            onClick={e => {
+                              e.stopPropagation();
+                              triggerHapticFeedback('light');
+                            }}
+                            className="p-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200/80 transition active:scale-95 shadow-xs"
                             title="WhatsApp Client"
                           >
-                            <MessageSquare className="w-3.5 h-3.5" />
+                            <MessageSquare className="w-3.5 h-3.5 stroke-[2.2]" />
                           </a>
                         </>
                       )}
@@ -536,11 +571,14 @@ export const JobList: React.FC<JobListProps> = ({
                         href={buildLiveNavigationUrl(job.coordinates, job.address)}
                         target="_blank"
                         rel="noopener noreferrer"
-                        onClick={e => e.stopPropagation()}
-                        className="p-2 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200/60 transition active:scale-95"
+                        onClick={e => {
+                          e.stopPropagation();
+                          triggerHapticFeedback('light');
+                        }}
+                        className="p-2 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200/80 transition active:scale-95 shadow-xs"
                         title="Google Maps Navigation"
                       >
-                        <Navigation2 className="w-3.5 h-3.5" />
+                        <Navigation2 className="w-3.5 h-3.5 stroke-[2.2]" />
                       </a>
 
                       {(job.status === 'completed' || job.status === 'invoiced') && (
@@ -548,12 +586,13 @@ export const JobList: React.FC<JobListProps> = ({
                           type="button"
                           onClick={e => {
                             e.stopPropagation();
+                            triggerHapticFeedback('light');
                             generateQuotePDF(job, profile);
                           }}
-                          className="px-2.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs flex items-center gap-1 shadow-xs transition active:scale-95"
+                          className="px-2.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs flex items-center gap-1 shadow-xs transition active:scale-95"
                           title="Download Tax Invoice PDF"
                         >
-                          <Download className="w-3 h-3" />
+                          <Download className="w-3 h-3 stroke-[2.5]" />
                           <span>Invoice</span>
                         </button>
                       )}
@@ -561,12 +600,13 @@ export const JobList: React.FC<JobListProps> = ({
                       <button
                         onClick={e => {
                           e.stopPropagation();
+                          triggerHapticFeedback('light');
                           onSelectJob(job);
                         }}
-                        className="px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center gap-1 shadow-xs transition active:scale-95 ml-1"
+                        className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-extrabold text-xs flex items-center gap-1 shadow-md shadow-blue-500/20 transition active:scale-95 ml-0.5"
                       >
                         <span>Checklist</span>
-                        <ArrowRight className="w-3 h-3" />
+                        <ArrowRight className="w-3 h-3 stroke-[2.5]" />
                       </button>
                     </div>
                   </div>
