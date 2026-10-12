@@ -76,6 +76,23 @@ const CATEGORIES: JobCategory[] = [
   'Door & Window'
 ];
 
+function formatForDateTimeLocal(isoString?: string): string {
+  if (!isoString) return '';
+  try {
+    const d = new Date(isoString);
+    if (isNaN(d.getTime())) return '';
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    const yyyy = d.getFullYear();
+    const mm = pad(d.getMonth() + 1);
+    const dd = pad(d.getDate());
+    const hh = pad(d.getHours());
+    const min = pad(d.getMinutes());
+    return `${yyyy}-${mm}-${dd}T${hh}:${min}`;
+  } catch {
+    return '';
+  }
+}
+
 export const JobDetailModal: React.FC<JobDetailModalProps> = ({
   job,
   profile,
@@ -174,6 +191,40 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
   const [editSuburb, setEditSuburb] = useState(job.suburb || 'Point Cook');
   const [editCoordinates, setEditCoordinates] = useState<[number, number]>(job.coordinates);
   const [editDuration, setEditDuration] = useState(job.estimatedDurationMinutes);
+  const [editAppointmentTime, setEditAppointmentTime] = useState(formatForDateTimeLocal(job.appointmentTime));
+  const [isQuickRescheduleOpen, setIsQuickRescheduleOpen] = useState(false);
+  const [quickRescheduleTime, setQuickRescheduleTime] = useState(formatForDateTimeLocal(job.appointmentTime));
+
+  const setPresetDate = (daysFromNow: number, hour: number, minute: number = 0, target: 'edit' | 'quick' = 'edit') => {
+    const d = new Date();
+    d.setDate(d.getDate() + daysFromNow);
+    d.setHours(hour, minute, 0, 0);
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    const yyyy = d.getFullYear();
+    const mm = pad(d.getMonth() + 1);
+    const dd = pad(d.getDate());
+    const hh = pad(d.getHours());
+    const min = pad(d.getMinutes());
+    const val = `${yyyy}-${mm}-${dd}T${hh}:${min}`;
+    if (target === 'edit') {
+      setEditAppointmentTime(val);
+    } else {
+      setQuickRescheduleTime(val);
+    }
+    triggerHapticFeedback('light');
+  };
+
+  const handleSaveQuickReschedule = () => {
+    triggerHapticFeedback('success');
+    const newAppointment = quickRescheduleTime ? new Date(quickRescheduleTime).toISOString() : undefined;
+    onUpdateJob({
+      ...job,
+      appointmentTime: newAppointment,
+      updatedAt: new Date().toISOString()
+    });
+    setIsQuickRescheduleOpen(false);
+  };
+
   const [editCustomerSuggestions, setEditCustomerSuggestions] = useState<SavedCustomer[]>([]);
   const [showEditCustomerDropdown, setShowEditCustomerDropdown] = useState(false);
   const [editPhoneMatchedCustomer, setEditPhoneMatchedCustomer] = useState<SavedCustomer | null>(null);
@@ -231,6 +282,9 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
     setEditSuburb(job.suburb || 'Point Cook');
     setEditCoordinates(job.coordinates);
     setEditDuration(job.estimatedDurationMinutes);
+    setEditAppointmentTime(formatForDateTimeLocal(job.appointmentTime));
+    setQuickRescheduleTime(formatForDateTimeLocal(job.appointmentTime));
+    setIsQuickRescheduleOpen(false);
     setStitchedPhotoUrl(job.beforeAfterImage || '');
 
     const beforeP = job.photos.find(p => p.type === 'before');
@@ -404,6 +458,7 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
       address: editAddress.trim() || job.address,
       suburb: editSuburb || job.suburb,
       coordinates: editCoordinates || job.coordinates,
+      appointmentTime: editAppointmentTime ? new Date(editAppointmentTime).toISOString() : undefined,
       estimatedDurationMinutes: Number(editDuration) || 45,
       updatedAt: new Date().toISOString()
     };
@@ -836,6 +891,71 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                   </div>
                 </div>
 
+                {/* Scheduled Appointment / Visit Date & Time */}
+                <div className="bg-white rounded-xl border border-slate-200/90 p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                      <Calendar className="w-3.5 h-3.5 text-blue-600" />
+                      Scheduled Visit Date & Time
+                    </label>
+                    {editAppointmentTime && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditAppointmentTime('');
+                          triggerHapticFeedback('light');
+                        }}
+                        className="text-[11px] font-bold text-rose-500 hover:text-rose-700 flex items-center gap-1 transition"
+                      >
+                        <X className="w-3 h-3" />
+                        Clear Date
+                      </button>
+                    )}
+                  </div>
+                  
+                  <input
+                    type="datetime-local"
+                    value={editAppointmentTime}
+                    onChange={e => setEditAppointmentTime(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-900 font-semibold text-xs focus:border-blue-500 focus:bg-white outline-none"
+                  />
+
+                  {/* 1-Tap Quick Presets */}
+                  <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                    <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1 mr-1">
+                      <Clock className="w-3 h-3 text-slate-400" /> Quick Set:
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setPresetDate(0, 9, 0, 'edit')}
+                      className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-blue-50 text-blue-700 border border-blue-200/60 hover:bg-blue-100 transition active:scale-95"
+                    >
+                      Today 9 AM
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPresetDate(0, 13, 0, 'edit')}
+                      className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-blue-50 text-blue-700 border border-blue-200/60 hover:bg-blue-100 transition active:scale-95"
+                    >
+                      Today 1 PM
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPresetDate(1, 9, 0, 'edit')}
+                      className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-purple-50 text-purple-700 border border-purple-200/60 hover:bg-purple-100 transition active:scale-95"
+                    >
+                      Tomorrow 9 AM
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPresetDate(1, 13, 0, 'edit')}
+                      className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-purple-50 text-purple-700 border border-purple-200/60 hover:bg-purple-100 transition active:scale-95"
+                    >
+                      Tomorrow 1 PM
+                    </button>
+                  </div>
+                </div>
+
                 <div>
                   <label className="text-[10px] font-black uppercase tracking-wider text-slate-500 block mb-1">
                     Scope Description & Task Details
@@ -1137,6 +1257,170 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                   </div>
                 </div>
               )}
+
+              {/* --------------------------------------------------------------------- */}
+              {/* SCHEDULED SITE VISIT & QUICK RESCHEDULE */}
+              {/* --------------------------------------------------------------------- */}
+              <div className="bg-white rounded-2xl border border-slate-200/90 p-4 shadow-sm space-y-3">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-2.5">
+                    <div className={`p-2 rounded-xl border ${
+                      job.appointmentTime 
+                        ? 'bg-blue-50 text-blue-600 border-blue-200/70' 
+                        : 'bg-amber-50 text-amber-600 border-amber-200/70'
+                    }`}>
+                      <Calendar className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900">
+                          Scheduled Site Visit
+                        </h3>
+                        {job.appointmentTime && (
+                          <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-blue-100/70 text-blue-700">
+                            Booked
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs font-semibold text-slate-700 mt-0.5">
+                        {job.appointmentTime ? (
+                          <span className="text-blue-700 font-bold">
+                            {formatDateTime(job.appointmentTime)}
+                          </span>
+                        ) : (
+                          <span className="text-amber-600 font-medium">
+                            Not scheduled yet — pick a date & time below
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setQuickRescheduleTime(formatForDateTimeLocal(job.appointmentTime));
+                        setIsQuickRescheduleOpen(!isQuickRescheduleOpen);
+                        triggerHapticFeedback('light');
+                      }}
+                      className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-800 font-bold text-xs flex items-center gap-1.5 transition"
+                    >
+                      <Clock className="w-3.5 h-3.5 text-slate-600" />
+                      <span>{isQuickRescheduleOpen ? 'Close' : job.appointmentTime ? 'Reschedule' : 'Set Date & Time'}</span>
+                    </button>
+                    {job.appointmentTime && (
+                      <div className="flex items-center gap-1">
+                        <a
+                          href={buildGoogleCalendarUrl(job, profile)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="p-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200 transition"
+                          title="Add to Google Calendar"
+                        >
+                          <Share2 className="w-3.5 h-3.5" />
+                        </a>
+                        <button
+                          type="button"
+                          onClick={() => downloadIcsCalendarFile(job, profile)}
+                          className="p-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200 transition"
+                          title="Download Apple / Outlook Calendar (.ics)"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Inline Quick Reschedule Drawer */}
+                {isQuickRescheduleOpen && (
+                  <div className="mt-3 pt-3 border-t border-slate-100 space-y-3 bg-slate-50/70 p-3.5 rounded-xl animate-in fade-in">
+                    <div>
+                      <label className="text-[10px] font-black uppercase tracking-wider text-slate-600 block mb-1">
+                        Select Visit Date & Time
+                      </label>
+                      <input
+                        type="datetime-local"
+                        value={quickRescheduleTime}
+                        onChange={e => setQuickRescheduleTime(e.target.value)}
+                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-900 font-bold text-xs focus:border-blue-500 outline-none"
+                      />
+                    </div>
+
+                    {/* Presets */}
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className="text-[10px] font-bold text-slate-400 mr-1">Quick Presets:</span>
+                      <button
+                        type="button"
+                        onClick={() => setPresetDate(0, 9, 0, 'quick')}
+                        className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200 transition active:scale-95"
+                      >
+                        Today 9 AM
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPresetDate(0, 13, 0, 'quick')}
+                        className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200 transition active:scale-95"
+                      >
+                        Today 1 PM
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPresetDate(1, 9, 0, 'quick')}
+                        className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-purple-50 hover:text-purple-700 hover:border-purple-200 transition active:scale-95"
+                      >
+                        Tomorrow 9 AM
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPresetDate(1, 13, 0, 'quick')}
+                        className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-purple-50 hover:text-purple-700 hover:border-purple-200 transition active:scale-95"
+                      >
+                        Tomorrow 1 PM
+                      </button>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-2">
+                      {job.appointmentTime ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setQuickRescheduleTime('');
+                            onUpdateJob({
+                              ...job,
+                              appointmentTime: undefined,
+                              updatedAt: new Date().toISOString()
+                            });
+                            setIsQuickRescheduleOpen(false);
+                            triggerHapticFeedback('light');
+                          }}
+                          className="text-[11px] font-bold text-rose-600 hover:text-rose-700 transition"
+                        >
+                          Clear / Unschedule Visit
+                        </button>
+                      ) : <div />}
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setIsQuickRescheduleOpen(false)}
+                          className="px-3 py-1.5 text-xs font-bold text-slate-600 hover:text-slate-800 transition"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleSaveQuickReschedule}
+                          className="px-4 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 active:scale-95 text-white font-bold text-xs shadow-md shadow-blue-600/20 transition"
+                        >
+                          Save Date
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
 
               {/* --------------------------------------------------------------------- */}
               {/* INTERACTIVE TASK CHECKLIST (DONE VS PENDING TRACKER) */}
