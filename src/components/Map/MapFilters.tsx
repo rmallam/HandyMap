@@ -35,13 +35,14 @@ export const MapFilters: React.FC<MapFiltersProps> = ({
   const [isMobileFilterDrawerOpen, setIsMobileFilterDrawerOpen] = useState(false);
 
   // Counts by status
-  const activeJobsCount = jobs.filter(j => j.status !== 'invoiced').length;
+  const activeJobsCount = jobs.filter(j => j.status !== 'invoiced' && j.status !== 'cancelled').length;
   const quoteReqCount = jobs.filter(j => j.status === 'quote_requested').length;
   const inProgressCount = jobs.filter(j => j.status === 'in_progress').length;
   const quotedCount = jobs.filter(j => j.status === 'quoted').length;
   const urgentCount = jobs.filter(j => j.status === 'urgent').length;
   const completedCount = jobs.filter(j => j.status === 'completed').length;
   const invoicedCount = jobs.filter(j => j.status === 'invoiced').length;
+  const cancelledCount = jobs.filter(j => j.status === 'cancelled').length;
   const agencyCount = jobs.filter(j => j.isAgencyJob && j.realEstateAgency && j.realEstateAgency.trim().length > 0).length;
 
   // Extract unique agencies from current jobs
@@ -68,7 +69,9 @@ export const MapFilters: React.FC<MapFiltersProps> = ({
 
   // Calculate visible matching jobs count
   const matchingJobsCount = jobs.filter(job => {
-    const matchesStatus = selectedStatus === 'all' ? job.status !== 'invoiced' : job.status === selectedStatus;
+    const matchesStatus = selectedStatus === 'all' 
+      ? (job.status !== 'invoiced' && job.status !== 'cancelled') 
+      : job.status === selectedStatus;
     const matchesSuburb = selectedSuburb === 'all' || extractSuburb(job) === selectedSuburb;
     let matchesAgency = true;
     if (selectedAgency === 'agency_only') {
@@ -95,7 +98,8 @@ export const MapFilters: React.FC<MapFiltersProps> = ({
         quoted: 'Quoted',
         urgent: 'Urgent',
         completed: 'Completed',
-        invoiced: 'Paid Archive'
+        invoiced: 'Paid Archive',
+        cancelled: 'Cancelled'
       };
       parts.push(statusLabels[selectedStatus] || selectedStatus);
     }
@@ -318,6 +322,20 @@ export const MapFilters: React.FC<MapFiltersProps> = ({
                     >
                       <span>Paid Archive</span>
                       <span className="text-[10px] font-bold">{invoicedCount}</span>
+                    </button>
+                  )}
+
+                  {cancelledCount > 0 && (
+                    <button
+                      onClick={() => onSelectStatus('cancelled')}
+                      className={`py-2.5 px-3 rounded-xl font-bold flex items-center justify-between border transition ${
+                        selectedStatus === 'cancelled'
+                          ? 'bg-rose-600 text-white border-rose-700 shadow-sm'
+                          : 'bg-rose-50/60 text-rose-800 border-rose-200 hover:bg-rose-100'
+                      }`}
+                    >
+                      <span>Cancelled</span>
+                      <span className="text-[10px] font-bold">{cancelledCount}</span>
                     </button>
                   )}
                 </div>
@@ -544,6 +562,20 @@ export const MapFilters: React.FC<MapFiltersProps> = ({
               >
                 <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
                 <span>Paid Archive ({invoicedCount})</span>
+              </button>
+            )}
+
+            {cancelledCount > 0 && (
+              <button
+                onClick={() => onSelectStatus('cancelled')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 border ${
+                  selectedStatus === 'cancelled'
+                    ? 'bg-gradient-to-r from-rose-600 to-red-600 text-white border-rose-600 shadow-md shadow-rose-500/20'
+                    : 'text-rose-800 bg-rose-50/80 border-rose-200 hover:bg-rose-100'
+                }`}
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+                <span>Cancelled ({cancelledCount})</span>
               </button>
             )}
           </div>

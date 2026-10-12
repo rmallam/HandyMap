@@ -40,6 +40,7 @@ function normalizeStatus(val: any): JobStatus {
   if (str.includes('urg') || str.includes('emerg') || str.includes('rush') || str.includes('crit')) return 'urgent';
   if (str.includes('comp') || str.includes('done') || str.includes('finish')) return 'completed';
   if (str.includes('inv') || str.includes('bill') || str.includes('paid')) return 'invoiced';
+  if (str.includes('cancel') || str.includes('decline') || str.includes('reject') || str.includes('abort') || str.includes('lost')) return 'cancelled';
   return 'quote_requested';
 }
 

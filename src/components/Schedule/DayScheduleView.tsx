@@ -20,7 +20,7 @@ export const DayScheduleView: React.FC<DayScheduleViewProps> = ({
 }) => {
   // Sort jobs by appointmentTime or quoteRequestedDate
   const scheduledJobs = [...jobs]
-    .filter(j => j.status !== 'completed' && j.status !== 'invoiced')
+    .filter(j => j.status !== 'completed' && j.status !== 'invoiced' && j.status !== 'cancelled')
     .sort((a, b) => {
       const timeA = a.appointmentTime ? new Date(a.appointmentTime).getTime() : new Date(a.quoteRequestedDate).getTime();
       const timeB = b.appointmentTime ? new Date(b.appointmentTime).getTime() : new Date(b.quoteRequestedDate).getTime();

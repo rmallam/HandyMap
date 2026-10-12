@@ -282,7 +282,7 @@ export function App() {
       } else if (filterType === 'urgent_and_quotes') {
         targetJobs = jobs.filter(j => j.status === 'urgent' || j.status === 'quote_requested');
       } else {
-        targetJobs = jobs.filter(j => j.status !== 'completed' && j.status !== 'invoiced');
+        targetJobs = jobs.filter(j => j.status !== 'completed' && j.status !== 'invoiced' && j.status !== 'cancelled');
       }
 
       const route = await calculateOptimizedRoute(

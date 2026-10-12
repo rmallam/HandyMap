@@ -48,12 +48,13 @@ export const JobList: React.FC<JobListProps> = ({
   const [agencyFilter, setAgencyFilter] = useState<string>('all');
   const agencyCount = jobs.filter(j => j.isAgencyJob && j.realEstateAgency && j.realEstateAgency.trim().length > 0).length;
 
-  const activeJobsCount = jobs.filter(j => j.status !== 'invoiced').length;
+  const activeJobsCount = jobs.filter(j => j.status !== 'invoiced' && j.status !== 'cancelled').length;
   const quoteReqCount = jobs.filter(j => j.status === 'quote_requested').length;
   const inProgressCount = jobs.filter(j => j.status === 'in_progress').length;
   const quotedCount = jobs.filter(j => j.status === 'quoted').length;
   const urgentCount = jobs.filter(j => j.status === 'urgent').length;
   const completedCount = jobs.filter(j => j.status === 'completed').length;
+  const cancelledCount = jobs.filter(j => j.status === 'cancelled').length;
   const invoicedJobs = jobs.filter(j => j.status === 'invoiced');
   const invoicedCount = invoicedJobs.length;
   const totalPaidRevenue = invoicedJobs.reduce((sum, j) => sum + (j.quote?.totalAmount || 0), 0);
@@ -70,7 +71,7 @@ export const JobList: React.FC<JobListProps> = ({
   const filteredJobs = jobs.filter(job => {
     let matchesStatus = true;
     if (statusFilter === 'all') {
-      matchesStatus = job.status !== 'invoiced';
+      matchesStatus = job.status !== 'invoiced' && job.status !== 'cancelled';
     } else if (statusFilter === 'all_total') {
       matchesStatus = true;
     } else {
@@ -236,6 +237,18 @@ export const JobList: React.FC<JobListProps> = ({
           >
             💼 Paid Archive ({invoicedCount})
           </button>
+          {cancelledCount > 0 && (
+            <button
+              onClick={() => setStatusFilter('cancelled')}
+              className={`px-3 py-2 rounded-2xl text-xs font-bold whitespace-nowrap transition-all border ${
+                statusFilter === 'cancelled'
+                  ? 'bg-gradient-to-r from-rose-600 to-red-600 text-white border-rose-600 shadow-md shadow-rose-500/20'
+                  : 'bg-rose-50/80 text-rose-700 border-rose-200 hover:bg-rose-100 shadow-xs'
+              }`}
+            >
+              🚫 Cancelled ({cancelledCount})
+            </button>
+          )}
         </div>
       </div>
 

@@ -19,6 +19,7 @@ import {
 } from '../../services/contactDirectory';
 import {
   X,
+  XCircle,
   Phone,
   MessageSquare,
   Navigation2,
@@ -575,6 +576,7 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                 <option value="urgent">🔴 Urgent / Emergency</option>
                 <option value="completed">⚪ Completed</option>
                 <option value="invoiced">🔵 Invoiced & Paid</option>
+                <option value="cancelled">🚫 Cancelled (Did Not Proceed)</option>
               </select>
 
               <span className="text-xs font-semibold bg-slate-100 text-slate-700 px-2.5 py-0.5 rounded-full flex items-center gap-1 border border-slate-200/60">
@@ -844,7 +846,7 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                   <div>
                     <label className="text-[10px] font-black uppercase tracking-wider text-slate-500 block mb-1">
                       Category
@@ -857,6 +859,25 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                       {CATEGORIES.map(cat => (
                         <option key={cat} value={cat}>{cat}</option>
                       ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-500 block mb-1">
+                      Pipeline Status
+                    </label>
+                    <select
+                      value={editStatus}
+                      onChange={e => setEditStatus(e.target.value as JobStatus)}
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-900 font-semibold focus:border-blue-500 outline-none"
+                    >
+                      <option value="quote_requested">Needs Quote</option>
+                      <option value="quoted">Quoted</option>
+                      <option value="in_progress">In Progress</option>
+                      <option value="urgent">Urgent</option>
+                      <option value="completed">Completed</option>
+                      <option value="invoiced">Invoiced / Paid</option>
+                      <option value="cancelled">Cancelled (Declined)</option>
                     </select>
                   </div>
 
@@ -1110,6 +1131,42 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
           {/* ========================================================================= */}
           {activeTab === 'overview' && !isEditing && (
             <div className="flex flex-col gap-5 text-slate-900">
+
+              {/* Job Cancelled / Did Not Proceed Banner */}
+              {job.status === 'cancelled' && (
+                <div className="bg-rose-50 border border-rose-200/90 rounded-2xl p-4 sm:p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-in fade-in">
+                  <div className="flex items-start sm:items-center gap-3.5">
+                    <div className="w-11 h-11 rounded-2xl bg-rose-100 border border-rose-200 text-rose-700 flex items-center justify-center font-bold text-sm shrink-0">
+                      <XCircle className="w-6 h-6 text-rose-600" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-md bg-rose-200/70 text-rose-900 border border-rose-300">
+                          Job Cancelled
+                        </span>
+                        <span className="text-xs font-bold text-rose-800">Did Not Proceed After Quote</span>
+                      </div>
+                      <p className="text-xs text-rose-700 mt-1">
+                        This job did not move forward. It is archived from active maps and route plans, but all quotes and notes are saved.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handleStatusChange('quote_requested');
+                        triggerHapticFeedback('success');
+                      }}
+                      className="px-4 py-2 rounded-xl bg-white hover:bg-rose-100 text-rose-900 font-bold text-xs border border-rose-300 active:scale-95 transition shadow-xs flex items-center gap-1.5"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      <span>Reactivate Job</span>
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {/* Job Completed & Tax Invoice Generation Banner */}
               {(job.status === 'completed' || job.status === 'invoiced') && (
@@ -1707,7 +1764,7 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
               </div>
 
               {/* Complete Job & Invoice Action Card (when active or in progress) */}
-              {job.status !== 'completed' && job.status !== 'invoiced' && (
+              {job.status !== 'completed' && job.status !== 'invoiced' && job.status !== 'cancelled' && (
                 <div className="bg-gradient-to-r from-emerald-50 via-white to-emerald-50/60 rounded-2xl border-2 border-emerald-300/80 p-4 sm:p-5 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4 animate-in fade-in">
                   <div className="flex items-center gap-3">
                     <div className="p-2.5 rounded-2xl bg-emerald-600 text-white shadow-md shadow-emerald-600/20 shrink-0">
@@ -1791,18 +1848,47 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                 </div>
               </div>
 
-              {/* Delete Job Option */}
-              <div className="pt-2 flex justify-end">
+              {/* Job Cancellation & Deletion Footer */}
+              <div className="pt-3 flex items-center justify-between border-t border-slate-200/60 flex-wrap gap-2">
+                {job.status === 'cancelled' ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleStatusChange('quote_requested');
+                      triggerHapticFeedback('success');
+                    }}
+                    className="text-xs text-amber-700 hover:text-amber-800 font-bold flex items-center gap-1 transition"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" /> Reactivate Job (Move to Needs Quote)
+                  </button>
+                ) : (
+                  job.status !== 'invoiced' && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (window.confirm('Mark this job as Cancelled / Did Not Proceed? It will be archived from active maps and routes.')) {
+                          handleStatusChange('cancelled');
+                          triggerHapticFeedback('warning');
+                        }
+                      }}
+                      className="text-xs text-rose-600 hover:text-rose-800 font-bold flex items-center gap-1 transition"
+                    >
+                      <XCircle className="w-3.5 h-3.5" /> Cancel Job (Did Not Proceed)
+                    </button>
+                  )
+                )}
+
                 <button
+                  type="button"
                   onClick={() => {
-                    if (window.confirm('Are you sure you want to delete this job?')) {
+                    if (window.confirm('Are you sure you want to permanently delete this job? This cannot be undone.')) {
                       onDeleteJob(job.id);
                       onClose();
                     }
                   }}
-                  className="text-xs text-red-600 hover:text-red-700 font-semibold flex items-center gap-1 transition"
+                  className="text-xs text-slate-400 hover:text-red-600 font-semibold flex items-center gap-1 transition ml-auto"
                 >
-                  <Trash2 className="w-3.5 h-3.5" /> Delete Job
+                  <Trash2 className="w-3.5 h-3.5" /> Delete Permanently
                 </button>
               </div>
             </div>

@@ -42,7 +42,7 @@ create table if not exists public.jobs (
   suburb text default 'Point Cook',
   latitude double precision not null,
   longitude double precision not null,
-  status text not null check (status in ('quote_requested', 'quoted', 'in_progress', 'urgent', 'completed', 'invoiced')),
+  status text not null check (status in ('quote_requested', 'quoted', 'in_progress', 'urgent', 'completed', 'invoiced', 'cancelled')),
   priority text not null check (priority in ('low', 'medium', 'high', 'urgent')),
   category text not null,
   description text,

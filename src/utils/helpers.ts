@@ -79,6 +79,17 @@ export const STATUS_CONFIG: Record<
     badgeBg: 'bg-blue-600',
     icon: 'Receipt',
     description: 'Final tax invoice generated and sent to customer.'
+  },
+  cancelled: {
+    label: 'Cancelled / Did Not Proceed',
+    shortLabel: 'Cancelled',
+    colorHex: '#e11d48', // Rose 600
+    bgClass: 'bg-rose-50',
+    textClass: 'text-rose-700',
+    borderClass: 'border-rose-200',
+    badgeBg: 'bg-rose-600',
+    icon: 'XCircle',
+    description: 'Job did not proceed or was cancelled after quoting.'
   }
 };
 

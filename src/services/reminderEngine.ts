@@ -41,7 +41,7 @@ export function isDateToday(dateStr?: string): boolean {
  */
 export function getJobsScheduledForToday(jobs: Job[]): Job[] {
   return jobs.filter(j => {
-    if (j.status === 'invoiced') return false; // Exclude paid/archived jobs
+    if (j.status === 'invoiced' || j.status === 'cancelled') return false; // Exclude paid/cancelled jobs
     return isDateToday(j.appointmentTime) || (j.status === 'in_progress' && isDateToday(j.updatedAt));
   }).sort((a, b) => {
     const timeA = a.appointmentTime ? new Date(a.appointmentTime).getTime() : 0;
@@ -64,8 +64,8 @@ export function generateReminders(
   const ONE_HOUR = 60 * 60 * 1000;
 
   for (const job of jobs) {
-    // Exclude finished & paid jobs from active alerts
-    if (job.status === 'invoiced') continue;
+    // Exclude finished, paid, and cancelled jobs from active alerts
+    if (job.status === 'invoiced' || job.status === 'cancelled') continue;
 
     // 1. URGENT / EMERGENCY UNATTENDED LEADS
     if (job.priority === 'urgent' && (job.status === 'quote_requested' || job.status === 'in_progress')) {

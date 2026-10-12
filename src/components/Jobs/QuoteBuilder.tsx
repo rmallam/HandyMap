@@ -17,7 +17,10 @@ import {
   FileCheck2,
   MessageSquare,
   Building2,
-  CreditCard
+  CreditCard,
+  XCircle,
+  X,
+  ArrowRight
 } from 'lucide-react';
 
 interface QuoteBuilderProps {
@@ -219,6 +222,47 @@ export const QuoteBuilder: React.FC<QuoteBuilderProps> = ({
     saveQuoteChanges('accepted', 'in_progress');
   };
 
+  const [showCancelModal, setShowCancelModal] = useState(false);
+
+  // Handle Decline / Cancel Job if work didn't proceed
+  const handleDeclineAndCancel = (reason: string) => {
+    triggerHapticFeedback('warning');
+    const updatedQuote: JobQuote = {
+      ...quote,
+      status: 'declined'
+    };
+    const noteEntry = `${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}: Quote declined / Job cancelled — Reason: ${reason}`;
+    const updatedJob: Job = {
+      ...job,
+      status: 'cancelled',
+      quote: updatedQuote,
+      internalNotes: [...(job.internalNotes || []), noteEntry],
+      updatedAt: new Date().toISOString()
+    };
+    onUpdateJob(updatedJob);
+    setQuote(updatedQuote);
+    setShowCancelModal(false);
+  };
+
+  // Reactivate Job from cancelled or declined state
+  const handleReactivateJob = () => {
+    triggerHapticFeedback('success');
+    const updatedQuote: JobQuote = {
+      ...quote,
+      status: 'draft'
+    };
+    const noteEntry = `${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}: Job reactivated from cancelled state`;
+    const updatedJob: Job = {
+      ...job,
+      status: 'quote_requested',
+      quote: updatedQuote,
+      internalNotes: [...(job.internalNotes || []), noteEntry],
+      updatedAt: new Date().toISOString()
+    };
+    onUpdateJob(updatedJob);
+    setQuote(updatedQuote);
+  };
+
   return (
     <div className="flex flex-col gap-6 text-slate-900">
       {/* Handyman Business Banner & ABN Header */}
@@ -279,14 +323,16 @@ export const QuoteBuilder: React.FC<QuoteBuilderProps> = ({
             </span>
             <span
               className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full border shadow-xs ${
-                quote.status === 'accepted'
+                job.status === 'cancelled' || quote.status === 'declined'
+                  ? 'bg-rose-50 text-rose-800 border-rose-200'
+                  : quote.status === 'accepted'
                   ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
                   : quote.status === 'sent'
                   ? 'bg-purple-50 text-purple-800 border-purple-200'
                   : 'bg-amber-50 text-amber-800 border-amber-200'
               }`}
             >
-              {quote.status.toUpperCase()}
+              {job.status === 'cancelled' || quote.status === 'declined' ? 'CANCELLED / DECLINED' : quote.status.toUpperCase()}
             </span>
           </div>
           <p className="text-xs text-slate-500 mt-1 font-medium">
@@ -295,18 +341,70 @@ export const QuoteBuilder: React.FC<QuoteBuilderProps> = ({
         </div>
 
         {/* Action Buttons */}
-        <div className="flex items-center gap-2">
-          {quote.status !== 'accepted' && (
+        <div className="flex items-center gap-2 flex-wrap">
+          {job.status === 'cancelled' || quote.status === 'declined' ? (
             <button
-              onClick={handleAcceptQuote}
-              className="px-4 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black flex items-center gap-1.5 transition shadow-md shadow-emerald-600/20 active:scale-95"
+              type="button"
+              onClick={handleReactivateJob}
+              className="px-4 py-2.5 rounded-2xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 text-xs font-black flex items-center gap-1.5 transition active:scale-95 cursor-pointer shadow-xs"
             >
-              <Check className="w-4 h-4 stroke-[3]" />
-              <span>Approve & Start</span>
+              <RotateCcw className="w-4 h-4 text-amber-700" />
+              <span>Reactivate Job</span>
             </button>
+          ) : (
+            <>
+              {quote.status !== 'accepted' && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setShowCancelModal(true)}
+                    className="px-3.5 py-2.5 rounded-2xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200/90 text-xs font-black flex items-center gap-1.5 transition active:scale-95 cursor-pointer shadow-xs"
+                    title="Customer decided not to proceed with this quote"
+                  >
+                    <XCircle className="w-4 h-4 text-rose-600" />
+                    <span>Cancel Job</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleAcceptQuote}
+                    className="px-4 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black flex items-center gap-1.5 transition shadow-md shadow-emerald-600/20 active:scale-95"
+                  >
+                    <Check className="w-4 h-4 stroke-[3]" />
+                    <span>Approve & Start</span>
+                  </button>
+                </>
+              )}
+            </>
           )}
         </div>
       </div>
+
+      {/* Cancelled Banner */}
+      {job.status === 'cancelled' && (
+        <div className="bg-rose-50/90 border border-rose-200 rounded-3xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-in fade-in">
+          <div className="flex items-start sm:items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-rose-100 text-rose-700 flex items-center justify-center shrink-0">
+              <XCircle className="w-5 h-5" />
+            </div>
+            <div>
+              <h4 className="text-xs font-black uppercase tracking-wider text-rose-900">
+                Job Cancelled / Did Not Proceed
+              </h4>
+              <p className="text-xs text-rose-700 mt-0.5">
+                The customer decided not to move forward with the quote. This job is archived from your active routes and maps.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={handleReactivateJob}
+            className="px-4 py-2 rounded-xl bg-white hover:bg-rose-100 text-rose-900 font-bold text-xs border border-rose-300 transition shrink-0 shadow-xs"
+          >
+            Reactivate Job
+          </button>
+        </div>
+      )}
 
 
       {/* Itemized Line Items Table */}
@@ -541,6 +639,17 @@ export const QuoteBuilder: React.FC<QuoteBuilderProps> = ({
         </button>
 
         <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+          {job.status !== 'cancelled' && quote.status !== 'declined' && (
+            <button
+              type="button"
+              onClick={() => setShowCancelModal(true)}
+              className="px-3.5 py-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold transition active:scale-95 shadow-sm"
+              title="Cancel job if work didn't proceed"
+            >
+              Did Not Proceed
+            </button>
+          )}
+
           <button
             onClick={() => saveQuoteChanges('sent', 'quoted')}
             className="flex-1 sm:flex-initial px-3.5 sm:px-4 py-2.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-800 border border-purple-200 text-xs font-bold flex items-center justify-center gap-1.5 transition active:scale-95 shadow-sm"
@@ -558,6 +667,65 @@ export const QuoteBuilder: React.FC<QuoteBuilderProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Cancellation Reason Modal */}
+      {showCancelModal && (
+        <div className="fixed inset-0 z-[4000] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
+          <div className="bg-white rounded-3xl p-5 sm:p-6 max-w-md w-full shadow-2xl border border-slate-200 space-y-4 animate-in zoom-in-95">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-2xl bg-rose-100 text-rose-700">
+                  <XCircle className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-slate-900">Cancel Job / Quote Declined</h3>
+                  <p className="text-xs text-slate-500">Didn&apos;t go forward with {job.clientName}?</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowCancelModal(false)}
+                className="p-1.5 text-slate-400 hover:text-slate-700 rounded-full"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-wider text-slate-500 block">
+                Select Reason (Saved to internal notes)
+              </label>
+              {[
+                'Price / Budget too high',
+                'Client hired someone else',
+                'Client postponed indefinitely',
+                'Unable to contact client / No response',
+                'Scope changed / Not feasible'
+              ].map(reason => (
+                <button
+                  key={reason}
+                  type="button"
+                  onClick={() => handleDeclineAndCancel(reason)}
+                  className="w-full text-left p-2.5 rounded-xl border border-slate-200 hover:border-rose-300 hover:bg-rose-50/50 text-xs font-semibold text-slate-800 transition flex items-center justify-between group"
+                >
+                  <span>{reason}</span>
+                  <ArrowRight className="w-3.5 h-3.5 text-slate-300 group-hover:text-rose-600 transition" />
+                </button>
+              ))}
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setShowCancelModal(false)}
+                className="px-4 py-2 text-xs font-bold text-slate-600 hover:text-slate-900"
+              >
+                Keep Job Active
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

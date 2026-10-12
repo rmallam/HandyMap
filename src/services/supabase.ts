@@ -369,6 +369,13 @@ export async function upsertJobInSupabase(job: Job, userId: string): Promise<boo
       const retry = await supabase.from('jobs').upsert(row);
       error = retry.error;
     }
+    // If the remote database has an older check constraint that doesn't permit 'cancelled' yet
+    if (error && (error.message.includes('status') || error.code === '23514')) {
+      console.warn('Supabase status check constraint detected. Retrying with completed status fallback.');
+      row.status = 'completed';
+      const retry = await supabase.from('jobs').upsert(row);
+      error = retry.error;
+    }
     if (error) {
       console.warn('Supabase job upsert error:', error.message);
       return false;

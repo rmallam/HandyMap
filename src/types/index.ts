@@ -4,7 +4,8 @@ export type JobStatus =
   | 'in_progress'       // Green: Work underway or confirmed scheduled
   | 'urgent'            // Red: Urgent / emergency repair
   | 'completed'         // Slate: Finished work
-  | 'invoiced';         // Blue-gray: Invoiced & finalized
+  | 'invoiced'          // Blue-gray: Invoiced & finalized
+  | 'cancelled';        // Rose/Gray: Cancelled / Quote declined / didn't proceed
 
 export type JobPriority = 'low' | 'medium' | 'high' | 'urgent';
 

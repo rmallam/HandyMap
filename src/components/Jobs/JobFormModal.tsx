@@ -776,34 +776,23 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
               Status, Urgency & Estimated Time
             </span>
 
-            {/* Status Pills */}
+            {/* Initial Pipeline Status - Locked to Needs Quote */}
             <div>
               <label className="text-[10px] font-bold text-slate-600 block mb-1.5">
                 Initial Pipeline Status
               </label>
-              <div className="grid grid-cols-3 gap-2">
-                {[
-                  { id: 'quote_requested', label: 'Needs Quote' },
-                  { id: 'in_progress', label: 'In Progress' },
-                  { id: 'urgent', label: 'Urgent Work' }
-                ].map(s => (
-                  <button
-                    key={s.id}
-                    type="button"
-                    onClick={() => {
-                      triggerHapticFeedback('light');
-                      setStatus(s.id as JobStatus);
-                    }}
-                    className={`py-2 px-2.5 rounded-xl text-xs font-bold transition text-center ${
-                      status === s.id
-                        ? 'bg-blue-600 text-white shadow-sm'
-                        : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
-                    }`}
-                  >
-                    {s.label}
-                  </button>
-                ))}
+              <div className="flex items-center justify-between p-2.5 rounded-xl bg-amber-50/80 border border-amber-200/80">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse" />
+                  <span className="text-xs font-bold text-amber-900">Needs Quote (Site Visit)</span>
+                </div>
+                <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-amber-200/60 text-amber-800">
+                  New Job Default
+                </span>
               </div>
+              <p className="text-[10px] text-slate-500 mt-1">
+                All newly entered jobs start in &quot;Needs Quote&quot;. Once estimated, advance to Quoted or In Progress.
+              </p>
             </div>
 
             {/* Priority Pills */}

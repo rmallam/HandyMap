@@ -65,7 +65,7 @@ export const RoutePlannerView: React.FC<RoutePlannerViewProps> = ({
     if (selectedGoal === 'quotes_only') return j.status === 'quote_requested';
     if (selectedGoal === 'active_only') return j.status === 'in_progress';
     if (selectedGoal === 'urgent_and_quotes') return j.status === 'urgent' || j.status === 'quote_requested';
-    return j.status !== 'completed' && j.status !== 'invoiced';
+    return j.status !== 'completed' && j.status !== 'invoiced' && j.status !== 'cancelled';
   });
 
   const suburbCounts: Record<string, number> = {};

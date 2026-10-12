@@ -96,9 +96,9 @@ export const MapView: React.FC<MapViewProps> = ({
 
   // Filter jobs by status, suburb, and agency
   const visibleJobs = jobs.filter(job => {
-    // When 'all' is selected, exclude paid & invoiced jobs to keep the active map uncluttered
+    // When 'all' is selected, exclude paid & invoiced jobs and cancelled jobs to keep the active map uncluttered
     const matchesStatus = selectedStatus === 'all' 
-      ? job.status !== 'invoiced' 
+      ? job.status !== 'invoiced' && job.status !== 'cancelled' 
       : job.status === selectedStatus;
     const matchesSuburb = selectedSuburb === 'all' || extractSuburb(job) === selectedSuburb;
     
