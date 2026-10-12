@@ -22,6 +22,7 @@ import {
   saveSnoozedReminderIds,
   checkAndSendMorningDailyDigest
 } from './services/reminderEngine';
+import { harvestContactsFromJobs } from './services/contactDirectory';
 import {
   initNativeDevice,
   getNativeCurrentPosition,
@@ -184,9 +185,11 @@ export function App() {
   }, []);
 
   // Check and dispatch single consolidated Morning Daily Digest for today's scheduled jobs
+  // and harvest existing contacts into the directory rolodex
   useEffect(() => {
     if (jobs.length > 0) {
       checkAndSendMorningDailyDigest(jobs, profile);
+      harvestContactsFromJobs(jobs);
     }
   }, [jobs, profile]);
 

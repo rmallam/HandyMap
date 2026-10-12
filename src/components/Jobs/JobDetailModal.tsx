@@ -12,10 +12,17 @@ import { AddressAutocomplete, AddressResult } from '../Common/AddressAutocomplet
 import { QuoteBuilder } from './QuoteBuilder';
 import { TimeTracker } from './TimeTracker';
 import {
+  searchSavedCustomers,
+  findCustomerByPhone,
+  saveOrUpdateCustomer,
+  SavedCustomer
+} from '../../services/contactDirectory';
+import {
   X,
   Phone,
   MessageSquare,
   Navigation2,
+  ArrowRight,
   FileText,
   Camera,
   Clock,
@@ -167,6 +174,47 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
   const [editSuburb, setEditSuburb] = useState(job.suburb || 'Point Cook');
   const [editCoordinates, setEditCoordinates] = useState<[number, number]>(job.coordinates);
   const [editDuration, setEditDuration] = useState(job.estimatedDurationMinutes);
+  const [editCustomerSuggestions, setEditCustomerSuggestions] = useState<SavedCustomer[]>([]);
+  const [showEditCustomerDropdown, setShowEditCustomerDropdown] = useState(false);
+  const [editPhoneMatchedCustomer, setEditPhoneMatchedCustomer] = useState<SavedCustomer | null>(null);
+
+  const handleEditClientNameChange = (val: string) => {
+    setEditClientName(val);
+    if (val.trim().length >= 2) {
+      const matches = searchSavedCustomers(val, 4);
+      setEditCustomerSuggestions(matches);
+      setShowEditCustomerDropdown(matches.length > 0);
+    } else {
+      setEditCustomerSuggestions([]);
+      setShowEditCustomerDropdown(false);
+    }
+  };
+
+  const handleEditClientPhoneChange = (val: string) => {
+    setEditClientPhone(val);
+    if (val.trim().length >= 8) {
+      const found = findCustomerByPhone(val);
+      if (found && found.name.toLowerCase() !== editClientName.trim().toLowerCase()) {
+        setEditPhoneMatchedCustomer(found);
+      } else {
+        setEditPhoneMatchedCustomer(null);
+      }
+    } else {
+      setEditPhoneMatchedCustomer(null);
+    }
+  };
+
+  const handleSelectEditCustomer = (cust: SavedCustomer) => {
+    triggerHapticFeedback('success');
+    setEditClientName(cust.name);
+    setEditClientPhone(cust.phone);
+    if (cust.email) setEditClientEmail(cust.email);
+    if (cust.address) setEditAddress(cust.address);
+    if (cust.suburb) setEditSuburb(cust.suburb);
+    if (cust.coordinates) setEditCoordinates(cust.coordinates);
+    setShowEditCustomerDropdown(false);
+    setEditPhoneMatchedCustomer(null);
+  };
 
   // Sync edit form and photo stitcher when job prop changes
   useEffect(() => {
@@ -359,6 +407,19 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
       estimatedDurationMinutes: Number(editDuration) || 45,
       updatedAt: new Date().toISOString()
     };
+    try {
+      saveOrUpdateCustomer({
+        name: editClientName.trim() || job.clientName,
+        phone: editClientPhone.trim() || job.clientPhone,
+        email: editClientEmail.trim() || job.clientEmail,
+        address: editAddress.trim() || job.address,
+        suburb: editSuburb || job.suburb,
+        coordinates: editCoordinates || job.coordinates
+      });
+    } catch (err) {
+      console.warn('Silent contact update notice:', err);
+    }
+
     onUpdateJob(updatedJob);
     setIsEditing(false);
   };
@@ -791,17 +852,41 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
 
               {/* Group 2: Client & Address */}
               <div className="bg-slate-50/80 rounded-2xl border border-slate-200/80 p-3.5 space-y-3">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 relative">
+                  <div className="relative">
                     <label className="text-[10px] font-black uppercase tracking-wider text-slate-500 block mb-1">
                       Client Full Name
                     </label>
                     <input
                       type="text"
                       value={editClientName}
-                      onChange={e => setEditClientName(e.target.value)}
+                      onChange={e => handleEditClientNameChange(e.target.value)}
+                      placeholder="e.g. Jordan Miller"
                       className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-900 font-semibold focus:border-blue-500 outline-none"
                     />
+
+                    {/* Autocomplete Dropdown */}
+                    {showEditCustomerDropdown && editCustomerSuggestions.length > 0 && (
+                      <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-blue-200 rounded-2xl shadow-xl z-50 overflow-hidden divide-y divide-slate-100 animate-in fade-in">
+                        {editCustomerSuggestions.map(cust => (
+                          <div
+                            key={cust.id}
+                            onClick={() => handleSelectEditCustomer(cust)}
+                            className="p-2.5 hover:bg-blue-50 cursor-pointer transition flex items-center justify-between"
+                          >
+                            <div>
+                              <div className="font-black text-slate-900 text-xs">{cust.name}</div>
+                              <div className="text-[11px] text-slate-500">
+                                {cust.phone} {cust.address && `• ${cust.address}`}
+                              </div>
+                            </div>
+                            <span className="text-[10px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
+                              Auto-fill
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
                   <div>
@@ -811,11 +896,36 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                     <input
                       type="tel"
                       value={editClientPhone}
-                      onChange={e => setEditClientPhone(e.target.value)}
-                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-900 font-semibold focus:border-blue-500 outline-none"
+                      onChange={e => handleEditClientPhoneChange(e.target.value)}
+                      placeholder="0412 345 678"
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-900 font-semibold focus:border-blue-500 outline-none font-mono"
                     />
                   </div>
                 </div>
+
+                {/* Smart Phone Match Banner */}
+                {editPhoneMatchedCustomer && (
+                  <div className="p-2.5 rounded-xl bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 flex items-center justify-between gap-2 animate-in fade-in">
+                    <div className="min-w-0">
+                      <div className="font-bold text-emerald-950 text-xs flex items-center gap-1">
+                        <Sparkles className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                        <span className="truncate">Saved Customer: {editPhoneMatchedCustomer.name}</span>
+                      </div>
+                      <div className="text-[11px] text-emerald-700 truncate">
+                        {editPhoneMatchedCustomer.address} ({editPhoneMatchedCustomer.suburb})
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => handleSelectEditCustomer(editPhoneMatchedCustomer)}
+                      className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-[11px] shrink-0 shadow-xs transition active:scale-95 flex items-center gap-1"
+                    >
+                      <span>Auto-fill</span>
+                      <ArrowRight className="w-3 h-3" />
+                    </button>
+                  </div>
+                )}
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div className="sm:col-span-2">

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Job, JobCategory, JobPriority, JobStatus, JobTask } from '../../types';
 import { REAL_ESTATE_AGENCIES, SUBURBS_LIST } from '../../data/mockJobs';
 import {
@@ -18,10 +18,24 @@ import {
   FileText,
   ListTodo,
   Check,
-  Briefcase
+  Briefcase,
+  Users,
+  ChevronDown,
+  ArrowRight
 } from 'lucide-react';
 import { AddressAutocomplete, AddressResult } from '../Common/AddressAutocomplete';
 import { triggerHapticFeedback } from '../../services/nativeMobile';
+import {
+  loadSavedCustomers,
+  loadSavedAgents,
+  searchSavedCustomers,
+  searchSavedAgents,
+  findCustomerByPhone,
+  saveOrUpdateCustomer,
+  saveOrUpdateAgent,
+  SavedCustomer,
+  SavedAgent
+} from '../../services/contactDirectory';
 
 interface JobFormModalProps {
   isOpen: boolean;
@@ -78,6 +92,112 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
   const [workOrderNumber, setWorkOrderNumber] = useState('');
   const [tenantName, setTenantName] = useState('');
   const [tenantPhone, setTenantPhone] = useState('');
+
+  // Rolodex / Contact Directory State
+  const [savedCustomers, setSavedCustomers] = useState<SavedCustomer[]>([]);
+  const [savedAgents, setSavedAgents] = useState<SavedAgent[]>([]);
+  const [customerSuggestions, setCustomerSuggestions] = useState<SavedCustomer[]>([]);
+  const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
+  const [agentSuggestions, setAgentSuggestions] = useState<SavedAgent[]>([]);
+  const [showAgentDropdown, setShowAgentDropdown] = useState(false);
+  const [matchedCustomerByPhone, setMatchedCustomerByPhone] = useState<SavedCustomer | null>(null);
+  const [showSavedCustomersList, setShowSavedCustomersList] = useState(false);
+
+  const customerInputRef = useRef<HTMLInputElement>(null);
+  const agencyInputRef = useRef<HTMLInputElement>(null);
+
+  // Load directory on open
+  useEffect(() => {
+    if (isOpen) {
+      const customers = loadSavedCustomers();
+      const agents = loadSavedAgents();
+      setSavedCustomers(customers);
+      setSavedAgents(agents);
+      setCustomerSuggestions([]);
+      setAgentSuggestions([]);
+      setShowCustomerDropdown(false);
+      setShowAgentDropdown(false);
+      setMatchedCustomerByPhone(null);
+      setShowSavedCustomersList(false);
+    }
+  }, [isOpen]);
+
+  // Client Name change with autocomplete search
+  const handleClientNameChange = (val: string) => {
+    setClientName(val);
+    if (val.trim().length >= 2) {
+      const matches = searchSavedCustomers(val, 4);
+      setCustomerSuggestions(matches);
+      setShowCustomerDropdown(matches.length > 0);
+    } else {
+      setCustomerSuggestions([]);
+      setShowCustomerDropdown(false);
+    }
+  };
+
+  // Client Phone change with smart customer auto-match
+  const handleClientPhoneChange = (val: string) => {
+    setClientPhone(val);
+    if (val.trim().length >= 8) {
+      const found = findCustomerByPhone(val);
+      if (found && found.name.toLowerCase() !== clientName.trim().toLowerCase()) {
+        setMatchedCustomerByPhone(found);
+      } else {
+        setMatchedCustomerByPhone(null);
+      }
+    } else {
+      setMatchedCustomerByPhone(null);
+    }
+  };
+
+  // Apply selected customer
+  const handleSelectCustomer = (cust: SavedCustomer) => {
+    triggerHapticFeedback('success');
+    setClientName(cust.name);
+    setClientPhone(cust.phone);
+    if (cust.email) setClientEmail(cust.email);
+    if (cust.address) setAddress(cust.address);
+    if (cust.suburb) setSuburb(cust.suburb);
+    if (cust.coordinates) setSelectedCoordinates(cust.coordinates);
+    setShowCustomerDropdown(false);
+    setShowSavedCustomersList(false);
+    setMatchedCustomerByPhone(null);
+  };
+
+  // Agency change with autocomplete search
+  const handleAgencyChange = (val: string) => {
+    setRealEstateAgency(val);
+    if (val.trim().length >= 2) {
+      const matches = searchSavedAgents(val, 4);
+      setAgentSuggestions(matches);
+      setShowAgentDropdown(matches.length > 0);
+    } else {
+      setAgentSuggestions([]);
+      setShowAgentDropdown(false);
+    }
+  };
+
+  // Agent Name change with autocomplete search
+  const handleAgentNameChange = (val: string) => {
+    setRealEstateAgentName(val);
+    if (val.trim().length >= 2) {
+      const matches = searchSavedAgents(val, 4);
+      setAgentSuggestions(matches);
+      setShowAgentDropdown(matches.length > 0);
+    } else {
+      setAgentSuggestions([]);
+      setShowAgentDropdown(false);
+    }
+  };
+
+  // Apply selected agent
+  const handleSelectAgent = (agent: SavedAgent) => {
+    triggerHapticFeedback('success');
+    setRealEstateAgency(agent.agencyName);
+    setRealEstateAgentName(agent.agentName);
+    setRealEstateAgentPhone(agent.agentPhone);
+    setShowAgentDropdown(false);
+  };
 
   const handleAddressSelect = (result: AddressResult) => {
     setAddress(result.address);
@@ -142,14 +262,40 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
       });
     }
 
+    const finalClientPhone = clientPhone.trim() || '0412 555 019';
+    const finalClientEmail = clientEmail.trim() || `${clientName.toLowerCase().replace(/\s+/g, '.')}@gmail.com`;
+    const finalAddress = address.trim() || `${suburb} VIC 3030`;
+
+    // Persist to Contact Directory (Zero-risk, background safe)
+    try {
+      saveOrUpdateCustomer({
+        name: clientName.trim(),
+        phone: finalClientPhone,
+        email: finalClientEmail,
+        address: finalAddress,
+        suburb,
+        coordinates
+      });
+
+      if (isAgencyJob && realEstateAgency.trim()) {
+        saveOrUpdateAgent({
+          agencyName: realEstateAgency.trim(),
+          agentName: realEstateAgentName.trim() || 'Property Manager',
+          agentPhone: realEstateAgentPhone.trim() || '0412 888 901'
+        });
+      }
+    } catch (err) {
+      console.warn('Silent contact directory save notice:', err);
+    }
+
     const newJob: Job = {
       id: `job-${Date.now()}`,
       jobNumber,
       title: title.trim(),
       clientName: clientName.trim(),
-      clientPhone: clientPhone.trim() || '0412 555 019',
-      clientEmail: clientEmail.trim() || `${clientName.toLowerCase().replace(/\s+/g, '.')}@gmail.com`,
-      address: address.trim() || `${suburb} VIC 3030`,
+      clientPhone: finalClientPhone,
+      clientEmail: finalClientEmail,
+      address: finalAddress,
       suburb,
       coordinates,
       status,
@@ -163,7 +309,7 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
       
       // Agency details
       isAgencyJob,
-      realEstateAgency: isAgencyJob ? realEstateAgency : undefined,
+      realEstateAgency: isAgencyJob ? realEstateAgency.trim() : undefined,
       realEstateAgentName: isAgencyJob ? realEstateAgentName.trim() : undefined,
       realEstateAgentPhone: isAgencyJob ? realEstateAgentPhone.trim() : undefined,
       workOrderNumber: isAgencyJob ? workOrderNumber.trim() : undefined,
@@ -282,7 +428,7 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
             </div>
           </div>
 
-          {/* SECTION 2: REAL ESTATE AGENCY TOGGLE */}
+          {/* SECTION 2: REAL ESTATE AGENCY TOGGLE & AUTOSUGGEST */}
           <div className={`rounded-2xl border transition-all ${
             isAgencyJob
               ? 'bg-purple-50/70 border-purple-200 p-3.5 sm:p-4'
@@ -297,7 +443,7 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
                 </div>
                 <div>
                   <div className="font-bold text-slate-900 text-xs">Real Estate Agency Work Order</div>
-                  <div className="text-[11px] text-slate-500">Enable if dispatched by a property manager (e.g. Ray White)</div>
+                  <div className="text-[11px] text-slate-500">Auto-populates saved agency & property manager contacts</div>
                 </div>
               </div>
 
@@ -313,77 +459,174 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
             </label>
 
             {isAgencyJob && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3 mt-3 border-t border-purple-200/80 animate-in fade-in">
-                <div>
-                  <label className="text-[10px] font-bold text-purple-950 block mb-1">
-                    Agency Partner *
-                  </label>
-                  <input
-                    type="text"
-                    list="agency-suggestions"
-                    value={realEstateAgency}
-                    onChange={e => setRealEstateAgency(e.target.value)}
-                    placeholder="e.g., Ray White Point Cook"
-                    className="w-full bg-white border border-purple-200 rounded-xl px-3 py-2 text-slate-900 font-semibold outline-none focus:border-purple-600"
-                  />
-                  <datalist id="agency-suggestions">
-                    {REAL_ESTATE_AGENCIES.map(a => (
-                      <option key={a} value={a} />
-                    ))}
-                  </datalist>
-                </div>
+              <div className="space-y-3 pt-3 mt-3 border-t border-purple-200/80 animate-in fade-in">
+                {/* Saved Agents Quick-Select Chips */}
+                {savedAgents.length > 0 && (
+                  <div className="space-y-1.5">
+                    <span className="text-[10px] font-black text-purple-900 uppercase tracking-wider block">
+                      Saved Property Managers ({savedAgents.length})
+                    </span>
+                    <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1">
+                      {savedAgents.slice(0, 5).map(ag => (
+                        <button
+                          key={ag.id}
+                          type="button"
+                          onClick={() => handleSelectAgent(ag)}
+                          className="px-2.5 py-1.5 rounded-xl bg-white border border-purple-200 hover:border-purple-400 text-purple-900 font-bold text-[11px] whitespace-nowrap shadow-xs transition active:scale-95 flex items-center gap-1.5"
+                        >
+                          <Building2 className="w-3 h-3 text-purple-600" />
+                          <span>{ag.agencyName}</span>
+                          <span className="text-purple-400">•</span>
+                          <span className="text-purple-700">{ag.agentName}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
-                <div>
-                  <label className="text-[10px] font-bold text-purple-950 block mb-1">
-                    Work Order # (PO)
-                  </label>
-                  <input
-                    type="text"
-                    value={workOrderNumber}
-                    onChange={e => setWorkOrderNumber(e.target.value)}
-                    placeholder="e.g., WO-RW-9021"
-                    className="w-full bg-white border border-purple-200 rounded-xl px-3 py-2 text-slate-900 font-mono text-xs outline-none"
-                  />
-                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 relative">
+                  <div className="relative">
+                    <label className="text-[10px] font-bold text-purple-950 block mb-1">
+                      Agency Partner *
+                    </label>
+                    <input
+                      ref={agencyInputRef}
+                      type="text"
+                      list="agency-suggestions"
+                      value={realEstateAgency}
+                      onChange={e => handleAgencyChange(e.target.value)}
+                      placeholder="e.g., Ray White Point Cook"
+                      className="w-full bg-white border border-purple-200 rounded-xl px-3 py-2 text-slate-900 font-semibold outline-none focus:border-purple-600"
+                    />
+                    <datalist id="agency-suggestions">
+                      {REAL_ESTATE_AGENCIES.map(a => (
+                        <option key={a} value={a} />
+                      ))}
+                    </datalist>
 
-                <div>
-                  <label className="text-[10px] font-bold text-purple-950 block mb-1">
-                    Property Manager Name
-                  </label>
-                  <input
-                    type="text"
-                    value={realEstateAgentName}
-                    onChange={e => setRealEstateAgentName(e.target.value)}
-                    placeholder="e.g., Sarah Jenkins"
-                    className="w-full bg-white border border-purple-200 rounded-xl px-3 py-2 text-slate-900 outline-none"
-                  />
-                </div>
+                    {/* Agent Suggestions Dropdown */}
+                    {showAgentDropdown && agentSuggestions.length > 0 && (
+                      <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-purple-200 rounded-2xl shadow-xl z-50 overflow-hidden divide-y divide-purple-100 animate-in fade-in">
+                        {agentSuggestions.map(ag => (
+                          <div
+                            key={ag.id}
+                            onClick={() => handleSelectAgent(ag)}
+                            className="p-2.5 hover:bg-purple-50 cursor-pointer transition flex items-center justify-between"
+                          >
+                            <div>
+                              <div className="font-bold text-purple-950 text-xs">{ag.agencyName}</div>
+                              <div className="text-[11px] text-purple-700">{ag.agentName} • {ag.agentPhone}</div>
+                            </div>
+                            <span className="text-[10px] font-black text-purple-600 bg-purple-100 px-2 py-0.5 rounded-full">
+                              Use Agent
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
 
-                <div>
-                  <label className="text-[10px] font-bold text-purple-950 block mb-1">
-                    Property Manager Phone
-                  </label>
-                  <input
-                    type="tel"
-                    value={realEstateAgentPhone}
-                    onChange={e => setRealEstateAgentPhone(e.target.value)}
-                    placeholder="e.g., 0412 888 901"
-                    className="w-full bg-white border border-purple-200 rounded-xl px-3 py-2 text-slate-900 outline-none"
-                  />
+                  <div>
+                    <label className="text-[10px] font-bold text-purple-950 block mb-1">
+                      Work Order # (PO)
+                    </label>
+                    <input
+                      type="text"
+                      value={workOrderNumber}
+                      onChange={e => setWorkOrderNumber(e.target.value)}
+                      placeholder="e.g., WO-RW-9021"
+                      className="w-full bg-white border border-purple-200 rounded-xl px-3 py-2 text-slate-900 font-mono text-xs outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-bold text-purple-950 block mb-1">
+                      Property Manager Name
+                    </label>
+                    <input
+                      type="text"
+                      value={realEstateAgentName}
+                      onChange={e => handleAgentNameChange(e.target.value)}
+                      placeholder="e.g., Sarah Jenkins"
+                      className="w-full bg-white border border-purple-200 rounded-xl px-3 py-2 text-slate-900 outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-bold text-purple-950 block mb-1">
+                      Property Manager Phone
+                    </label>
+                    <input
+                      type="tel"
+                      value={realEstateAgentPhone}
+                      onChange={e => setRealEstateAgentPhone(e.target.value)}
+                      placeholder="e.g., 0412 888 901"
+                      className="w-full bg-white border border-purple-200 rounded-xl px-3 py-2 text-slate-900 outline-none"
+                    />
+                  </div>
                 </div>
               </div>
             )}
           </div>
 
-          {/* SECTION 3: CLIENT & ADDRESS DETAILS */}
+          {/* SECTION 3: CLIENT & ADDRESS WITH SMART DIRECTORY */}
           <div className="bg-slate-50/80 rounded-2xl border border-slate-200/80 p-3.5 sm:p-4 space-y-3">
-            <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
-              <User className="w-3.5 h-3.5 text-blue-600" />
-              {isAgencyJob ? 'Tenant & Site Location' : 'Client & Site Location'}
-            </span>
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                <User className="w-3.5 h-3.5 text-blue-600" />
+                {isAgencyJob ? 'Tenant & Site Location' : 'Client & Site Location'}
+              </span>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
+              {savedCustomers.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    triggerHapticFeedback('light');
+                    setShowSavedCustomersList(!showSavedCustomersList);
+                  }}
+                  className="text-[10px] font-bold text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 border border-blue-200/70 px-2 py-0.5 rounded-lg flex items-center gap-1 transition"
+                >
+                  <Users className="w-3 h-3" />
+                  <span>Saved Clients ({savedCustomers.length})</span>
+                </button>
+              )}
+            </div>
+
+            {/* Quick Picker Drawer for Saved Clients */}
+            {showSavedCustomersList && savedCustomers.length > 0 && (
+              <div className="bg-white border border-blue-200 rounded-2xl p-2.5 space-y-1.5 shadow-sm animate-in fade-in">
+                <div className="flex items-center justify-between px-1">
+                  <span className="text-[10px] font-bold text-slate-600">Select a recent customer to auto-fill:</span>
+                  <button
+                    type="button"
+                    onClick={() => setShowSavedCustomersList(false)}
+                    className="text-slate-400 hover:text-slate-600"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+                <div className="flex flex-col gap-1 max-h-36 overflow-y-auto">
+                  {savedCustomers.slice(0, 6).map(c => (
+                    <div
+                      key={c.id}
+                      onClick={() => handleSelectCustomer(c)}
+                      className="p-2 rounded-xl hover:bg-blue-50 border border-slate-100 hover:border-blue-200 cursor-pointer transition flex items-center justify-between"
+                    >
+                      <div>
+                        <div className="font-black text-slate-900 text-xs">{c.name}</div>
+                        <div className="text-[11px] text-slate-500">{c.phone} {c.suburb && `• ${c.suburb}`}</div>
+                      </div>
+                      <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-lg border border-blue-200/60">
+                        Pick
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 relative">
+              <div className="relative">
                 <label className="text-[10px] font-bold text-slate-600 block mb-1">
                   {isAgencyJob ? 'Tenant / Occupant Name *' : 'Client Full Name *'}
                 </label>
@@ -392,14 +635,38 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
                     <User className="w-3.5 h-3.5" />
                   </div>
                   <input
+                    ref={customerInputRef}
                     type="text"
                     required
                     value={clientName}
-                    onChange={e => setClientName(e.target.value)}
+                    onChange={e => handleClientNameChange(e.target.value)}
                     placeholder="e.g., Jordan Miller"
                     className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-slate-900 font-semibold focus:border-blue-500 outline-none"
                   />
                 </div>
+
+                {/* Autocomplete Dropdown for Client Name */}
+                {showCustomerDropdown && customerSuggestions.length > 0 && (
+                  <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-blue-200 rounded-2xl shadow-xl z-50 overflow-hidden divide-y divide-slate-100 animate-in fade-in">
+                    {customerSuggestions.map(cust => (
+                      <div
+                        key={cust.id}
+                        onClick={() => handleSelectCustomer(cust)}
+                        className="p-2.5 hover:bg-blue-50 cursor-pointer transition flex items-center justify-between"
+                      >
+                        <div>
+                          <div className="font-black text-slate-900 text-xs">{cust.name}</div>
+                          <div className="text-[11px] text-slate-500">
+                            {cust.phone} {cust.address && `• ${cust.address}`}
+                          </div>
+                        </div>
+                        <span className="text-[10px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
+                          Auto-fill
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div>
@@ -413,13 +680,37 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
                   <input
                     type="tel"
                     value={clientPhone}
-                    onChange={e => setClientPhone(e.target.value)}
+                    onChange={e => handleClientPhoneChange(e.target.value)}
                     placeholder="0412 345 678"
-                    className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-slate-900 focus:border-blue-500 outline-none"
+                    className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-slate-900 focus:border-blue-500 outline-none font-mono"
                   />
                 </div>
               </div>
             </div>
+
+            {/* Smart Banner: Detected Existing Customer from Phone Number */}
+            {matchedCustomerByPhone && (
+              <div className="p-2.5 rounded-xl bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 flex items-center justify-between gap-2 animate-in fade-in">
+                <div className="min-w-0">
+                  <div className="font-bold text-emerald-950 text-xs flex items-center gap-1">
+                    <Sparkles className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                    <span className="truncate">Existing Customer: {matchedCustomerByPhone.name}</span>
+                  </div>
+                  <div className="text-[11px] text-emerald-700 truncate">
+                    {matchedCustomerByPhone.address} ({matchedCustomerByPhone.suburb})
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => handleSelectCustomer(matchedCustomerByPhone)}
+                  className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-[11px] shrink-0 shadow-xs transition active:scale-95 flex items-center gap-1"
+                >
+                  <span>Auto-fill</span>
+                  <ArrowRight className="w-3 h-3" />
+                </button>
+              </div>
+            )}
 
             <div>
               <label className="text-[10px] font-bold text-slate-600 block mb-1 flex items-center justify-between">
