@@ -173,7 +173,7 @@ export const JobList: React.FC<JobListProps> = ({
                 : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200/80 shadow-xs'
             }`}
           >
-            All Active ({activeJobsCount})
+            All Open ({activeJobsCount})
           </button>
           <button
             onClick={() => setStatusFilter('quote_requested')}

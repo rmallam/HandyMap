@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Job, JobStatus, OptimizedRoute, HandymanProfile } from './types';
 import { loadJobs, saveJobs, loadProfile, saveProfile, resetToDemoData } from './services/storage';
 import { INITIAL_JOBS, DEFAULT_PROFILE } from './data/mockJobs';
@@ -28,7 +28,7 @@ import {
   getNativeCurrentPosition,
   triggerHapticFeedback
 } from './services/nativeMobile';
-import { Plus } from 'lucide-react';
+import { Plus, X, RefreshCw } from 'lucide-react';
 import { Header } from './components/Navigation/Header';
 import { BottomNav } from './components/Navigation/BottomNav';
 import { MapView } from './components/Map/MapView';
@@ -52,6 +52,9 @@ export function App() {
   // Authentication & Cloud Sync State
   const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const currentUserIdRef = useRef<string | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [isDismissedAuthBanner, setIsDismissedAuthBanner] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
   // Navigation & Active View state
@@ -76,6 +79,7 @@ export function App() {
   // Load user-specific jobs and profile from Supabase
   const loadUserData = async (userId: string, userEmail?: string | null) => {
     setCurrentUserId(userId);
+    currentUserIdRef.current = userId;
     if (userEmail) setCurrentUserEmail(userEmail);
 
     // 1. Fetch user's isolated profile
@@ -91,8 +95,46 @@ export function App() {
     // 2. Fetch user's isolated jobs
     const cloudJobs = await fetchJobsFromSupabase(userId);
     if (cloudJobs !== null) {
+      if (cloudJobs.length === 0) {
+        // If Supabase has no jobs for this user yet, but browser has existing local jobs, migrate them to cloud!
+        const localJobs = loadJobs();
+        if (localJobs.length > 0) {
+          await batchUpsertJobsInSupabase(localJobs, userId);
+          setJobs(localJobs);
+          return;
+        }
+      }
       setJobs(cloudJobs);
       saveJobs(cloudJobs);
+    }
+  };
+
+  // Manual 1-tap Cloud Sync
+  const handleManualSync = async () => {
+    triggerHapticFeedback('light');
+    const uid = currentUserIdRef.current || currentUserId;
+    if (!isSupabaseConfigured || !uid) {
+      setIsAuthModalOpen(true);
+      return;
+    }
+
+    setIsSyncing(true);
+    try {
+      const cloudJobs = await fetchJobsFromSupabase(uid);
+      if (cloudJobs !== null) {
+        setJobs(cloudJobs);
+        saveJobs(cloudJobs);
+      }
+      const cloudProfile = await fetchUserProfile(uid);
+      if (cloudProfile) {
+        setProfile(cloudProfile);
+        saveProfile(cloudProfile);
+      }
+      triggerHapticFeedback('success');
+    } catch (err) {
+      console.warn('Manual sync notice:', err);
+    } finally {
+      setIsSyncing(false);
     }
   };
 
@@ -116,7 +158,7 @@ export function App() {
       }
     });
 
-    // 2. Initialize Auth state & Supabase data sync
+    // 3. Initialize Auth state & Supabase data sync
     async function initAuthAndData() {
       if (isSupabaseConfigured && supabase) {
         // Check existing active session or URL token
@@ -131,16 +173,17 @@ export function App() {
           setProfile(localProfile);
         }
 
-        // Realtime Postgres Changes Subscription
+        // Realtime Postgres Changes Subscription (Uses currentUserIdRef to avoid stale closure)
         const channel = supabase
           .channel('public:jobs')
           .on(
             'postgres_changes',
             { event: '*', schema: 'public', table: 'jobs' },
             async (payload: any) => {
-              // Only refresh if the change belongs to the current user
-              if (currentUserId && (!payload.new?.user_id || payload.new.user_id === currentUserId)) {
-                const refreshed = await fetchJobsFromSupabase(currentUserId);
+              const uid = currentUserIdRef.current;
+              // Refresh if the change belongs to the current user
+              if (uid && (!payload.new?.user_id || payload.new.user_id === uid || payload.old?.user_id === uid)) {
+                const refreshed = await fetchJobsFromSupabase(uid);
                 if (refreshed) {
                   setJobs(refreshed);
                   saveJobs(refreshed);
@@ -149,6 +192,40 @@ export function App() {
             }
           )
           .subscribe();
+
+        // Auto-refresh when user switches back to browser tab (Essential for mobile browsers)
+        const handleVisibilityOrFocus = async () => {
+          if (document.visibilityState === 'visible') {
+            const uid = currentUserIdRef.current;
+            if (uid) {
+              const refreshed = await fetchJobsFromSupabase(uid);
+              if (refreshed) {
+                setJobs(refreshed);
+                saveJobs(refreshed);
+              }
+            } else {
+              const sess = await getCurrentSession();
+              if (sess?.user) {
+                await loadUserData(sess.user.id, sess.user.email);
+              }
+            }
+          }
+        };
+
+        window.addEventListener('visibilitychange', handleVisibilityOrFocus);
+        window.addEventListener('focus', handleVisibilityOrFocus);
+
+        // Background polling every 20 seconds while tab is active for instant laptop/phone parity
+        const pollTimer = setInterval(() => {
+          if (document.visibilityState === 'visible' && currentUserIdRef.current) {
+            fetchJobsFromSupabase(currentUserIdRef.current).then(refreshed => {
+              if (refreshed) {
+                setJobs(refreshed);
+                saveJobs(refreshed);
+              }
+            });
+          }
+        }, 20000);
 
         // Auth state listener (Handles direct password login, OTP code, or Magic Link redirect clicks)
         const { data: authListener } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
@@ -162,6 +239,7 @@ export function App() {
             }
           } else if (event === 'SIGNED_OUT') {
             setCurrentUserId(null);
+            currentUserIdRef.current = null;
             setCurrentUserEmail(null);
             const localJobs = loadJobs();
             setJobs(localJobs);
@@ -171,6 +249,9 @@ export function App() {
         return () => {
           supabase.removeChannel(channel);
           authListener.subscription.unsubscribe();
+          window.removeEventListener('visibilitychange', handleVisibilityOrFocus);
+          window.removeEventListener('focus', handleVisibilityOrFocus);
+          clearInterval(pollTimer);
         };
       } else {
         // Offline / Local storage mode
@@ -426,8 +507,37 @@ export function App() {
         onOpenImport={() => setIsImportModalOpen(true)}
         onOpenAuth={() => setIsAuthModalOpen(true)}
         onSignOut={handleSignOut}
+        onManualSync={handleManualSync}
+        isSyncing={isSyncing}
         isUsingGPS={isUsingGPS}
       />
+
+      {/* Unauthenticated Cloud Sync Warning Banner */}
+      {!currentUserEmail && !isDismissedAuthBanner && (
+        <div className="bg-gradient-to-r from-amber-500 to-amber-600 text-white px-3.5 py-2 text-xs flex items-center justify-between gap-2 shadow-sm shrink-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="w-2 h-2 rounded-full bg-white animate-pulse shrink-0" />
+            <p className="font-bold truncate text-[11px] sm:text-xs">
+              <span className="font-black">Local browser mode:</span> Sign in to sync your jobs with laptop & other devices.
+            </p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={() => setIsAuthModalOpen(true)}
+              className="px-2.5 py-1 bg-white text-amber-900 rounded-lg font-black text-[11px] shadow-sm hover:bg-amber-50 active:scale-95 transition"
+            >
+              Sign In
+            </button>
+            <button
+              onClick={() => setIsDismissedAuthBanner(true)}
+              className="p-1 hover:bg-amber-600 rounded-md transition text-amber-100 hover:text-white"
+              title="Dismiss notice"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Main Content Area */}
       <main className="flex-1 relative overflow-hidden">

@@ -106,7 +106,7 @@ export const MapFilters: React.FC<MapFiltersProps> = ({
     if (selectedAgency !== 'all') {
       parts.push(selectedAgency === 'agency_only' ? 'Agencies' : selectedAgency === 'direct_only' ? 'Direct' : selectedAgency.split(' ')[0]);
     }
-    return parts.length > 0 ? parts.join(' • ') : `Active Jobs (${activeJobsCount})`;
+    return parts.length > 0 ? parts.join(' • ') : `All Open Jobs (${activeJobsCount})`;
   };
 
   const handleResetFilters = () => {
@@ -233,7 +233,7 @@ export const MapFilters: React.FC<MapFiltersProps> = ({
                         : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
                     }`}
                   >
-                    <span>All Active</span>
+                    <span>All Open</span>
                     <span className="text-[10px] opacity-75">{activeJobsCount}</span>
                   </button>
 
@@ -486,7 +486,7 @@ export const MapFilters: React.FC<MapFiltersProps> = ({
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/80'
               }`}
             >
-              <Filter className="w-3 h-3 stroke-[2.5]" /> All Active ({activeJobsCount})
+              <Filter className="w-3 h-3 stroke-[2.5]" /> All Open ({activeJobsCount})
             </button>
 
             <button

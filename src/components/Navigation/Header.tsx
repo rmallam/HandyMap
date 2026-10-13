@@ -14,7 +14,8 @@ import {
   ChevronDown,
   Cloud,
   FileSpreadsheet,
-  Sparkles
+  Sparkles,
+  RefreshCw
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -32,6 +33,8 @@ interface HeaderProps {
   onOpenImport?: () => void;
   onOpenAuth?: () => void;
   onSignOut?: () => void;
+  onManualSync?: () => void;
+  isSyncing?: boolean;
   isUsingGPS: boolean;
 }
 
@@ -49,6 +52,8 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenImport,
   onOpenAuth,
   onSignOut,
+  onManualSync,
+  isSyncing = false,
   isUsingGPS
 }) => {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
@@ -177,6 +182,23 @@ export const Header: React.FC<HeaderProps> = ({
                   </div>
                 </div>
 
+                {onManualSync && (
+                  <button
+                    onClick={() => {
+                      setIsUserMenuOpen(false);
+                      onManualSync();
+                    }}
+                    disabled={isSyncing}
+                    className="w-full px-4 py-2.5 text-left text-xs font-bold text-blue-700 hover:bg-blue-50 flex items-center justify-between transition"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <RefreshCw className={`w-4 h-4 text-blue-600 ${isSyncing ? 'animate-spin' : ''}`} />
+                      <span>Sync with Laptop Now</span>
+                    </div>
+                    {isSyncing && <span className="text-[10px] text-blue-500 font-bold">Syncing...</span>}
+                  </button>
+                )}
+
                 <button
                   onClick={() => {
                     setIsUserMenuOpen(false);
@@ -223,7 +245,23 @@ export const Header: React.FC<HeaderProps> = ({
             title="Sign in with Password or Email OTP"
           >
             <LogIn className="w-3.5 h-3.5 text-blue-400" />
-            <span className="hidden sm:inline">Sign In</span>
+            <span className="text-xs font-black">Sign In</span>
+          </button>
+        )}
+
+        {/* 1-Tap Cloud Sync Button (When Signed In) */}
+        {currentUserEmail && onManualSync && (
+          <button
+            onClick={onManualSync}
+            disabled={isSyncing}
+            className={`p-2 rounded-2xl border transition active:scale-95 shrink-0 ${
+              isSyncing
+                ? 'bg-blue-50 text-blue-600 border-blue-200 shadow-xs'
+                : 'bg-white text-slate-600 hover:text-blue-600 border-slate-200/90 hover:bg-slate-50 shadow-xs'
+            }`}
+            title={isSyncing ? 'Syncing data with cloud...' : 'Sync jobs with cloud & laptop'}
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-blue-600' : ''}`} />
           </button>
         )}
 
