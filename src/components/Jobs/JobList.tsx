@@ -1,6 +1,18 @@
 import React, { useState } from 'react';
 import { Job, JobStatus, HandymanProfile, ReminderItem } from '../../types';
-import { STATUS_CONFIG, formatCurrency, formatDateTime, buildLiveNavigationUrl, buildWhatsAppLink } from '../../utils/helpers';
+import {
+  STATUS_CONFIG,
+  formatCurrency,
+  formatDateTime,
+  buildLiveNavigationUrl,
+  buildWhatsAppLink,
+  DateFilterType,
+  matchesDateFilter,
+  calculateDateFilterCounts,
+  getRelativeJobDateLabel,
+  isJobToday,
+  isJobTomorrow
+} from '../../utils/helpers';
 import { generateQuotePDF } from '../../services/pdfGenerator';
 import { triggerHapticFeedback } from '../../services/nativeMobile';
 import { REAL_ESTATE_AGENCIES } from '../../data/mockJobs';
@@ -45,6 +57,7 @@ export const JobList: React.FC<JobListProps> = ({
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<JobStatus | 'all' | 'all_total'>('all');
+  const [dateFilter, setDateFilter] = useState<DateFilterType>('all');
   const [agencyFilter, setAgencyFilter] = useState<string>('all');
   const agencyCount = jobs.filter(j => j.isAgencyJob && j.realEstateAgency && j.realEstateAgency.trim().length > 0).length;
 
@@ -68,7 +81,8 @@ export const JobList: React.FC<JobListProps> = ({
     )
   ).sort();
 
-  const filteredJobs = jobs.filter(job => {
+  // 1. Status & Agency baseline (Used for dynamic date counts)
+  const statusAndAgencyJobs = jobs.filter(job => {
     let matchesStatus = true;
     if (statusFilter === 'all') {
       matchesStatus = job.status !== 'invoiced' && job.status !== 'cancelled';
@@ -77,7 +91,7 @@ export const JobList: React.FC<JobListProps> = ({
     } else {
       matchesStatus = job.status === statusFilter;
     }
-    
+
     let matchesAgency = true;
     if (agencyFilter === 'agency_only') {
       matchesAgency = Boolean(job.isAgencyJob && job.realEstateAgency && job.realEstateAgency.trim().length > 0);
@@ -90,6 +104,16 @@ export const JobList: React.FC<JobListProps> = ({
       );
     }
 
+    return matchesStatus && matchesAgency;
+  });
+
+  // Calculate live counts for Today, Tomorrow, This Week under current status
+  const dateCounts = calculateDateFilterCounts(statusAndAgencyJobs);
+
+  // 2. Filter by Date and Search term
+  const filteredJobs = statusAndAgencyJobs.filter(job => {
+    const matchesDate = matchesDateFilter(job, dateFilter);
+
     const searchLower = searchTerm.toLowerCase();
     const matchesSearch =
       job.title.toLowerCase().includes(searchLower) ||
@@ -100,7 +124,7 @@ export const JobList: React.FC<JobListProps> = ({
       (job.realEstateAgency && job.realEstateAgency.toLowerCase().includes(searchLower)) ||
       (job.workOrderNumber && job.workOrderNumber.toLowerCase().includes(searchLower));
 
-    return matchesStatus && matchesAgency && matchesSearch;
+    return matchesDate && matchesSearch;
   });
 
   return (
@@ -252,6 +276,102 @@ export const JobList: React.FC<JobListProps> = ({
         </div>
       </div>
 
+      {/* Date Filter Bar: Today / Tomorrow / This Week / All Dates */}
+      <div className="flex items-center justify-between gap-2 mb-3.5 flex-wrap">
+        <div className="flex items-center gap-1 bg-white p-1 rounded-2xl border border-slate-200/90 shadow-xs overflow-x-auto no-scrollbar">
+          <div className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-black text-slate-500 uppercase tracking-wider shrink-0 border-r border-slate-200/80 mr-0.5">
+            <Calendar className="w-3.5 h-3.5 text-blue-600 stroke-[2.4]" />
+            <span className="text-[11px]">When:</span>
+          </div>
+
+          <button
+            onClick={() => {
+              triggerHapticFeedback('light');
+              setDateFilter('all');
+            }}
+            className={`px-3 py-1.5 rounded-xl text-xs font-black transition active:scale-95 whitespace-nowrap ${
+              dateFilter === 'all'
+                ? 'bg-slate-900 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/80'
+            }`}
+          >
+            All Dates ({dateCounts.all})
+          </button>
+
+          <button
+            onClick={() => {
+              triggerHapticFeedback('light');
+              setDateFilter('today');
+            }}
+            className={`px-3 py-1.5 rounded-xl text-xs font-black transition active:scale-95 flex items-center gap-1.5 whitespace-nowrap ${
+              dateFilter === 'today'
+                ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/20'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/80'
+            }`}
+          >
+            <span>Today</span>
+            <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+              dateFilter === 'today' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'
+            }`}>
+              {dateCounts.today}
+            </span>
+          </button>
+
+          <button
+            onClick={() => {
+              triggerHapticFeedback('light');
+              setDateFilter('tomorrow');
+            }}
+            className={`px-3 py-1.5 rounded-xl text-xs font-black transition active:scale-95 flex items-center gap-1.5 whitespace-nowrap ${
+              dateFilter === 'tomorrow'
+                ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/20'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/80'
+            }`}
+          >
+            <span>Tomorrow</span>
+            <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+              dateFilter === 'tomorrow' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'
+            }`}>
+              {dateCounts.tomorrow}
+            </span>
+          </button>
+
+          <button
+            onClick={() => {
+              triggerHapticFeedback('light');
+              setDateFilter('this_week');
+            }}
+            className={`px-3 py-1.5 rounded-xl text-xs font-black transition active:scale-95 flex items-center gap-1.5 whitespace-nowrap ${
+              dateFilter === 'this_week'
+                ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/20'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/80'
+            }`}
+          >
+            <span>This Week</span>
+            <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+              dateFilter === 'this_week' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'
+            }`}>
+              {dateCounts.this_week}
+            </span>
+          </button>
+        </div>
+
+        {/* Active Filter Clear Tag */}
+        {dateFilter !== 'all' && (
+          <button
+            onClick={() => {
+              triggerHapticFeedback('light');
+              setDateFilter('all');
+            }}
+            className="flex items-center gap-1.5 text-xs font-bold text-blue-700 hover:text-blue-900 bg-blue-50/90 px-3 py-1.5 rounded-xl border border-blue-200/80 transition shadow-xs"
+            title="Reset to all dates"
+          >
+            <span>Filtered: <strong className="font-black capitalize">{dateFilter.replace('_', ' ')}</strong> ({filteredJobs.length})</span>
+            <X className="w-3.5 h-3.5" />
+          </button>
+        )}
+      </div>
+
       {/* Real Estate Agency Filter Bar */}
       {agencyCount > 0 && (
         <div className="bg-white p-2 sm:p-2.5 rounded-2xl border border-slate-200/90 shadow-sm mb-5 flex items-center gap-2 overflow-x-auto no-scrollbar">
@@ -379,18 +499,41 @@ export const JobList: React.FC<JobListProps> = ({
 
       {/* Cards Grid */}
       {filteredJobs.length === 0 ? (
-        <div className="text-center py-16 bg-white rounded-3xl border border-slate-200 shadow-sm p-6 space-y-4">
-          <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
-            <AlertCircle className="w-6 h-6" />
+        <div className="text-center py-16 bg-white rounded-3xl border border-slate-200/90 shadow-sm p-6 space-y-4">
+          <div className="w-14 h-14 rounded-3xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto shadow-inner">
+            <Calendar className="w-7 h-7 stroke-[2.2]" />
           </div>
           <div>
-            <p className="text-slate-800 font-bold text-sm">No matching jobs found</p>
-            <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
-              You can add a new lead, tweak your filters, or upload existing data from a spreadsheet.
+            <p className="text-slate-900 font-black text-base">
+              {dateFilter === 'today'
+                ? 'No jobs scheduled for Today'
+                : dateFilter === 'tomorrow'
+                ? 'No jobs scheduled for Tomorrow'
+                : dateFilter === 'this_week'
+                ? 'No jobs scheduled for This Week'
+                : 'No matching jobs found'}
+            </p>
+            <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto font-medium">
+              {dateFilter !== 'all'
+                ? `You have 0 jobs scheduled for ${dateFilter.replace('_', ' ')} under the current status filter.`
+                : 'Try adjusting your search terms, clearing your filters, or importing your job records.'}
             </p>
           </div>
 
-          <div className="flex items-center justify-center gap-3 pt-2">
+          <div className="flex items-center justify-center gap-3 pt-2 flex-wrap">
+            {dateFilter !== 'all' && (
+              <button
+                type="button"
+                onClick={() => {
+                  triggerHapticFeedback('light');
+                  setDateFilter('all');
+                }}
+                className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-black text-xs flex items-center gap-2 shadow-sm transition active:scale-95"
+              >
+                <span>View All Dates ({dateCounts.all})</span>
+              </button>
+            )}
+
             {onOpenImport && (
               <button
                 type="button"
@@ -405,7 +548,7 @@ export const JobList: React.FC<JobListProps> = ({
             <button
               type="button"
               onClick={onAddNewJob}
-              className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs flex items-center gap-2 shadow-sm transition active:scale-95"
+              className="px-4 py-2.5 rounded-xl brand-gradient hover:opacity-95 text-white font-bold text-xs flex items-center gap-2 shadow-sm transition active:scale-95"
             >
               <Plus className="w-4 h-4" />
               <span>Create New Job</span>
@@ -459,6 +602,21 @@ export const JobList: React.FC<JobListProps> = ({
                       >
                         {statusCfg.shortLabel}
                       </span>
+
+                      {/* Scheduled Timing Badge (Today / Tomorrow) */}
+                      {isJobToday(job) && (
+                        <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border bg-emerald-50 text-emerald-800 border-emerald-300 shadow-xs flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                          Today
+                        </span>
+                      )}
+                      {isJobTomorrow(job) && (
+                        <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border bg-sky-50 text-sky-800 border-sky-300 shadow-xs flex items-center gap-1">
+                          <Calendar className="w-2.5 h-2.5 text-sky-600" />
+                          Tomorrow
+                        </span>
+                      )}
+
                       {activeReminder && (
                         <span className={`text-[10px] font-black px-2 py-0.5 rounded-full flex items-center gap-1 shadow-xs ${
                           activeReminder.urgency === 'urgent'
@@ -536,14 +694,22 @@ export const JobList: React.FC<JobListProps> = ({
                   <div className="flex items-center justify-between pt-1 text-xs gap-2 flex-wrap sm:flex-nowrap">
                     <div>
                       {job.quote ? (
-                        <span className="text-sm font-black text-emerald-700 flex items-center gap-1">
-                          <Sparkles className="w-3.5 h-3.5 text-purple-600" />
-                          {formatCurrency(job.quote.totalAmount, profile.currencySymbol)}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-black text-emerald-700 flex items-center gap-1">
+                            <Sparkles className="w-3.5 h-3.5 text-purple-600" />
+                            {formatCurrency(job.quote.totalAmount, profile.currencySymbol)}
+                          </span>
+                          {job.appointmentTime && (
+                            <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-lg border border-slate-200/60 hidden xs:inline-flex items-center gap-1">
+                              <Calendar className="w-2.5 h-2.5 text-slate-400" />
+                              {getRelativeJobDateLabel(job.appointmentTime)}
+                            </span>
+                          )}
+                        </div>
                       ) : (
                         <span className="text-[11px] text-amber-800 font-extrabold flex items-center gap-1 bg-amber-50 px-2.5 py-1 rounded-xl border border-amber-200/80 shadow-xs">
                           <Calendar className="w-3 h-3 text-amber-600" />
-                          Visit: {formatDateTime(job.appointmentTime || job.quoteRequestedDate).split(' at ')[1] || 'Today'}
+                          Visit: {getRelativeJobDateLabel(job.appointmentTime || job.quoteRequestedDate) || 'Pending'}
                         </span>
                       )}
                     </div>

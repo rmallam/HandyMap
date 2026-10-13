@@ -3,6 +3,7 @@ import { MapContainer, TileLayer, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { Job, JobStatus, OptimizedRoute } from '../../types';
 import { extractSuburb } from '../../services/routeOptimizer';
+import { DateFilterType, matchesDateFilter } from '../../utils/helpers';
 import { JobMarker } from './JobMarker';
 import { RoutePolyline } from './RoutePolyline';
 import { MapFilters } from './MapFilters';
@@ -93,8 +94,9 @@ export const MapView: React.FC<MapViewProps> = ({
 }) => {
   const [selectedSuburb, setSelectedSuburb] = useState<string>('all');
   const [selectedAgency, setSelectedAgency] = useState<string>('all');
+  const [selectedDate, setSelectedDate] = useState<DateFilterType>('all');
 
-  // Filter jobs by status, suburb, and agency
+  // Filter jobs by status, suburb, agency, and date
   const visibleJobs = jobs.filter(job => {
     // When 'all' is selected, exclude paid & invoiced jobs and cancelled jobs to keep the active map uncluttered
     const matchesStatus = selectedStatus === 'all' 
@@ -114,7 +116,9 @@ export const MapView: React.FC<MapViewProps> = ({
       );
     }
 
-    return matchesStatus && matchesSuburb && matchesAgency;
+    const matchesDate = matchesDateFilter(job, selectedDate);
+
+    return matchesStatus && matchesSuburb && matchesAgency && matchesDate;
   });
 
   // Map route stop index by job ID
@@ -133,9 +137,11 @@ export const MapView: React.FC<MapViewProps> = ({
         selectedStatus={selectedStatus}
         selectedSuburb={selectedSuburb}
         selectedAgency={selectedAgency}
+        selectedDate={selectedDate}
         onSelectStatus={onSelectStatus}
         onSelectSuburb={setSelectedSuburb}
         onSelectAgency={setSelectedAgency}
+        onSelectDate={setSelectedDate}
         onOptimizeQuotesRoute={onOptimizeQuotesRoute}
         isOptimizing={isOptimizing}
         hasActiveRoute={activeRoute !== null}

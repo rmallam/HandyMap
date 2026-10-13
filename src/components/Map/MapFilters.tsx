@@ -2,16 +2,20 @@ import React, { useState } from 'react';
 import { Job, JobStatus } from '../../types';
 import { extractSuburb } from '../../services/routeOptimizer';
 import { REAL_ESTATE_AGENCIES, SUBURBS_LIST } from '../../data/mockJobs';
-import { Navigation, Filter, Compass, Building2, MapPin, ChevronDown, X, Check } from 'lucide-react';
+import { Navigation, Filter, Compass, Building2, MapPin, ChevronDown, X, Check, Calendar } from 'lucide-react';
+import { DateFilterType, matchesDateFilter, calculateDateFilterCounts } from '../../utils/helpers';
+import { triggerHapticFeedback } from '../../services/nativeMobile';
 
 interface MapFiltersProps {
   jobs: Job[];
   selectedStatus: JobStatus | 'all';
   selectedSuburb?: string;
   selectedAgency?: string;
+  selectedDate?: DateFilterType;
   onSelectStatus: (status: JobStatus | 'all') => void;
   onSelectSuburb?: (suburb: string) => void;
   onSelectAgency?: (agency: string) => void;
+  onSelectDate?: (date: DateFilterType) => void;
   onOptimizeQuotesRoute: () => void;
   isOptimizing?: boolean;
   hasActiveRoute?: boolean;
@@ -23,9 +27,11 @@ export const MapFilters: React.FC<MapFiltersProps> = ({
   selectedStatus,
   selectedSuburb = 'all',
   selectedAgency = 'all',
+  selectedDate = 'all',
   onSelectStatus,
   onSelectSuburb,
   onSelectAgency,
+  onSelectDate,
   onOptimizeQuotesRoute,
   isOptimizing,
   hasActiveRoute,
@@ -61,11 +67,16 @@ export const MapFilters: React.FC<MapFiltersProps> = ({
     suburbCounts[sub] = (suburbCounts[sub] || 0) + 1;
   });
 
+  // Calculate live counts for Today, Tomorrow, and This Week for active open jobs
+  const activeOpenJobs = jobs.filter(j => j.status !== 'invoiced' && j.status !== 'cancelled');
+  const dateCounts = calculateDateFilterCounts(activeOpenJobs);
+
   // Calculate active filter count for mobile badge
   let activeFiltersCount = 0;
   if (selectedStatus !== 'all') activeFiltersCount++;
   if (selectedSuburb !== 'all') activeFiltersCount++;
   if (selectedAgency !== 'all') activeFiltersCount++;
+  if (selectedDate !== 'all') activeFiltersCount++;
 
   // Calculate visible matching jobs count
   const matchingJobsCount = jobs.filter(job => {
@@ -84,12 +95,22 @@ export const MapFilters: React.FC<MapFiltersProps> = ({
         job.realEstateAgency.trim().toLowerCase() === selectedAgency.trim().toLowerCase()
       );
     }
-    return matchesStatus && matchesSuburb && matchesAgency;
+    const matchesDate = matchesDateFilter(job, selectedDate);
+
+    return matchesStatus && matchesSuburb && matchesAgency && matchesDate;
   }).length;
 
   // Format filter label for mobile pill
   const getMobileFilterSummary = () => {
     const parts: string[] = [];
+    if (selectedDate !== 'all') {
+      const dateLabels: Record<string, string> = {
+        today: 'Today',
+        tomorrow: 'Tomorrow',
+        this_week: 'This Week'
+      };
+      parts.push(dateLabels[selectedDate] || selectedDate);
+    }
     if (selectedSuburb !== 'all') parts.push(selectedSuburb);
     if (selectedStatus !== 'all') {
       const statusLabels: Record<string, string> = {
@@ -113,6 +134,7 @@ export const MapFilters: React.FC<MapFiltersProps> = ({
     onSelectStatus('all');
     if (onSelectSuburb) onSelectSuburb('all');
     if (onSelectAgency) onSelectAgency('all');
+    if (onSelectDate) onSelectDate('all');
   };
 
   return (
@@ -219,6 +241,84 @@ export const MapFilters: React.FC<MapFiltersProps> = ({
 
             {/* Scrollable Filters Body */}
             <div className="p-5 overflow-y-auto flex-1 flex flex-col gap-5 text-xs">
+              {/* Section 0: Scheduled Timing */}
+              {onSelectDate && (
+                <div>
+                  <div className="flex items-center justify-between mb-2.5">
+                    <label className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                      <Calendar className="w-3.5 h-3.5 text-blue-600 stroke-[2.4]" />
+                      <span>Scheduled Timing</span>
+                    </label>
+                    {selectedDate !== 'all' && (
+                      <button
+                        onClick={() => onSelectDate('all')}
+                        className="text-[10px] font-bold text-blue-600 hover:underline"
+                      >
+                        Reset Date
+                      </button>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => onSelectDate('all')}
+                      className={`py-2 px-3 rounded-xl font-bold flex items-center justify-between border transition ${
+                        selectedDate === 'all'
+                          ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
+                          : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                      }`}
+                    >
+                      <span>All Dates</span>
+                      <span className="text-[10px] opacity-75">{dateCounts.all}</span>
+                    </button>
+
+                    <button
+                      onClick={() => onSelectDate('today')}
+                      className={`py-2 px-3 rounded-xl font-bold flex items-center justify-between border transition ${
+                        selectedDate === 'today'
+                          ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-blue-600 shadow-sm'
+                          : 'bg-blue-50/70 text-blue-800 border-blue-200 hover:bg-blue-100'
+                      }`}
+                    >
+                      <span className="flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                        Today
+                      </span>
+                      <span className="text-[10px] font-bold">{dateCounts.today}</span>
+                    </button>
+
+                    <button
+                      onClick={() => onSelectDate('tomorrow')}
+                      className={`py-2 px-3 rounded-xl font-bold flex items-center justify-between border transition ${
+                        selectedDate === 'tomorrow'
+                          ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-blue-600 shadow-sm'
+                          : 'bg-blue-50/70 text-blue-800 border-blue-200 hover:bg-blue-100'
+                      }`}
+                    >
+                      <span className="flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-sky-500"></span>
+                        Tomorrow
+                      </span>
+                      <span className="text-[10px] font-bold">{dateCounts.tomorrow}</span>
+                    </button>
+
+                    <button
+                      onClick={() => onSelectDate('this_week')}
+                      className={`py-2 px-3 rounded-xl font-bold flex items-center justify-between border transition ${
+                        selectedDate === 'this_week'
+                          ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-blue-600 shadow-sm'
+                          : 'bg-blue-50/70 text-blue-800 border-blue-200 hover:bg-blue-100'
+                      }`}
+                    >
+                      <span className="flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-indigo-500"></span>
+                        This Week
+                      </span>
+                      <span className="text-[10px] font-bold">{dateCounts.this_week}</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* Section 1: Job Status */}
               <div>
                 <label className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400 block mb-2.5">
@@ -607,8 +707,79 @@ export const MapFilters: React.FC<MapFiltersProps> = ({
           </div>
         </div>
 
-        {/* Row 2: Real Estate Agency Dropdown & Suburb Pills */}
+        {/* Row 2: Date Filters, Real Estate Agency Dropdown & Suburb Pills */}
         <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
+          {/* Date Filter Quick Pills Capsule */}
+          {onSelectDate && (
+            <div className="pointer-events-auto flex items-center gap-1 bg-white/95 backdrop-blur-xl p-1 rounded-2xl border border-slate-200/90 shadow-md shrink-0">
+              <div className="flex items-center gap-1 px-2 text-[11px] font-black text-slate-500 uppercase tracking-wider shrink-0 border-r border-slate-200/80 mr-0.5">
+                <Calendar className="w-3.5 h-3.5 text-blue-600 stroke-[2.4]" />
+                <span>When:</span>
+              </div>
+              <button
+                onClick={() => {
+                  triggerHapticFeedback('light');
+                  onSelectDate('all');
+                }}
+                className={`px-2.5 py-1 rounded-xl text-xs font-black transition active:scale-95 ${
+                  selectedDate === 'all'
+                    ? 'bg-slate-900 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                }`}
+              >
+                All ({dateCounts.all})
+              </button>
+              <button
+                onClick={() => {
+                  triggerHapticFeedback('light');
+                  onSelectDate('today');
+                }}
+                className={`px-2.5 py-1 rounded-xl text-xs font-black transition active:scale-95 flex items-center gap-1.5 ${
+                  selectedDate === 'today'
+                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                }`}
+              >
+                <span>Today</span>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                  selectedDate === 'today' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'
+                }`}>{dateCounts.today}</span>
+              </button>
+              <button
+                onClick={() => {
+                  triggerHapticFeedback('light');
+                  onSelectDate('tomorrow');
+                }}
+                className={`px-2.5 py-1 rounded-xl text-xs font-black transition active:scale-95 flex items-center gap-1.5 ${
+                  selectedDate === 'tomorrow'
+                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                }`}
+              >
+                <span>Tomorrow</span>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                  selectedDate === 'tomorrow' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'
+                }`}>{dateCounts.tomorrow}</span>
+              </button>
+              <button
+                onClick={() => {
+                  triggerHapticFeedback('light');
+                  onSelectDate('this_week');
+                }}
+                className={`px-2.5 py-1 rounded-xl text-xs font-black transition active:scale-95 flex items-center gap-1.5 ${
+                  selectedDate === 'this_week'
+                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                }`}
+              >
+                <span>This Week</span>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                  selectedDate === 'this_week' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'
+                }`}>{dateCounts.this_week}</span>
+              </button>
+            </div>
+          )}
+
           {/* Prominent Real Estate Agency Filter Button */}
           {onSelectAgency && agencyCount > 0 && (
             <div className="pointer-events-auto relative shrink-0">
