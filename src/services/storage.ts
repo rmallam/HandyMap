@@ -40,7 +40,15 @@ export function loadProfile(): HandymanProfile {
       saveProfile(DEFAULT_PROFILE);
       return DEFAULT_PROFILE;
     }
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    return {
+      ...DEFAULT_PROFILE,
+      ...parsed,
+      messageTemplates: {
+        ...DEFAULT_PROFILE.messageTemplates,
+        ...(parsed.messageTemplates || {})
+      }
+    };
   } catch (err) {
     console.error('Failed to load profile from localStorage:', err);
     return DEFAULT_PROFILE;

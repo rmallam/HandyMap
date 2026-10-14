@@ -1,4 +1,5 @@
 import { Job, HandymanProfile } from '../types';
+import { DEFAULT_MESSAGE_TEMPLATES } from '../utils/messageTemplates';
 
 export const DEFAULT_PROFILE: HandymanProfile = {
   name: 'Alex Miller',
@@ -15,7 +16,8 @@ export const DEFAULT_PROFILE: HandymanProfile = {
   bsb: '063-875',
   accountNumber: '1048 9921',
   bankName: 'Commonwealth Bank of Australia',
-  paymentTerms: 'Payment due within 7 days of invoice issue. Direct deposit EFT or on-site card tap.'
+  paymentTerms: 'Payment due within 7 days of invoice issue. Direct deposit EFT or on-site card tap.',
+  messageTemplates: { ...DEFAULT_MESSAGE_TEMPLATES }
 };
 
 export const COMMON_AUSTRALIAN_AGENCIES = [

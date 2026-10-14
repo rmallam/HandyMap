@@ -3,6 +3,7 @@ import { Job, OptimizedRoute, HandymanProfile } from '../../types';
 import { extractSuburb } from '../../services/routeOptimizer';
 import { SUBURBS_LIST } from '../../data/mockJobs';
 import { triggerHapticFeedback } from '../../services/nativeMobile';
+import { getInterpolatedMessage } from '../../utils/messageTemplates';
 import {
   STATUS_CONFIG,
   formatCurrency,
@@ -47,6 +48,7 @@ interface RoutePlannerViewProps {
 
 export const RoutePlannerView: React.FC<RoutePlannerViewProps> = ({
   jobs,
+  profile,
   currentLocation,
   activeRoute,
   isOptimizing,
@@ -450,7 +452,7 @@ export const RoutePlannerView: React.FC<RoutePlannerViewProps> = ({
                     const job = stop.job;
                     const statusCfg = STATUS_CONFIG[job.status];
                     const singleStopNavUrl = buildLiveNavigationUrl(job.coordinates, job.address);
-                    const onMyWaySms = `Hi ${job.clientName}, Alex from Apex Handyman here! I am on my way to your address (${job.address}). Est. arrival: ${stop.eta}.`;
+                    const onMyWaySms = getInterpolatedMessage('onMyWay', job, profile, { eta: stop.eta });
 
                     return (
                       <div

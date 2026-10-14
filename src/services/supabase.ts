@@ -168,6 +168,19 @@ export async function getCurrentSession(): Promise<Session | null> {
 // ============================================================================
 
 export function mapRowToProfile(row: any): HandymanProfile {
+  let paymentTerms = row.payment_terms || DEFAULT_PROFILE.paymentTerms;
+  let messageTemplates = DEFAULT_PROFILE.messageTemplates;
+  if (paymentTerms && paymentTerms.includes('__TEMPLATES__:')) {
+    try {
+      const parts = paymentTerms.split('__TEMPLATES__:');
+      paymentTerms = parts[0].trim();
+      const parsed = JSON.parse(parts[1]);
+      messageTemplates = { ...DEFAULT_PROFILE.messageTemplates, ...parsed };
+    } catch (e) {
+      console.warn('Failed to parse templates from payment_terms:', e);
+    }
+  }
+
   return {
     name: row.name || DEFAULT_PROFILE.name,
     businessName: row.business_name || DEFAULT_PROFILE.businessName,
@@ -186,11 +199,17 @@ export function mapRowToProfile(row: any): HandymanProfile {
     bsb: row.bsb || DEFAULT_PROFILE.bsb,
     accountNumber: row.account_number || DEFAULT_PROFILE.accountNumber,
     bankName: row.bank_name || DEFAULT_PROFILE.bankName,
-    paymentTerms: row.payment_terms || DEFAULT_PROFILE.paymentTerms
+    paymentTerms,
+    messageTemplates
   };
 }
 
 export function mapProfileToRow(userId: string, profile: HandymanProfile): any {
+  let encodedPaymentTerms = profile.paymentTerms || '';
+  if (profile.messageTemplates) {
+    encodedPaymentTerms = `${encodedPaymentTerms.trim()}\n__TEMPLATES__:${JSON.stringify(profile.messageTemplates)}`;
+  }
+
   return {
     id: userId,
     name: profile.name,
@@ -208,7 +227,7 @@ export function mapProfileToRow(userId: string, profile: HandymanProfile): any {
     bsb: profile.bsb || null,
     account_number: profile.accountNumber || null,
     bank_name: profile.bankName || null,
-    payment_terms: profile.paymentTerms || null,
+    payment_terms: encodedPaymentTerms || null,
     updated_at: new Date().toISOString()
   };
 }
@@ -254,6 +273,32 @@ export async function upsertUserProfile(userId: string, profile: HandymanProfile
 // ============================================================================
 
 function mapRowToJob(row: any): Job {
+  const rawNotes = Array.isArray(row.internal_notes) ? row.internal_notes : [];
+  let tenant1Name: string | undefined = row.tenant_name || undefined;
+  let tenant1Phone: string | undefined = row.tenant_phone || undefined;
+  let tenant1Email: string | undefined = undefined;
+  let tenant2Name: string | undefined = undefined;
+  let tenant2Phone: string | undefined = undefined;
+  let tenant2Email: string | undefined = undefined;
+
+  const cleanNotes = rawNotes.filter((n: any) => {
+    if (typeof n === 'string' && n.startsWith('__TENANTS_V2__:')) {
+      try {
+        const parsed = JSON.parse(n.slice('__TENANTS_V2__:'.length));
+        if (parsed.t1Name) tenant1Name = parsed.t1Name;
+        if (parsed.t1Phone) tenant1Phone = parsed.t1Phone;
+        if (parsed.t1Email) tenant1Email = parsed.t1Email;
+        if (parsed.t2Name) tenant2Name = parsed.t2Name;
+        if (parsed.t2Phone) tenant2Phone = parsed.t2Phone;
+        if (parsed.t2Email) tenant2Email = parsed.t2Email;
+      } catch (e) {
+        console.warn('Failed to parse __TENANTS_V2__ note:', e);
+      }
+      return false;
+    }
+    return true;
+  });
+
   return {
     id: row.id,
     jobNumber: row.job_number,
@@ -279,20 +324,42 @@ function mapRowToJob(row: any): Job {
     realEstateAgentPhone: row.real_estate_agent_phone || undefined,
     realEstateAgentEmail: row.real_estate_agent_email || undefined,
     workOrderNumber: row.work_order_number || undefined,
-    tenantName: row.tenant_name || undefined,
-    tenantPhone: row.tenant_phone || undefined,
+    tenantName: tenant1Name,
+    tenantPhone: tenant1Phone,
+    tenantEmail: tenant1Email,
+    tenant1Name,
+    tenant1Phone,
+    tenant1Email,
+    tenant2Name,
+    tenant2Phone,
+    tenant2Email,
 
     tasks: Array.isArray(row.tasks) ? row.tasks : [],
     quote: row.quote || undefined,
     photos: Array.isArray(row.photos) ? row.photos : [],
     timeLogs: Array.isArray(row.time_logs) ? row.time_logs : [],
-    internalNotes: Array.isArray(row.internal_notes) ? row.internal_notes : [],
+    internalNotes: cleanNotes,
     createdAt: row.created_at,
     updatedAt: row.updated_at
   };
 }
 
 function mapJobToRow(job: Job, userId: string): any {
+  const rawNotes = Array.isArray(job.internalNotes) ? [...job.internalNotes] : [];
+  const filteredNotes = rawNotes.filter(n => typeof n === 'string' && !n.startsWith('__TENANTS_V2__:'));
+  const hasTenantDetails = job.tenant1Name || job.tenant1Phone || job.tenant1Email || job.tenant2Name || job.tenant2Phone || job.tenant2Email;
+  if (hasTenantDetails) {
+    const tenantMeta = JSON.stringify({
+      t1Name: job.tenant1Name || job.tenantName || null,
+      t1Phone: job.tenant1Phone || job.tenantPhone || null,
+      t1Email: job.tenant1Email || job.tenantEmail || null,
+      t2Name: job.tenant2Name || null,
+      t2Phone: job.tenant2Phone || null,
+      t2Email: job.tenant2Email || null
+    });
+    filteredNotes.push(`__TENANTS_V2__:${tenantMeta}`);
+  }
+
   return {
     id: job.id,
     user_id: userId,
@@ -320,14 +387,14 @@ function mapJobToRow(job: Job, userId: string): any {
     real_estate_agent_phone: job.realEstateAgentPhone || null,
     real_estate_agent_email: job.realEstateAgentEmail || null,
     work_order_number: job.workOrderNumber || null,
-    tenant_name: job.tenantName || null,
-    tenant_phone: job.tenantPhone || null,
+    tenant_name: job.tenant1Name || job.tenantName || null,
+    tenant_phone: job.tenant1Phone || job.tenantPhone || null,
 
     tasks: job.tasks || [],
     quote: job.quote || null,
     photos: job.photos || [],
     time_logs: job.timeLogs || [],
-    internal_notes: job.internalNotes || [],
+    internal_notes: filteredNotes,
     updated_at: new Date().toISOString()
   };
 }

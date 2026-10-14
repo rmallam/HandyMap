@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { MapContainer, TileLayer, useMap } from 'react-leaflet';
 import L from 'leaflet';
-import { Job, JobStatus, OptimizedRoute } from '../../types';
+import { Job, JobStatus, OptimizedRoute, HandymanProfile } from '../../types';
 import { extractSuburb } from '../../services/routeOptimizer';
 import { DateFilterType, matchesDateFilter } from '../../utils/helpers';
 import { JobMarker } from './JobMarker';
@@ -11,6 +11,7 @@ import { QuickJobSheet } from './QuickJobSheet';
 
 interface MapViewProps {
   jobs: Job[];
+  profile?: HandymanProfile;
   currentLocation: [number, number];
   activeRoute: OptimizedRoute | null;
   selectedJob: Job | null;
@@ -81,6 +82,7 @@ function MapController({
 
 export const MapView: React.FC<MapViewProps> = ({
   jobs,
+  profile,
   currentLocation,
   activeRoute,
   selectedJob,
@@ -190,6 +192,7 @@ export const MapView: React.FC<MapViewProps> = ({
       {selectedJob && (
         <QuickJobSheet
           job={selectedJob}
+          profile={profile}
           routeStop={routeStopMap.get(selectedJob.id)}
           currentLocation={currentLocation}
           onClose={() => onSelectJob(null)}

@@ -26,6 +26,12 @@ import {
 import { AddressAutocomplete, AddressResult } from '../Common/AddressAutocomplete';
 import { triggerHapticFeedback } from '../../services/nativeMobile';
 import {
+  formatPhoneNumber,
+  cleanPhoneNumber,
+  isValid10DigitPhone,
+  getPhoneDigitCount
+} from '../../utils/phoneUtils';
+import {
   loadSavedCustomers,
   loadSavedAgents,
   searchSavedCustomers,
@@ -90,8 +96,17 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
   const [realEstateAgentName, setRealEstateAgentName] = useState('');
   const [realEstateAgentPhone, setRealEstateAgentPhone] = useState('');
   const [workOrderNumber, setWorkOrderNumber] = useState('');
-  const [tenantName, setTenantName] = useState('');
-  const [tenantPhone, setTenantPhone] = useState('');
+
+  // Tenant 1 & Tenant 2 Details
+  const [tenant1Name, setTenant1Name] = useState('');
+  const [tenant1Phone, setTenant1Phone] = useState('');
+  const [tenant1Email, setTenant1Email] = useState('');
+  const [tenant2Name, setTenant2Name] = useState('');
+  const [tenant2Phone, setTenant2Phone] = useState('');
+  const [tenant2Email, setTenant2Email] = useState('');
+  const [showTenant2, setShowTenant2] = useState(false);
+  const [showDirectTenants, setShowDirectTenants] = useState(false);
+  const [phoneValidationError, setPhoneValidationError] = useState<string | null>(null);
 
   // Rolodex / Contact Directory State
   const [savedCustomers, setSavedCustomers] = useState<SavedCustomer[]>([]);
@@ -119,8 +134,41 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
       setShowAgentDropdown(false);
       setMatchedCustomerByPhone(null);
       setShowSavedCustomersList(false);
+      setPhoneValidationError(null);
+      setTenant1Name('');
+      setTenant1Phone('');
+      setTenant1Email('');
+      setTenant2Name('');
+      setTenant2Phone('');
+      setTenant2Email('');
+      setShowTenant2(false);
+      setShowDirectTenants(false);
     }
   }, [isOpen]);
+
+  // Visual helper badge for 10-digit phone inputs
+  const renderPhoneBadge = (phoneStr: string) => {
+    const count = getPhoneDigitCount(phoneStr);
+    if (count === 10) {
+      return (
+        <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+          10 digits ✓
+        </span>
+      );
+    }
+    if (count > 0) {
+      return (
+        <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+          {count}/10 digits
+        </span>
+      );
+    }
+    return (
+      <span className="text-[10px] text-slate-400 font-medium">
+        10 digits (AU)
+      </span>
+    );
+  };
 
   // Client Name change with autocomplete search
   const handleClientNameChange = (val: string) => {
@@ -135,11 +183,14 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
     }
   };
 
-  // Client Phone change with smart customer auto-match
+  // Client Phone change with smart customer auto-match and strict 10-digit formatting
   const handleClientPhoneChange = (val: string) => {
-    setClientPhone(val);
-    if (val.trim().length >= 8) {
-      const found = findCustomerByPhone(val);
+    const formatted = formatPhoneNumber(val);
+    setClientPhone(formatted);
+    setPhoneValidationError(null);
+    const digits = cleanPhoneNumber(formatted);
+    if (digits.length >= 8) {
+      const found = findCustomerByPhone(digits);
       if (found && found.name.toLowerCase() !== clientName.trim().toLowerCase()) {
         setMatchedCustomerByPhone(found);
       } else {
@@ -222,7 +273,34 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim() || !clientName.trim()) return;
+
+    const effectiveClientName = isAgencyJob
+      ? (tenant1Name.trim() || clientName.trim() || realEstateAgentName.trim() || realEstateAgency.trim() || 'Tenant')
+      : clientName.trim();
+    if (!title.trim() || !effectiveClientName) return;
+
+    // Validate 10-digit Australian phone numbers
+    if (clientPhone.trim() && cleanPhoneNumber(clientPhone).length !== 10) {
+      setPhoneValidationError('Client phone must be exactly 10 digits (e.g. 0412 345 678).');
+      triggerHapticFeedback('error');
+      return;
+    }
+    if (realEstateAgentPhone.trim() && cleanPhoneNumber(realEstateAgentPhone).length !== 10) {
+      setPhoneValidationError('Property Manager phone must be exactly 10 digits (e.g. 0412 888 901).');
+      triggerHapticFeedback('error');
+      return;
+    }
+    if (tenant1Phone.trim() && cleanPhoneNumber(tenant1Phone).length !== 10) {
+      setPhoneValidationError('Tenant 1 phone must be exactly 10 digits (e.g. 0412 345 678).');
+      triggerHapticFeedback('error');
+      return;
+    }
+    if (tenant2Phone.trim() && cleanPhoneNumber(tenant2Phone).length !== 10) {
+      setPhoneValidationError('Tenant 2 phone must be exactly 10 digits (e.g. 0412 987 654).');
+      triggerHapticFeedback('error');
+      return;
+    }
+    setPhoneValidationError(null);
 
     triggerHapticFeedback('medium');
 
@@ -262,14 +340,14 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
       });
     }
 
-    const finalClientPhone = clientPhone.trim() || '0412 555 019';
-    const finalClientEmail = clientEmail.trim() || `${clientName.toLowerCase().replace(/\s+/g, '.')}@gmail.com`;
+    const finalClientPhone = clientPhone.trim() || (isAgencyJob ? tenant1Phone.trim() : '0412 555 019');
+    const finalClientEmail = clientEmail.trim() || (isAgencyJob ? tenant1Email.trim() : `${effectiveClientName.toLowerCase().replace(/\s+/g, '.')}@gmail.com`);
     const finalAddress = address.trim() || `${suburb} VIC 3030`;
 
     // Persist to Contact Directory (Zero-risk, background safe)
     try {
       saveOrUpdateCustomer({
-        name: clientName.trim(),
+        name: effectiveClientName,
         phone: finalClientPhone,
         email: finalClientEmail,
         address: finalAddress,
@@ -292,7 +370,7 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
       id: `job-${Date.now()}`,
       jobNumber,
       title: title.trim(),
-      clientName: clientName.trim(),
+      clientName: effectiveClientName,
       clientPhone: finalClientPhone,
       clientEmail: finalClientEmail,
       address: finalAddress,
@@ -313,8 +391,15 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
       realEstateAgentName: isAgencyJob ? realEstateAgentName.trim() : undefined,
       realEstateAgentPhone: isAgencyJob ? realEstateAgentPhone.trim() : undefined,
       workOrderNumber: isAgencyJob ? workOrderNumber.trim() : undefined,
-      tenantName: isAgencyJob ? tenantName.trim() : undefined,
-      tenantPhone: isAgencyJob ? tenantPhone.trim() : undefined,
+      tenantName: (tenant1Name.trim() || (!isAgencyJob ? undefined : effectiveClientName)) || undefined,
+      tenantPhone: (tenant1Phone.trim() || (isAgencyJob ? finalClientPhone : undefined)) || undefined,
+      tenantEmail: (tenant1Email.trim() || (isAgencyJob ? finalClientEmail : undefined)) || undefined,
+      tenant1Name: tenant1Name.trim() || undefined,
+      tenant1Phone: tenant1Phone.trim() || undefined,
+      tenant1Email: tenant1Email.trim() || undefined,
+      tenant2Name: tenant2Name.trim() || undefined,
+      tenant2Phone: tenant2Phone.trim() || undefined,
+      tenant2Email: tenant2Email.trim() || undefined,
 
       photos: [],
       timeLogs: [],
@@ -359,6 +444,14 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
             <X className="w-5 h-5" />
           </button>
         </div>
+
+        {/* Validation Error Banner */}
+        {phoneValidationError && (
+          <div className="mx-4 sm:mx-6 mt-3 p-3 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-bold flex items-center gap-2 animate-in fade-in">
+            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+            <span>{phoneValidationError}</span>
+          </div>
+        )}
 
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="p-4 sm:p-6 overflow-y-auto flex flex-col gap-4 text-xs">
@@ -553,31 +646,169 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
                   </div>
 
                   <div>
-                    <label className="text-[10px] font-bold text-purple-950 block mb-1">
-                      Property Manager Phone
-                    </label>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-[10px] font-bold text-purple-950">
+                        Property Manager Phone
+                      </label>
+                      {renderPhoneBadge(realEstateAgentPhone)}
+                    </div>
                     <input
                       type="tel"
                       value={realEstateAgentPhone}
-                      onChange={e => setRealEstateAgentPhone(e.target.value)}
+                      onChange={e => setRealEstateAgentPhone(formatPhoneNumber(e.target.value))}
                       placeholder="e.g., 0412 888 901"
-                      className="w-full bg-white border border-purple-200 rounded-xl px-3 py-2 text-slate-900 outline-none"
+                      className="w-full bg-white border border-purple-200 rounded-xl px-3 py-2 text-slate-900 font-mono text-xs outline-none focus:border-purple-600"
                     />
                   </div>
+                </div>
+
+                {/* On-Site Tenant Details (Tenant 1 & Tenant 2) */}
+                <div className="pt-3 border-t border-purple-200/70 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-purple-900 flex items-center gap-1.5">
+                      <Users className="w-3.5 h-3.5 text-purple-600" />
+                      On-Site Tenant Details
+                    </span>
+                    {!showTenant2 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowTenant2(true);
+                          triggerHapticFeedback('light');
+                        }}
+                        className="text-[10px] font-bold text-purple-700 hover:text-purple-900 bg-purple-100/70 hover:bg-purple-200/70 px-2.5 py-1 rounded-lg transition active:scale-95"
+                      >
+                        + Add Tenant 2
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Tenant 1 Card */}
+                  <div className="bg-white/95 rounded-2xl p-3 border border-purple-100 space-y-2.5 shadow-xs">
+                    <span className="text-[10px] font-black uppercase text-purple-800 tracking-wide block">
+                      Tenant 1 (Primary Contact)
+                    </span>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-700 block mb-1">
+                          Full Name *
+                        </label>
+                        <input
+                          type="text"
+                          value={tenant1Name}
+                          onChange={e => setTenant1Name(e.target.value)}
+                          placeholder="e.g. Jordan Miller"
+                          className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-900 text-xs font-semibold focus:border-purple-500 outline-none"
+                        />
+                      </div>
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="text-[10px] font-bold text-slate-700">
+                            Phone
+                          </label>
+                          {renderPhoneBadge(tenant1Phone)}
+                        </div>
+                        <input
+                          type="tel"
+                          value={tenant1Phone}
+                          onChange={e => setTenant1Phone(formatPhoneNumber(e.target.value))}
+                          placeholder="0412 345 678"
+                          className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-900 text-xs font-mono font-semibold focus:border-purple-500 outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-700 block mb-1">
+                          Email
+                        </label>
+                        <input
+                          type="email"
+                          value={tenant1Email}
+                          onChange={e => setTenant1Email(e.target.value)}
+                          placeholder="jordan@example.com"
+                          className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-900 text-xs focus:border-purple-500 outline-none"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Tenant 2 Card */}
+                  {showTenant2 && (
+                    <div className="bg-white/95 rounded-2xl p-3 border border-purple-100 space-y-2.5 shadow-xs animate-in fade-in">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-black uppercase text-purple-800 tracking-wide">
+                          Tenant 2 (Secondary Contact)
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowTenant2(false);
+                            setTenant2Name('');
+                            setTenant2Phone('');
+                            setTenant2Email('');
+                            triggerHapticFeedback('light');
+                          }}
+                          className="text-[10px] font-bold text-rose-500 hover:text-rose-700 transition"
+                        >
+                          Remove Tenant 2
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                        <div>
+                          <label className="text-[10px] font-bold text-slate-700 block mb-1">
+                            Full Name
+                          </label>
+                          <input
+                            type="text"
+                            value={tenant2Name}
+                            onChange={e => setTenant2Name(e.target.value)}
+                            placeholder="e.g. Sarah Miller"
+                            className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-900 text-xs font-semibold focus:border-purple-500 outline-none"
+                          />
+                        </div>
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <label className="text-[10px] font-bold text-slate-700">
+                              Phone
+                            </label>
+                            {renderPhoneBadge(tenant2Phone)}
+                          </div>
+                          <input
+                            type="tel"
+                            value={tenant2Phone}
+                            onChange={e => setTenant2Phone(formatPhoneNumber(e.target.value))}
+                            placeholder="0412 987 654"
+                            className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-900 text-xs font-mono font-semibold focus:border-purple-500 outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-slate-700 block mb-1">
+                            Email
+                          </label>
+                          <input
+                            type="email"
+                            value={tenant2Email}
+                            onChange={e => setTenant2Email(e.target.value)}
+                            placeholder="sarah@example.com"
+                            className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-900 text-xs focus:border-purple-500 outline-none"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
           </div>
 
-          {/* SECTION 3: CLIENT & ADDRESS WITH SMART DIRECTORY */}
+          {/* SECTION 3: SITE LOCATION & CLIENT DETAILS */}
           <div className="bg-slate-50/80 rounded-2xl border border-slate-200/80 p-3.5 sm:p-4 space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
-                <User className="w-3.5 h-3.5 text-blue-600" />
-                {isAgencyJob ? 'Tenant & Site Location' : 'Client & Site Location'}
+                <MapPin className="w-3.5 h-3.5 text-blue-600" />
+                {isAgencyJob ? 'Job Site Address & Location' : 'Client & Site Location'}
               </span>
 
-              {savedCustomers.length > 0 && (
+              {!isAgencyJob && savedCustomers.length > 0 && (
                 <button
                   type="button"
                   onClick={() => {
@@ -592,8 +823,8 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
               )}
             </div>
 
-            {/* Quick Picker Drawer for Saved Clients */}
-            {showSavedCustomersList && savedCustomers.length > 0 && (
+            {/* Quick Picker Drawer for Saved Clients (Non-agency) */}
+            {!isAgencyJob && showSavedCustomersList && savedCustomers.length > 0 && (
               <div className="bg-white border border-blue-200 rounded-2xl p-2.5 space-y-1.5 shadow-sm animate-in fade-in">
                 <div className="flex items-center justify-between px-1">
                   <span className="text-[10px] font-bold text-slate-600">Select a recent customer to auto-fill:</span>
@@ -625,91 +856,217 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
               </div>
             )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 relative">
-              <div className="relative">
-                <label className="text-[10px] font-bold text-slate-600 block mb-1">
-                  {isAgencyJob ? 'Tenant / Occupant Name *' : 'Client Full Name *'}
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-                    <User className="w-3.5 h-3.5" />
+            {/* Client Information Fields (When NOT agency job) */}
+            {!isAgencyJob && (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 relative">
+                  <div className="relative">
+                    <label className="text-[10px] font-bold text-slate-600 block mb-1">
+                      Client Full Name *
+                    </label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                        <User className="w-3.5 h-3.5" />
+                      </div>
+                      <input
+                        ref={customerInputRef}
+                        type="text"
+                        required
+                        value={clientName}
+                        onChange={e => handleClientNameChange(e.target.value)}
+                        placeholder="e.g., Jordan Miller"
+                        className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-slate-900 font-semibold focus:border-blue-500 outline-none"
+                      />
+                    </div>
+
+                    {/* Autocomplete Dropdown for Client Name */}
+                    {showCustomerDropdown && customerSuggestions.length > 0 && (
+                      <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-blue-200 rounded-2xl shadow-xl z-50 overflow-hidden divide-y divide-slate-100 animate-in fade-in">
+                        {customerSuggestions.map(cust => (
+                          <div
+                            key={cust.id}
+                            onClick={() => handleSelectCustomer(cust)}
+                            className="p-2.5 hover:bg-blue-50 cursor-pointer transition flex items-center justify-between"
+                          >
+                            <div>
+                              <div className="font-black text-slate-900 text-xs">{cust.name}</div>
+                              <div className="text-[11px] text-slate-500">
+                                {cust.phone} {cust.address && `• ${cust.address}`}
+                              </div>
+                            </div>
+                            <span className="text-[10px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
+                              Auto-fill
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  <input
-                    ref={customerInputRef}
-                    type="text"
-                    required
-                    value={clientName}
-                    onChange={e => handleClientNameChange(e.target.value)}
-                    placeholder="e.g., Jordan Miller"
-                    className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-slate-900 font-semibold focus:border-blue-500 outline-none"
-                  />
+
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-[10px] font-bold text-slate-600">
+                        Client Phone (AU)
+                      </label>
+                      {renderPhoneBadge(clientPhone)}
+                    </div>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                        <Phone className="w-3.5 h-3.5" />
+                      </div>
+                      <input
+                        type="tel"
+                        value={clientPhone}
+                        onChange={e => handleClientPhoneChange(e.target.value)}
+                        placeholder="0412 345 678"
+                        className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-slate-900 focus:border-blue-500 outline-none font-mono"
+                      />
+                    </div>
+                  </div>
                 </div>
 
-                {/* Autocomplete Dropdown for Client Name */}
-                {showCustomerDropdown && customerSuggestions.length > 0 && (
-                  <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-blue-200 rounded-2xl shadow-xl z-50 overflow-hidden divide-y divide-slate-100 animate-in fade-in">
-                    {customerSuggestions.map(cust => (
-                      <div
-                        key={cust.id}
-                        onClick={() => handleSelectCustomer(cust)}
-                        className="p-2.5 hover:bg-blue-50 cursor-pointer transition flex items-center justify-between"
-                      >
-                        <div>
-                          <div className="font-black text-slate-900 text-xs">{cust.name}</div>
-                          <div className="text-[11px] text-slate-500">
-                            {cust.phone} {cust.address && `• ${cust.address}`}
-                          </div>
-                        </div>
-                        <span className="text-[10px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
-                          Auto-fill
-                        </span>
+                {/* Smart Banner: Detected Existing Customer from Phone Number */}
+                {matchedCustomerByPhone && (
+                  <div className="p-2.5 rounded-xl bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 flex items-center justify-between gap-2 animate-in fade-in">
+                    <div className="min-w-0">
+                      <div className="font-bold text-emerald-950 text-xs flex items-center gap-1">
+                        <Sparkles className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                        <span className="truncate">Existing Customer: {matchedCustomerByPhone.name}</span>
                       </div>
-                    ))}
+                      <div className="text-[11px] text-emerald-700 truncate">
+                        {matchedCustomerByPhone.address} ({matchedCustomerByPhone.suburb})
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => handleSelectCustomer(matchedCustomerByPhone)}
+                      className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-[11px] shrink-0 shadow-xs transition active:scale-95 flex items-center gap-1"
+                    >
+                      <span>Auto-fill</span>
+                      <ArrowRight className="w-3 h-3" />
+                    </button>
                   </div>
                 )}
-              </div>
 
-              <div>
-                <label className="text-[10px] font-bold text-slate-600 block mb-1">
-                  {isAgencyJob ? 'Tenant Contact Phone' : 'Client Phone'}
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-                    <Phone className="w-3.5 h-3.5" />
-                  </div>
-                  <input
-                    type="tel"
-                    value={clientPhone}
-                    onChange={e => handleClientPhoneChange(e.target.value)}
-                    placeholder="0412 345 678"
-                    className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-slate-900 focus:border-blue-500 outline-none font-mono"
-                  />
+                {/* Optional Tenant / Rental Toggle for residential landlords */}
+                <div className="pt-1">
+                  {!showDirectTenants ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowDirectTenants(true);
+                        triggerHapticFeedback('light');
+                      }}
+                      className="text-[11px] font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 transition"
+                    >
+                      <Plus className="w-3 h-3" /> Add Tenant Details (Tenant 1 & 2 for Rental Properties)
+                    </button>
+                  ) : (
+                    <div className="p-3 bg-white rounded-2xl border border-slate-200 space-y-3 animate-in fade-in">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-black uppercase text-slate-700 flex items-center gap-1">
+                          <Users className="w-3.5 h-3.5 text-blue-600" />
+                          Rental Tenant Occupants
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setShowDirectTenants(false)}
+                          className="text-[10px] font-bold text-slate-400 hover:text-slate-600"
+                        >
+                          Hide Tenants
+                        </button>
+                      </div>
+
+                      {/* Tenant 1 */}
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        <div>
+                          <label className="text-[10px] font-bold text-slate-600 block mb-1">
+                            Tenant 1 Name
+                          </label>
+                          <input
+                            type="text"
+                            value={tenant1Name}
+                            onChange={e => setTenant1Name(e.target.value)}
+                            placeholder="e.g. Jordan Miller"
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-slate-900 text-xs outline-none"
+                          />
+                        </div>
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <label className="text-[10px] font-bold text-slate-600">
+                              Tenant 1 Phone
+                            </label>
+                            {renderPhoneBadge(tenant1Phone)}
+                          </div>
+                          <input
+                            type="tel"
+                            value={tenant1Phone}
+                            onChange={e => setTenant1Phone(formatPhoneNumber(e.target.value))}
+                            placeholder="0412 345 678"
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-slate-900 text-xs font-mono outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-slate-600 block mb-1">
+                            Tenant 1 Email
+                          </label>
+                          <input
+                            type="email"
+                            value={tenant1Email}
+                            onChange={e => setTenant1Email(e.target.value)}
+                            placeholder="tenant@gmail.com"
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-slate-900 text-xs outline-none"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Tenant 2 */}
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-2 border-t border-slate-100">
+                        <div>
+                          <label className="text-[10px] font-bold text-slate-600 block mb-1">
+                            Tenant 2 Name
+                          </label>
+                          <input
+                            type="text"
+                            value={tenant2Name}
+                            onChange={e => setTenant2Name(e.target.value)}
+                            placeholder="e.g. Sarah Miller"
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-slate-900 text-xs outline-none"
+                          />
+                        </div>
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <label className="text-[10px] font-bold text-slate-600">
+                              Tenant 2 Phone
+                            </label>
+                            {renderPhoneBadge(tenant2Phone)}
+                          </div>
+                          <input
+                            type="tel"
+                            value={tenant2Phone}
+                            onChange={e => setTenant2Phone(formatPhoneNumber(e.target.value))}
+                            placeholder="0412 987 654"
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-slate-900 text-xs font-mono outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-slate-600 block mb-1">
+                            Tenant 2 Email
+                          </label>
+                          <input
+                            type="email"
+                            value={tenant2Email}
+                            onChange={e => setTenant2Email(e.target.value)}
+                            placeholder="tenant2@gmail.com"
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-slate-900 text-xs outline-none"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              </div>
-            </div>
-
-            {/* Smart Banner: Detected Existing Customer from Phone Number */}
-            {matchedCustomerByPhone && (
-              <div className="p-2.5 rounded-xl bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 flex items-center justify-between gap-2 animate-in fade-in">
-                <div className="min-w-0">
-                  <div className="font-bold text-emerald-950 text-xs flex items-center gap-1">
-                    <Sparkles className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                    <span className="truncate">Existing Customer: {matchedCustomerByPhone.name}</span>
-                  </div>
-                  <div className="text-[11px] text-emerald-700 truncate">
-                    {matchedCustomerByPhone.address} ({matchedCustomerByPhone.suburb})
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => handleSelectCustomer(matchedCustomerByPhone)}
-                  className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-[11px] shrink-0 shadow-xs transition active:scale-95 flex items-center gap-1"
-                >
-                  <span>Auto-fill</span>
-                  <ArrowRight className="w-3 h-3" />
-                </button>
-              </div>
+              </>
             )}
 
             <div>

@@ -544,6 +544,7 @@ export function App() {
         {activeTab === 'map' && (
           <MapView
             jobs={jobs}
+            profile={profile}
             currentLocation={currentLocation}
             activeRoute={activeRoute}
             selectedJob={selectedJob}

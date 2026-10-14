@@ -105,8 +105,15 @@ export interface Job {
   realEstateAgentPhone?: string; // e.g. "0412 888 999"
   realEstateAgentEmail?: string;
   workOrderNumber?: string; // e.g. "WO-RW-8492"
-  tenantName?: string; // On-site occupant
+  tenantName?: string; // On-site occupant (Tenant 1 fallback)
   tenantPhone?: string;
+  tenantEmail?: string;
+  tenant1Name?: string;
+  tenant1Phone?: string;
+  tenant1Email?: string;
+  tenant2Name?: string;
+  tenant2Phone?: string;
+  tenant2Email?: string;
 
   quote?: JobQuote;
   photos: JobPhoto[];
@@ -171,6 +178,18 @@ export interface HandymanProfile {
   bankName?: string; // e.g. "Commonwealth Bank"
   payId?: string; // e.g. "0412 345 678" or "billing@example.com"
   paymentTerms?: string; // e.g. "Payment due within 7 days of invoice issue date."
+  
+  // Custom Quick Message Templates
+  messageTemplates?: QuickMessageTemplates;
+}
+
+export interface QuickMessageTemplates {
+  onMyWay?: string;
+  quoteReady?: string;
+  runningLate?: string;
+  jobCompleted?: string;
+  agencyUpdate?: string;
+  tenantArrival?: string;
 }
 
 export type ReminderType =

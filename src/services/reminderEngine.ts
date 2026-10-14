@@ -62,6 +62,8 @@ export function generateReminders(
   const reminders: ReminderItem[] = [];
   const now = new Date().getTime();
   const ONE_HOUR = 60 * 60 * 1000;
+  const handymanName = profile.name?.trim() || 'Alex';
+  const businessName = profile.businessName?.trim() || 'Apex Handyman';
 
   for (const job of jobs) {
     // Exclude finished, paid, and cancelled jobs from active alerts
@@ -80,7 +82,7 @@ export function generateReminders(
         message: `High-priority emergency lead from ${job.clientName} (${job.address}). Immediate response needed.`,
         suggestedActionLabel: 'Call Client Now',
         suggestedActionType: 'call',
-        actionDraftText: `Hi ${job.clientName}, Alex from ${profile.businessName} responding urgently regarding ${job.title}. I am available to attend immediately.`,
+        actionDraftText: `Hi ${job.clientName}, ${handymanName} from ${businessName} responding urgently regarding ${job.title}. I am available to attend immediately.`,
         dueText: 'Immediate Action',
         createdAt: job.updatedAt || job.createdAt,
         isSnoozed: snoozedIds.includes(reminderId)
@@ -105,7 +107,7 @@ export function generateReminders(
         message: `Scheduled site visit with ${job.clientName} at ${job.address}.`,
         suggestedActionLabel: 'Send Arrival SMS',
         suggestedActionType: 'sms_followup',
-        actionDraftText: `Hi ${job.clientName}, Alex from ${profile.businessName} here. Confirming our appointment today around ${timeFormatted} for "${job.title}". See you soon!`,
+        actionDraftText: `Hi ${job.clientName}, ${handymanName} from ${businessName} here. Confirming our appointment today around ${timeFormatted} for "${job.title}". See you soon!`,
         dueText: diffHours < 0 ? 'Happening now' : `At ${timeFormatted}`,
         createdAt: job.appointmentTime,
         isSnoozed: snoozedIds.includes(reminderId)
@@ -120,7 +122,7 @@ export function generateReminders(
       // Only alert if waiting over 24 hours to avoid spamming brand-new leads
       if (elapsedHours >= 24) {
         const reminderId = `quote-overdue-${job.id}`;
-        const draftSms = `Hi ${job.clientName}, this is Alex from ${profile.businessName}. We received your quote request for "${job.title}" and would love to arrange a quick on-site inspection. When suits you best this week?`;
+        const draftSms = `Hi ${job.clientName}, this is ${handymanName} from ${businessName}. We received your quote request for "${job.title}" and would love to arrange a quick on-site inspection. When suits you best this week?`;
 
         reminders.push({
           id: reminderId,
@@ -148,7 +150,7 @@ export function generateReminders(
       if (elapsedHours >= 48) {
         const quoteTotal = job.quote ? formatCurrency(job.quote.totalAmount) : '$0';
         const reminderId = `quoted-followup-${job.id}`;
-        const draftSms = `Hi ${job.clientName}, Alex from ${profile.businessName} here! Just following up on the estimate for "${job.title}" (${quoteTotal}). Let me know if you have any questions or want to lock in a date!`;
+        const draftSms = `Hi ${job.clientName}, ${handymanName} from ${businessName} here! Just following up on the estimate for "${job.title}" (${quoteTotal}). Let me know if you have any questions or want to lock in a date!`;
 
         reminders.push({
           id: reminderId,

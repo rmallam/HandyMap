@@ -1,5 +1,5 @@
 import React from 'react';
-import { Job, RouteStop } from '../../types';
+import { Job, RouteStop, HandymanProfile } from '../../types';
 import {
   STATUS_CONFIG,
   formatCurrency,
@@ -24,6 +24,7 @@ import {
 
 interface QuickJobSheetProps {
   job: Job | null;
+  profile?: HandymanProfile;
   routeStop?: RouteStop;
   currentLocation: [number, number];
   onClose: () => void;
@@ -33,6 +34,7 @@ interface QuickJobSheetProps {
 
 export const QuickJobSheet: React.FC<QuickJobSheetProps> = ({
   job,
+  profile,
   routeStop,
   currentLocation,
   onClose,
@@ -51,7 +53,9 @@ export const QuickJobSheet: React.FC<QuickJobSheetProps> = ({
   ) / 10;
 
   const liveNavUrl = buildLiveNavigationUrl(job.coordinates, job.address);
-  const defaultSmsMsg = `Hi ${job.clientName}, this is Alex from Apex Handyman. I'm reviewing your request for ${job.title}. When is a good time for me to stop by for the quote?`;
+  const handymanName = profile?.name?.trim() || 'Alex';
+  const businessName = profile?.businessName?.trim() || 'Apex Handyman';
+  const defaultSmsMsg = `Hi ${job.clientName}, this is ${handymanName} from ${businessName}. I'm reviewing your request for ${job.title}. When is a good time for me to stop by for the quote?`;
 
   const handleActionTap = (action: () => void) => {
     triggerHapticFeedback('light');
