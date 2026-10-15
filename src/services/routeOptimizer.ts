@@ -1,4 +1,4 @@
-import { Job, OptimizedRoute, RouteStop, SuburbCluster } from '../types';
+import { Job, OptimizedRoute, RouteStop, SuburbCluster, RouteFilterType } from '../types';
 import { calculateDistanceKm } from '../utils/helpers';
 
 interface OSRMRouteResponse {
@@ -232,7 +232,7 @@ export function optimizeClusteredSuburbSequence(
 export async function calculateOptimizedRoute(
   startLocation: { name: string; coordinates: [number, number] },
   jobs: Job[],
-  filterType: 'quotes_only' | 'active_only' | 'urgent_and_quotes' | 'all' = 'quotes_only',
+  filterType: RouteFilterType = 'quotes_only',
   targetSuburb: string = 'all',
   prioritizeAgency: boolean = false,
   startTime?: Date
@@ -258,12 +258,29 @@ export async function calculateOptimizedRoute(
     };
   }
 
-  // 1. Order stops optimally using Suburb-Clustering
-  const { orderedJobs, suburbOrder } = optimizeClusteredSuburbSequence(
-    startLocation.coordinates,
-    candidateJobs,
-    prioritizeAgency
-  );
+  // 1. Order stops optimally (Closest to Me vs Suburb-Clustering)
+  let orderedJobs: Job[];
+  let suburbOrder: string[];
+
+  if (filterType === 'closest_to_me') {
+    // Pure closest proximity from live starting location
+    orderedJobs = optimizeStopSequence(startLocation.coordinates, candidateJobs);
+    if (prioritizeAgency) {
+      const agencyList = orderedJobs.filter(j => j.isAgencyJob);
+      const normalList = orderedJobs.filter(j => !j.isAgencyJob);
+      orderedJobs = [...agencyList, ...normalList];
+    }
+    suburbOrder = orderedJobs.map(extractSuburb);
+  } else {
+    // Standard suburb-clustered sequence
+    const clustered = optimizeClusteredSuburbSequence(
+      startLocation.coordinates,
+      candidateJobs,
+      prioritizeAgency
+    );
+    orderedJobs = clustered.orderedJobs;
+    suburbOrder = clustered.suburbOrder;
+  }
 
   // 2. Build coordinates for routing: [lon, lat]
   const allPoints: [number, number][] = [

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Job, JobStatus, OptimizedRoute, HandymanProfile } from './types';
+import { Job, JobStatus, OptimizedRoute, HandymanProfile, RouteFilterType } from './types';
+import { calculateDistanceKm } from './utils/helpers';
 import { loadJobs, saveJobs, loadProfile, saveProfile, resetToDemoData } from './services/storage';
 import { INITIAL_JOBS, DEFAULT_PROFILE } from './data/mockJobs';
 import {
@@ -48,6 +49,8 @@ export function App() {
   const [profile, setProfile] = useState<HandymanProfile>(loadProfile());
   const [currentLocation, setCurrentLocation] = useState<[number, number]>(profile.baseCoordinates);
   const [isUsingGPS, setIsUsingGPS] = useState(false);
+  const [isLocatingGPS, setIsLocatingGPS] = useState(false);
+  const [recenterTrigger, setRecenterTrigger] = useState(0);
   
   // Authentication & Cloud Sync State
   const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
@@ -346,9 +349,9 @@ export function App() {
     }
   };
 
-  // Optimize multi-stop route with Suburb clustering and Real Estate priority
+  // Optimize multi-stop route with Suburb clustering, Closest-to-me, and Real Estate priority
   const handleGenerateRoute = async (
-    filterType: 'quotes_only' | 'active_only' | 'urgent_and_quotes' | 'all' = 'quotes_only',
+    filterType: RouteFilterType = 'quotes_only',
     targetSuburb: string = 'all',
     prioritizeAgency: boolean = true
   ) => {
@@ -362,13 +365,16 @@ export function App() {
         targetJobs = jobs.filter(j => j.status === 'in_progress');
       } else if (filterType === 'urgent_and_quotes') {
         targetJobs = jobs.filter(j => j.status === 'urgent' || j.status === 'quote_requested');
+      } else if (filterType === 'closest_to_me') {
+        // All non-completed jobs sequenced purely by distance to driver
+        targetJobs = jobs.filter(j => j.status !== 'completed' && j.status !== 'invoiced' && j.status !== 'cancelled');
       } else {
         targetJobs = jobs.filter(j => j.status !== 'completed' && j.status !== 'invoiced' && j.status !== 'cancelled');
       }
 
       const route = await calculateOptimizedRoute(
         {
-          name: isUsingGPS ? 'My Current Location' : profile.baseAddress,
+          name: isUsingGPS ? 'My Live Location' : profile.baseAddress,
           coordinates: currentLocation
         },
         targetJobs,
@@ -397,21 +403,88 @@ export function App() {
     setActiveRoute(null);
   };
 
-  // Toggle GPS / Base coordinates
-  const handleTeleportLocation = () => {
-    if (!isUsingGPS && 'geolocation' in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        pos => {
-          setCurrentLocation([pos.coords.latitude, pos.coords.longitude]);
-          setIsUsingGPS(true);
-        },
-        () => {
-          alert('GPS permission not available. Using Point Cook Base coordinates.');
-        }
+  // High-accuracy live GPS refresh function
+  const handleRefreshLiveLocation = async (announce = true): Promise<[number, number] | null> => {
+    setIsLocatingGPS(true);
+    try {
+      triggerHapticFeedback('light');
+      const pos = await getNativeCurrentPosition();
+      if (pos) {
+        setCurrentLocation(pos);
+        setIsUsingGPS(true);
+        triggerHapticFeedback('success');
+        return pos;
+      } else if (announce) {
+        alert('Could not acquire live GPS position. Please check location permissions.');
+      }
+      return null;
+    } catch (err) {
+      console.warn('GPS location request error:', err);
+      if (announce) {
+        alert('Location service error. Using default base coordinates.');
+      }
+      return null;
+    } finally {
+      setIsLocatingGPS(false);
+    }
+  };
+
+  // Center Map on Live Location & Find Closest Job
+  const handleCenterOnMyLocation = async () => {
+    setIsLocatingGPS(true);
+    triggerHapticFeedback('light');
+    let coords = await getNativeCurrentPosition();
+    if (!coords) {
+      coords = currentLocation;
+    } else {
+      setCurrentLocation(coords);
+      setIsUsingGPS(true);
+    }
+    setIsLocatingGPS(false);
+    setRecenterTrigger(prev => prev + 1);
+
+    // Find the closest active job to the user's location
+    const activeCandidateJobs = jobs.filter(
+      j => j.status !== 'invoiced' && j.status !== 'completed' && j.status !== 'cancelled'
+    );
+
+    if (activeCandidateJobs.length > 0 && coords) {
+      let closestJob = activeCandidateJobs[0];
+      let minDistance = calculateDistanceKm(
+        coords[0],
+        coords[1],
+        closestJob.coordinates[0],
+        closestJob.coordinates[1]
       );
+
+      for (let i = 1; i < activeCandidateJobs.length; i++) {
+        const d = calculateDistanceKm(
+          coords[0],
+          coords[1],
+          activeCandidateJobs[i].coordinates[0],
+          activeCandidateJobs[i].coordinates[1]
+        );
+        if (d < minDistance) {
+          minDistance = d;
+          closestJob = activeCandidateJobs[i];
+        }
+      }
+
+      // Automatically select and highlight the closest job
+      setSelectedJob(closestJob);
+      triggerHapticFeedback('success');
+    }
+  };
+
+  // Toggle GPS vs Base coordinates
+  const handleToggleGpsMode = async () => {
+    triggerHapticFeedback('light');
+    if (!isUsingGPS) {
+      await handleRefreshLiveLocation(false);
     } else {
       setCurrentLocation(profile.baseCoordinates);
       setIsUsingGPS(false);
+      setRecenterTrigger(prev => prev + 1);
     }
   };
 
@@ -500,7 +573,7 @@ export function App() {
         hasUrgentReminders={hasUrgentReminders}
         currentUserEmail={currentUserEmail}
         onAddNewJob={() => setIsNewJobOpen(true)}
-        onTeleportLocation={handleTeleportLocation}
+        onTeleportLocation={handleToggleGpsMode}
         onToggleViewMode={(tab) => setActiveTab(tab)}
         onOpenReminders={() => setIsRemindersDrawerOpen(true)}
         onOpenProfile={() => setIsProfileModalOpen(true)}
@@ -546,6 +619,9 @@ export function App() {
             jobs={jobs}
             profile={profile}
             currentLocation={currentLocation}
+            isUsingGPS={isUsingGPS}
+            isLocatingGPS={isLocatingGPS}
+            recenterTrigger={recenterTrigger}
             activeRoute={activeRoute}
             selectedJob={selectedJob}
             selectedStatus={selectedStatus}
@@ -554,7 +630,8 @@ export function App() {
             onSelectStatus={setSelectedStatus}
             onOptimizeQuotesRoute={() => handleGenerateRoute('quotes_only')}
             onOpenFullJob={handleOpenFullJob}
-            onCenterMyLocation={() => setSelectedJob(null)}
+            onCenterMyLocation={handleCenterOnMyLocation}
+            onRefreshLocation={() => handleRefreshLiveLocation(true)}
           />
         )}
 
@@ -563,6 +640,8 @@ export function App() {
             jobs={jobs}
             profile={profile}
             currentLocation={currentLocation}
+            isUsingGPS={isUsingGPS}
+            isLocatingGPS={isLocatingGPS}
             activeRoute={activeRoute}
             isOptimizing={isOptimizing}
             onGenerateRoute={handleGenerateRoute}
@@ -570,6 +649,8 @@ export function App() {
             onToggleStopCompleted={handleToggleStopCompleted}
             onClearRoute={handleClearRoute}
             onSwitchToMap={() => setActiveTab('map')}
+            onRefreshLocation={() => handleRefreshLiveLocation(true)}
+            onToggleGpsMode={handleToggleGpsMode}
           />
         )}
 

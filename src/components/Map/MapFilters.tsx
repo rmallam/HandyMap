@@ -20,6 +20,8 @@ interface MapFiltersProps {
   isOptimizing?: boolean;
   hasActiveRoute?: boolean;
   onCenterMyLocation: () => void;
+  isUsingGPS?: boolean;
+  isLocatingGPS?: boolean;
 }
 
 export const MapFilters: React.FC<MapFiltersProps> = ({
@@ -35,7 +37,9 @@ export const MapFilters: React.FC<MapFiltersProps> = ({
   onOptimizeQuotesRoute,
   isOptimizing,
   hasActiveRoute,
-  onCenterMyLocation
+  onCenterMyLocation,
+  isUsingGPS,
+  isLocatingGPS
 }) => {
   const [showAgencyMenu, setShowAgencyMenu] = useState(false);
   const [isMobileFilterDrawerOpen, setIsMobileFilterDrawerOpen] = useState(false);
@@ -178,10 +182,14 @@ export const MapFilters: React.FC<MapFiltersProps> = ({
         <div className="pointer-events-auto flex items-center gap-1.5 shrink-0">
           <button
             onClick={onCenterMyLocation}
-            className="p-2.5 rounded-2xl bg-white/90 hover:bg-white text-slate-700 border border-slate-200/90 shadow-lg shadow-slate-900/5 backdrop-blur-xl transition active:scale-95"
-            title="Recenter GPS"
+            className={`p-2.5 rounded-2xl border shadow-lg backdrop-blur-xl transition active:scale-95 flex items-center justify-center ${
+              isUsingGPS
+                ? 'bg-blue-50 text-blue-700 border-blue-300 shadow-blue-500/10'
+                : 'bg-white/90 hover:bg-white text-slate-700 border-slate-200/90'
+            }`}
+            title="Center on Live Location & Find Closest Job"
           >
-            <Compass className="w-4 h-4 text-blue-600 stroke-[2.2]" />
+            <Compass className={`w-4 h-4 text-blue-600 stroke-[2.2] ${isLocatingGPS ? 'animate-spin' : isUsingGPS ? 'animate-pulse' : ''}`} />
           </button>
 
           <button
@@ -684,10 +692,14 @@ export const MapFilters: React.FC<MapFiltersProps> = ({
           <div className="pointer-events-auto flex items-center gap-1.5 shrink-0">
             <button
               onClick={onCenterMyLocation}
-              className="p-2.5 rounded-2xl bg-white/90 hover:bg-white text-slate-700 border border-slate-200/90 shadow-lg shadow-slate-900/5 backdrop-blur-xl transition active:scale-95"
-              title="Recenter Map"
+              className={`p-2.5 rounded-2xl border shadow-lg backdrop-blur-xl transition active:scale-95 flex items-center justify-center ${
+                isUsingGPS
+                  ? 'bg-blue-50 text-blue-700 border-blue-300 shadow-blue-500/10'
+                  : 'bg-white/90 hover:bg-white text-slate-700 border-slate-200/90'
+              }`}
+              title="Center on Live Location & Find Closest Job"
             >
-              <Compass className="w-4 h-4 text-blue-600 stroke-[2.2]" />
+              <Compass className={`w-4 h-4 text-blue-600 stroke-[2.2] ${isLocatingGPS ? 'animate-spin' : isUsingGPS ? 'animate-pulse' : ''}`} />
             </button>
 
             <button

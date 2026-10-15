@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { MapContainer, TileLayer, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, useMap, Marker, Tooltip } from 'react-leaflet';
 import L from 'leaflet';
 import { Job, JobStatus, OptimizedRoute, HandymanProfile } from '../../types';
 import { extractSuburb } from '../../services/routeOptimizer';
@@ -13,6 +13,9 @@ interface MapViewProps {
   jobs: Job[];
   profile?: HandymanProfile;
   currentLocation: [number, number];
+  isUsingGPS?: boolean;
+  isLocatingGPS?: boolean;
+  recenterTrigger?: number;
   activeRoute: OptimizedRoute | null;
   selectedJob: Job | null;
   selectedStatus: JobStatus | 'all';
@@ -22,6 +25,7 @@ interface MapViewProps {
   onOptimizeQuotesRoute: () => void;
   onOpenFullJob: (job: Job) => void;
   onCenterMyLocation: () => void;
+  onRefreshLocation?: () => void;
 }
 
 // Subcomponent to handle map bounds, resize invalidation and animations
@@ -29,12 +33,14 @@ function MapController({
   jobs,
   activeRoute,
   selectedJob,
-  currentLocation
+  currentLocation,
+  recenterTrigger
 }: {
   jobs: Job[];
   activeRoute: OptimizedRoute | null;
   selectedJob: Job | null;
   currentLocation: [number, number];
+  recenterTrigger?: number;
 }) {
   const map = useMap();
   const initialFitDone = useRef(false);
@@ -54,6 +60,13 @@ function MapController({
       window.removeEventListener('resize', handleResize);
     };
   }, [map]);
+
+  // Trigger flyTo when user explicitly asks to center on their location
+  useEffect(() => {
+    if (recenterTrigger && recenterTrigger > 0) {
+      map.flyTo(currentLocation, 15, { duration: 0.8 });
+    }
+  }, [recenterTrigger, currentLocation, map]);
 
   // Auto-fit when route changes
   useEffect(() => {
@@ -84,6 +97,9 @@ export const MapView: React.FC<MapViewProps> = ({
   jobs,
   profile,
   currentLocation,
+  isUsingGPS,
+  isLocatingGPS,
+  recenterTrigger,
   activeRoute,
   selectedJob,
   selectedStatus,
@@ -92,7 +108,8 @@ export const MapView: React.FC<MapViewProps> = ({
   onSelectStatus,
   onOptimizeQuotesRoute,
   onOpenFullJob,
-  onCenterMyLocation
+  onCenterMyLocation,
+  onRefreshLocation
 }) => {
   const [selectedSuburb, setSelectedSuburb] = useState<string>('all');
   const [selectedAgency, setSelectedAgency] = useState<string>('all');
@@ -148,6 +165,8 @@ export const MapView: React.FC<MapViewProps> = ({
         isOptimizing={isOptimizing}
         hasActiveRoute={activeRoute !== null}
         onCenterMyLocation={onCenterMyLocation}
+        isUsingGPS={isUsingGPS}
+        isLocatingGPS={isLocatingGPS}
       />
 
       {/* Main Leaflet Map with CartoDB Voyager High-Res Vector Aesthetic Tiles */}
@@ -170,10 +189,37 @@ export const MapView: React.FC<MapViewProps> = ({
           activeRoute={activeRoute}
           selectedJob={selectedJob}
           currentLocation={currentLocation}
+          recenterTrigger={recenterTrigger}
         />
 
         {/* Route Polyline */}
         <RoutePolyline route={activeRoute} />
+
+        {/* Live Handyman Location Pulsing Marker */}
+        <Marker
+          position={currentLocation}
+          zIndexOffset={1000}
+          icon={L.divIcon({
+            className: 'custom-live-location-pin',
+            html: `
+              <div class="relative flex items-center justify-center w-8 h-8">
+                <div class="absolute w-8 h-8 bg-blue-500 rounded-full animate-ping opacity-40"></div>
+                <div class="absolute w-5 h-5 bg-blue-600 rounded-full border-2 border-white shadow-lg flex items-center justify-center">
+                  <div class="w-1.5 h-1.5 bg-white rounded-full"></div>
+                </div>
+              </div>
+            `,
+            iconSize: [32, 32],
+            iconAnchor: [16, 16]
+          })}
+        >
+          <Tooltip direction="top" offset={[0, -12]} opacity={1}>
+            <div className="text-[11px] font-extrabold text-slate-900 flex items-center gap-1.5 px-1 py-0.5">
+              <span className={`w-2 h-2 rounded-full ${isUsingGPS ? 'bg-emerald-500 animate-pulse' : 'bg-blue-600'}`} />
+              <span>{isUsingGPS ? '📍 You are here (Live GPS)' : `🏠 Base: ${profile?.baseAddress || 'Point Cook'}`}</span>
+            </div>
+          </Tooltip>
+        </Marker>
 
         {/* Job Markers */}
         {visibleJobs.map(job => (

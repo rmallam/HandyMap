@@ -143,6 +143,8 @@ export interface SuburbCluster {
   totalDurationMin: number;
 }
 
+export type RouteFilterType = 'quotes_only' | 'active_only' | 'urgent_and_quotes' | 'closest_to_me' | 'all';
+
 export interface OptimizedRoute {
   id: string;
   startLocation: {
@@ -156,7 +158,7 @@ export interface OptimizedRoute {
   totalDurationMin: number;
   polylineCoordinates: [number, number][]; // [lat, lng][]
   generatedAt: string;
-  filterUsed: 'quotes_only' | 'active_only' | 'urgent_and_quotes' | 'all';
+  filterUsed: RouteFilterType;
 }
 
 export interface HandymanProfile {
