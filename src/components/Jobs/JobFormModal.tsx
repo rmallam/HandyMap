@@ -95,6 +95,7 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
   const [realEstateAgency, setRealEstateAgency] = useState('');
   const [realEstateAgentName, setRealEstateAgentName] = useState('');
   const [realEstateAgentPhone, setRealEstateAgentPhone] = useState('');
+  const [realEstateAgentEmail, setRealEstateAgentEmail] = useState('');
   const [workOrderNumber, setWorkOrderNumber] = useState('');
 
   // Tenant 1 & Tenant 2 Details
@@ -141,6 +142,7 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
       setTenant2Name('');
       setTenant2Phone('');
       setTenant2Email('');
+      setRealEstateAgentEmail('');
       setShowTenant2(false);
       setShowDirectTenants(false);
     }
@@ -247,6 +249,7 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
     setRealEstateAgency(agent.agencyName);
     setRealEstateAgentName(agent.agentName);
     setRealEstateAgentPhone(agent.agentPhone);
+    setRealEstateAgentEmail(agent.agentEmail || '');
     setShowAgentDropdown(false);
   };
 
@@ -359,7 +362,8 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
         saveOrUpdateAgent({
           agencyName: realEstateAgency.trim(),
           agentName: realEstateAgentName.trim() || 'Property Manager',
-          agentPhone: realEstateAgentPhone.trim() || '0412 888 901'
+          agentPhone: realEstateAgentPhone.trim() || '0412 888 901',
+          agentEmail: realEstateAgentEmail.trim() || undefined
         });
       }
     } catch (err) {
@@ -390,7 +394,8 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
       realEstateAgency: isAgencyJob ? realEstateAgency.trim() : undefined,
       realEstateAgentName: isAgencyJob ? realEstateAgentName.trim() : undefined,
       realEstateAgentPhone: isAgencyJob ? realEstateAgentPhone.trim() : undefined,
-      workOrderNumber: isAgencyJob ? workOrderNumber.trim() : undefined,
+      realEstateAgentEmail: isAgencyJob && realEstateAgentEmail.trim() ? realEstateAgentEmail.trim() : undefined,
+      workOrderNumber: isAgencyJob && workOrderNumber.trim() ? workOrderNumber.trim() : undefined,
       tenantName: (tenant1Name.trim() || (!isAgencyJob ? undefined : effectiveClientName)) || undefined,
       tenantPhone: (tenant1Phone.trim() || (isAgencyJob ? finalClientPhone : undefined)) || undefined,
       tenantEmail: (tenant1Email.trim() || (isAgencyJob ? finalClientEmail : undefined)) || undefined,
@@ -535,7 +540,7 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
                   <Building2 className="w-4 h-4" />
                 </div>
                 <div>
-                  <div className="font-bold text-slate-900 text-xs">Real Estate Agency Work Order</div>
+                  <div className="font-bold text-slate-900 text-xs">Real Estate Agency</div>
                   <div className="text-[11px] text-slate-500">Auto-populates saved agency & property manager contacts</div>
                 </div>
               </div>
@@ -608,7 +613,9 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
                           >
                             <div>
                               <div className="font-bold text-purple-950 text-xs">{ag.agencyName}</div>
-                              <div className="text-[11px] text-purple-700">{ag.agentName} • {ag.agentPhone}</div>
+                              <div className="text-[11px] text-purple-700">
+                                {ag.agentName} • {ag.agentPhone}{ag.agentEmail ? ` • ${ag.agentEmail}` : ''}
+                              </div>
                             </div>
                             <span className="text-[10px] font-black text-purple-600 bg-purple-100 px-2 py-0.5 rounded-full">
                               Use Agent
@@ -617,19 +624,6 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
                         ))}
                       </div>
                     )}
-                  </div>
-
-                  <div>
-                    <label className="text-[10px] font-bold text-purple-950 block mb-1">
-                      Work Order # (PO)
-                    </label>
-                    <input
-                      type="text"
-                      value={workOrderNumber}
-                      onChange={e => setWorkOrderNumber(e.target.value)}
-                      placeholder="e.g., WO-RW-9021"
-                      className="w-full bg-white border border-purple-200 rounded-xl px-3 py-2 text-slate-900 font-mono text-xs outline-none"
-                    />
                   </div>
 
                   <div>
@@ -658,6 +652,19 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
                       onChange={e => setRealEstateAgentPhone(formatPhoneNumber(e.target.value))}
                       placeholder="e.g., 0412 888 901"
                       className="w-full bg-white border border-purple-200 rounded-xl px-3 py-2 text-slate-900 font-mono text-xs outline-none focus:border-purple-600"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-bold text-purple-950 block mb-1">
+                      Property Manager / Agent Email
+                    </label>
+                    <input
+                      type="email"
+                      value={realEstateAgentEmail}
+                      onChange={e => setRealEstateAgentEmail(e.target.value)}
+                      placeholder="e.g., sarah.j@raywhite.com"
+                      className="w-full bg-white border border-purple-200 rounded-xl px-3 py-2 text-slate-900 text-xs outline-none focus:border-purple-600"
                     />
                   </div>
                 </div>
