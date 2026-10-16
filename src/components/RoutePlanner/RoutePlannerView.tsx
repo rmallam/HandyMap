@@ -110,33 +110,33 @@ export const RoutePlannerView: React.FC<RoutePlannerViewProps> = ({
   };
 
   return (
-    <div className="flex flex-col h-full bg-slate-50 overflow-y-auto pb-[calc(6.5rem+env(safe-area-inset-bottom,0px))] text-slate-900 p-3.5 sm:p-6 max-w-4xl mx-auto w-full">
+    <div className="flex flex-col h-full bg-slate-50 overflow-y-auto overflow-x-hidden pb-[calc(6.5rem+env(safe-area-inset-bottom,0px))] text-slate-900 p-3 sm:p-6 max-w-4xl mx-auto w-full">
       {/* View Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
         <div>
           <div className="flex items-center gap-2.5">
-            <div className="p-2.5 bg-gradient-to-tr from-blue-600 to-indigo-600 text-white rounded-2xl shadow-md shadow-blue-500/20">
-              <Navigation className="w-5 h-5 stroke-[2.4]" />
+            <div className="p-2 sm:p-2.5 bg-gradient-to-tr from-blue-600 to-indigo-600 text-white rounded-2xl shadow-md shadow-blue-500/20 shrink-0">
+              <Navigation className="w-4.5 h-4.5 sm:w-5 sm:h-5 stroke-[2.4]" />
             </div>
             <div>
-              <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+              <h1 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight">
                 Optimal Multi-Stop Route
               </h1>
-              <p className="text-xs text-slate-500 mt-0.5 font-medium">
-                Fastest road sequence with <strong>suburb clustering</strong> & <strong>agency priority</strong>.
+              <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5 font-medium">
+                Shortest road sequence with <strong>suburb clustering</strong> & <strong>agency priority</strong>.
               </p>
             </div>
           </div>
         </div>
 
         {activeRoute && (
-          <div className="flex items-center gap-2 self-start sm:self-auto">
+          <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
             <button
               onClick={() => {
                 triggerHapticFeedback('light');
                 onSwitchToMap();
               }}
-              className="px-4 py-2 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-extrabold text-xs flex items-center gap-1.5 shadow-md shadow-blue-500/20 transition active:scale-95"
+              className="px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-extrabold text-xs flex items-center gap-1.5 shadow-md shadow-blue-500/20 transition active:scale-95"
             >
               <Map className="w-3.5 h-3.5 stroke-[2.2]" /> View Map
             </button>
@@ -145,7 +145,7 @@ export const RoutePlannerView: React.FC<RoutePlannerViewProps> = ({
                 triggerHapticFeedback('warning');
                 onClearRoute();
               }}
-              className="p-2 rounded-2xl bg-white hover:bg-slate-100 text-slate-500 hover:text-slate-800 border border-slate-200/90 shadow-sm transition active:scale-95"
+              className="p-1.5 sm:p-2 rounded-2xl bg-white hover:bg-slate-100 text-slate-500 hover:text-slate-800 border border-slate-200/90 shadow-sm transition active:scale-95"
               title="Clear Route"
             >
               <RotateCcw className="w-4 h-4 stroke-[2.2]" />
@@ -155,15 +155,15 @@ export const RoutePlannerView: React.FC<RoutePlannerViewProps> = ({
       </div>
 
       {/* Starting Location Bar */}
-      <div className="bg-white rounded-3xl border border-slate-200/90 p-3.5 sm:p-4 mb-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className={`p-2.5 rounded-2xl flex items-center justify-center shrink-0 ${
+      <div className="bg-white rounded-3xl border border-slate-200/90 p-3 sm:p-4 mb-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
+          <div className={`p-2 sm:p-2.5 rounded-2xl flex items-center justify-center shrink-0 ${
             isUsingGPS ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20' : 'bg-slate-100 text-slate-700'
           }`}>
-            <Compass className={`w-5 h-5 ${isLocatingGPS ? 'animate-spin' : isUsingGPS ? 'animate-pulse' : ''}`} />
+            <Compass className={`w-4.5 h-4.5 sm:w-5 sm:h-5 ${isLocatingGPS ? 'animate-spin' : isUsingGPS ? 'animate-pulse' : ''}`} />
           </div>
-          <div>
-            <div className="flex items-center gap-2">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5 flex-wrap">
               <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Route Origin</span>
               <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
                 isUsingGPS ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-slate-100 text-slate-700 border border-slate-200'
@@ -179,7 +179,7 @@ export const RoutePlannerView: React.FC<RoutePlannerViewProps> = ({
           </div>
         </div>
 
-        <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+        <div className="flex items-center gap-2 self-start sm:self-auto shrink-0 flex-wrap">
           {onRefreshLocation && (
             <button
               onClick={() => {
@@ -187,7 +187,7 @@ export const RoutePlannerView: React.FC<RoutePlannerViewProps> = ({
                 onRefreshLocation();
               }}
               disabled={isLocatingGPS}
-              className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1.5 transition active:scale-95 disabled:opacity-50"
+              className="px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1.5 transition active:scale-95 disabled:opacity-50"
               title="Refresh Current GPS Position"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isLocatingGPS ? 'animate-spin' : ''}`} />
@@ -200,7 +200,7 @@ export const RoutePlannerView: React.FC<RoutePlannerViewProps> = ({
                 triggerHapticFeedback('light');
                 onToggleGpsMode();
               }}
-              className={`px-3 py-2 rounded-xl text-xs font-black transition active:scale-95 border ${
+              className={`px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl text-xs font-black transition active:scale-95 border ${
                 isUsingGPS
                   ? 'bg-blue-50 text-blue-700 border-blue-300 hover:bg-blue-100'
                   : 'bg-slate-900 text-white border-slate-800 hover:bg-slate-800'
@@ -465,13 +465,13 @@ export const RoutePlannerView: React.FC<RoutePlannerViewProps> = ({
         <div className="flex flex-col gap-4 mb-6">
           {/* Closest Job Right Now Banner */}
           {activeRoute.stops.length > 0 && (
-            <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 text-white rounded-3xl p-4 sm:p-5 shadow-lg shadow-blue-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="flex items-start gap-3.5">
-                <div className="p-3 bg-white/10 rounded-2xl backdrop-blur-md shrink-0">
-                  <Compass className="w-6 h-6 text-white animate-pulse" />
+            <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 text-white rounded-3xl p-3.5 sm:p-5 shadow-lg shadow-blue-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+              <div className="flex items-start gap-2.5 sm:gap-3 min-w-0 flex-1">
+                <div className="p-2 sm:p-2.5 bg-white/10 rounded-2xl backdrop-blur-md shrink-0">
+                  <Compass className="w-5 h-5 sm:w-6 sm:h-6 text-white animate-pulse" />
                 </div>
-                <div>
-                  <div className="flex items-center gap-2">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5 flex-wrap">
                     <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-white/20 text-white">
                       🎯 Closest Job Right Now
                     </span>
@@ -484,19 +484,19 @@ export const RoutePlannerView: React.FC<RoutePlannerViewProps> = ({
                       ).toFixed(1)} km away
                     </span>
                   </div>
-                  <h3 className="text-base sm:text-lg font-black text-white mt-1 leading-snug">
+                  <h3 className="text-sm sm:text-base font-black text-white mt-1 leading-snug break-words">
                     {activeRoute.stops[0].job.title}
                   </h3>
-                  <p className="text-xs text-blue-100/90 flex items-center gap-1 mt-0.5">
+                  <p className="text-xs text-blue-100/90 flex items-center gap-1 mt-0.5 truncate">
                     <MapPin className="w-3.5 h-3.5 shrink-0 text-blue-200" />
                     <span className="truncate">{activeRoute.stops[0].job.address}</span>
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
+              <div className="flex items-center gap-2 shrink-0 self-start sm:self-auto flex-wrap">
                 <button
                   onClick={() => onOpenJobDetail(activeRoute.stops[0].job)}
-                  className="px-3.5 py-2.5 rounded-xl bg-white/15 hover:bg-white/25 text-white font-black text-xs transition active:scale-95"
+                  className="px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl bg-white/15 hover:bg-white/25 text-white font-black text-xs transition active:scale-95"
                 >
                   View Job
                 </button>
@@ -504,31 +504,31 @@ export const RoutePlannerView: React.FC<RoutePlannerViewProps> = ({
                   href={buildLiveNavigationUrl(activeRoute.stops[0].job.coordinates, activeRoute.stops[0].job.address)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="px-4 py-2.5 rounded-xl bg-white text-blue-700 hover:bg-blue-50 font-black text-xs flex items-center gap-1.5 shadow-md transition active:scale-95"
+                  className="px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-xl bg-white text-blue-700 hover:bg-blue-50 font-black text-xs flex items-center gap-1.5 shadow-md transition active:scale-95"
                 >
                   <Navigation className="w-3.5 h-3.5 stroke-[2.5]" />
-                  <span>Navigate Now</span>
+                  <span>Directions</span>
                 </a>
               </div>
             </div>
           )}
 
-          <div className="bg-white border border-blue-200 rounded-3xl p-5 shadow-sm relative overflow-hidden">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <div className="flex items-center gap-2 flex-wrap">
+          <div className="bg-white border border-blue-200 rounded-3xl p-3.5 sm:p-5 shadow-sm relative overflow-hidden">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-1.5 flex-wrap">
                   <span className="text-[10px] font-extrabold uppercase tracking-widest text-blue-700 bg-blue-50 px-2.5 py-1 rounded-full border border-blue-200">
                     {activeRoute.filterUsed === 'closest_to_me' ? '🎯 Proximity Sequence' : 'Optimal Suburb Tour'}
                   </span>
                   {activeRoute.selectedSuburb && activeRoute.selectedSuburb !== 'all' && (
                     <span className="text-[10px] font-bold text-slate-700 bg-slate-100 px-2.5 py-1 rounded-full border border-slate-200">
-                      📍 {activeRoute.selectedSuburb} Only
+                      📍 {activeRoute.selectedSuburb}
                     </span>
                   )}
                 </div>
-                <h2 className="text-lg sm:text-xl font-bold text-slate-900 mt-1.5 flex items-center gap-2">
+                <h2 className="text-base sm:text-lg font-bold text-slate-900 mt-1.5 flex items-center gap-2 flex-wrap">
                   <span>{activeRoute.stops.length} Planned Stops</span>
-                  <span className="text-xs text-slate-500 font-normal">
+                  <span className="text-xs text-slate-500 font-normal truncate max-w-[200px] sm:max-w-none">
                     (from {activeRoute.startLocation.name})
                   </span>
                 </h2>
@@ -539,30 +539,30 @@ export const RoutePlannerView: React.FC<RoutePlannerViewProps> = ({
                 href={masterGoogleMapsUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="px-4 py-3 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs flex items-center justify-center gap-2 shadow-sm transition active:scale-95"
+                className="px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs flex items-center justify-center gap-2 shadow-sm transition active:scale-95 text-center shrink-0"
               >
-                <ExternalLink className="w-4 h-4" />
-                <span>Launch Entire Tour in Google Maps</span>
+                <ExternalLink className="w-4 h-4 shrink-0" />
+                <span className="truncate sm:whitespace-normal">Launch in Google Maps</span>
               </a>
             </div>
 
             {/* Quick Metrics Bar */}
-            <div className="grid grid-cols-3 gap-3 mt-4 pt-4 border-t border-slate-100 text-center">
-              <div className="bg-slate-50 p-2.5 rounded-2xl border border-slate-200/80">
-                <p className="text-[10px] uppercase font-bold text-slate-500">Total Distance</p>
-                <p className="text-base sm:text-lg font-black text-blue-700 mt-0.5">
+            <div className="grid grid-cols-3 gap-1.5 sm:gap-3 mt-3.5 pt-3.5 border-t border-slate-100 text-center">
+              <div className="bg-slate-50 p-2 sm:p-2.5 rounded-2xl border border-slate-200/80 min-w-0">
+                <p className="text-[9px] sm:text-[10px] uppercase font-bold text-slate-500 truncate">Total Distance</p>
+                <p className="text-sm sm:text-base font-black text-blue-700 mt-0.5 truncate">
                   {activeRoute.totalDistanceKm} km
                 </p>
               </div>
-              <div className="bg-slate-50 p-2.5 rounded-2xl border border-slate-200/80">
-                <p className="text-[10px] uppercase font-bold text-slate-500">Est. Drive Time</p>
-                <p className="text-base sm:text-lg font-black text-amber-700 mt-0.5">
+              <div className="bg-slate-50 p-2 sm:p-2.5 rounded-2xl border border-slate-200/80 min-w-0">
+                <p className="text-[9px] sm:text-[10px] uppercase font-bold text-slate-500 truncate">Est. Drive Time</p>
+                <p className="text-sm sm:text-base font-black text-amber-700 mt-0.5 truncate">
                   {activeRoute.totalDurationMin} mins
                 </p>
               </div>
-              <div className="bg-slate-50 p-2.5 rounded-2xl border border-slate-200/80">
-                <p className="text-[10px] uppercase font-bold text-slate-500">Est. Tour Finish</p>
-                <p className="text-base sm:text-lg font-black text-emerald-700 mt-0.5">
+              <div className="bg-slate-50 p-2 sm:p-2.5 rounded-2xl border border-slate-200/80 min-w-0">
+                <p className="text-[9px] sm:text-[10px] uppercase font-bold text-slate-500 truncate">Est. Finish</p>
+                <p className="text-sm sm:text-base font-black text-emerald-700 mt-0.5 truncate">
                   {activeRoute.stops.length > 0
                     ? activeRoute.stops[activeRoute.stops.length - 1].eta
                     : '--'}
@@ -577,19 +577,19 @@ export const RoutePlannerView: React.FC<RoutePlannerViewProps> = ({
               activeRoute.suburbClusters.map((cluster, clusterIdx) => (
                 <div key={cluster.suburb} className="flex flex-col gap-2.5">
                   {/* Suburb Cluster Header */}
-                  <div className="flex items-center justify-between bg-slate-100/90 border border-slate-200/80 px-4 py-2 rounded-2xl">
-                    <div className="flex items-center gap-2">
-                      <span className="w-5 h-5 rounded-full bg-blue-600 text-white font-extrabold text-xs flex items-center justify-center shadow-sm">
+                  <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-1.5 bg-slate-100/90 border border-slate-200/80 px-3.5 py-2 rounded-2xl">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="w-5 h-5 rounded-full bg-blue-600 text-white font-extrabold text-xs flex items-center justify-center shadow-sm shrink-0">
                         {clusterIdx + 1}
                       </span>
-                      <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">
+                      <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider truncate">
                         📍 {cluster.suburb} Cluster
                       </h3>
-                      <span className="text-[11px] text-slate-500 font-medium">
+                      <span className="text-[11px] text-slate-500 font-medium shrink-0">
                         • {cluster.stops.length} stop{cluster.stops.length > 1 ? 's' : ''}
                       </span>
                     </div>
-                    <span className="text-[11px] font-bold text-slate-600">
+                    <span className="text-[11px] font-bold text-slate-600 shrink-0">
                       {cluster.totalDistanceKm} km ({cluster.totalDurationMin}m drive)
                     </span>
                   </div>
@@ -610,127 +610,130 @@ export const RoutePlannerView: React.FC<RoutePlannerViewProps> = ({
                     return (
                       <div
                         key={stop.id}
-                        className={`relative p-4 rounded-2xl border transition-all ${
+                        className={`relative p-3.5 sm:p-4 rounded-2xl border transition-all ${
                           stop.isCompleted
                             ? 'bg-slate-100/80 border-slate-200 opacity-60'
                             : 'bg-white border-slate-200/90 hover:border-slate-300 shadow-sm'
                         }`}
                       >
-                        <div className="flex items-start justify-between gap-3">
-                          {/* Left: Stop Number & Status badge */}
-                          <div className="flex items-start gap-3">
-                            <button
-                              onClick={() => onToggleStopCompleted(stop.id)}
-                              className="mt-0.5 text-slate-400 hover:text-emerald-600 transition"
-                              title={stop.isCompleted ? 'Mark Incomplete' : 'Mark Visited'}
-                            >
-                              {stop.isCompleted ? (
-                                <CheckCircle2 className="w-6 h-6 text-emerald-600 fill-emerald-100" />
-                              ) : (
-                                <div className="w-6 h-6 rounded-full border-2 border-slate-400 bg-white flex items-center justify-center font-bold text-xs text-slate-700 shadow-sm">
-                                  {stop.stopOrder}
-                                </div>
+                        {/* Top Section: Stop # and Job Details */}
+                        <div className="flex items-start gap-2.5 sm:gap-3 min-w-0">
+                          <button
+                            onClick={() => onToggleStopCompleted(stop.id)}
+                            className="mt-0.5 text-slate-400 hover:text-emerald-600 transition shrink-0"
+                            title={stop.isCompleted ? 'Mark Incomplete' : 'Mark Visited'}
+                          >
+                            {stop.isCompleted ? (
+                              <CheckCircle2 className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-600 fill-emerald-100" />
+                            ) : (
+                              <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full border-2 border-slate-400 bg-white flex items-center justify-center font-bold text-[11px] sm:text-xs text-slate-700 shadow-xs">
+                                {stop.stopOrder}
+                              </div>
+                            )}
+                          </button>
+
+                          <div className="min-w-0 flex-1">
+                            {/* Status & Timing Badges */}
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span
+                                className={`text-[9px] sm:text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${statusCfg.bgClass} ${statusCfg.textClass} ${statusCfg.borderClass}`}
+                              >
+                                {statusCfg.shortLabel}
+                              </span>
+
+                              {stop.stopOrder === 1 && (
+                                <span className="text-[9px] sm:text-[10px] font-black text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-full">
+                                  🎯 Closest Stop
+                                </span>
                               )}
-                            </button>
-
-                            <div>
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span
-                                  className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${statusCfg.bgClass} ${statusCfg.textClass} ${statusCfg.borderClass}`}
-                                >
-                                  {statusCfg.shortLabel}
+                              
+                              {job.isAgencyJob && job.realEstateAgency && (
+                                <span className="text-[9px] sm:text-[10px] font-bold text-purple-800 bg-purple-50 border border-purple-200 px-2 py-0.5 rounded-full flex items-center gap-1 truncate max-w-[140px]">
+                                  <Building2 className="w-2.5 h-2.5 shrink-0" />
+                                  <span className="truncate">{job.realEstateAgency.split(' ')[0]}</span>
+                                  {job.workOrderNumber && <span className="truncate">• {job.workOrderNumber}</span>}
                                 </span>
-
-                                {stop.stopOrder === 1 && (
-                                  <span className="text-[10px] font-black text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-full">
-                                    🎯 Closest Stop
-                                  </span>
-                                )}
-                                
-                                {job.isAgencyJob && job.realEstateAgency && (
-                                  <span className="text-[10px] font-bold text-purple-800 bg-purple-50 border border-purple-200 px-2 py-0.5 rounded-full flex items-center gap-1">
-                                    <Building2 className="w-2.5 h-2.5" />
-                                    {job.realEstateAgency.split(' ')[0]}
-                                    {job.workOrderNumber && ` • ${job.workOrderNumber}`}
-                                  </span>
-                                )}
-
-                                <span className="text-xs font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-200 flex items-center gap-1">
-                                  <Clock className="w-3 h-3" /> ETA: {stop.eta}
-                                </span>
-                                <span className="text-[11px] text-slate-500">
-                                  • {stop.distanceFromPrevKm} km from prev ({stop.durationFromPrevMin}m)
-                                </span>
-                                <span className="text-[10px] font-extrabold text-blue-700 bg-blue-50/80 px-1.5 py-0.5 rounded border border-blue-200/60">
-                                  📍 {liveDist} km from you
-                                </span>
-                              </div>
-
-                              <h4 className="font-bold text-sm text-slate-900 mt-1 leading-snug">
-                                {job.title}
-                              </h4>
-
-                              <div className="flex items-center gap-1 text-xs text-slate-500 mt-0.5">
-                                <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                                <span className="truncate">{job.address}</span>
-                              </div>
-
-                              <div className="flex items-center gap-3 text-xs text-slate-700 mt-1.5 font-medium">
-                                <span>{job.clientName}</span>
-                                {job.quote && (
-                                  <span className="text-emerald-700 font-bold">
-                                    {formatCurrency(job.quote.totalAmount)}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Right: Quick actions */}
-                          <div className="flex flex-col gap-1.5 items-end shrink-0">
-                            <div className="flex items-center gap-1">
-                              {job.isAgencyJob && job.realEstateAgentPhone && (
-                                <a
-                                  href={`tel:${job.realEstateAgentPhone}`}
-                                  className="p-2 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 transition"
-                                  title={`Call Property Manager (${job.realEstateAgentName})`}
-                                >
-                                  <Building2 className="w-3.5 h-3.5 text-purple-600" />
-                                </a>
                               )}
-                              <a
-                                href={`tel:${job.clientPhone}`}
-                                className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition"
-                                title="Call Client / Tenant"
-                              >
-                                <Phone className="w-3.5 h-3.5 text-emerald-600" />
-                              </a>
-                              <a
-                                href={buildSmsLink(job.clientPhone, onMyWaySms)}
-                                className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-blue-600 transition"
-                                title="Send 'On My Way' SMS"
-                              >
-                                <MessageSquare className="w-3.5 h-3.5" />
-                              </a>
-                              <a
-                                href={singleStopNavUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-amber-600 transition"
-                                title="Navigate to Stop"
-                              >
-                                <Navigation className="w-3.5 h-3.5" />
-                              </a>
+
+                              <span className="text-[11px] sm:text-xs font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-200 flex items-center gap-1">
+                                <Clock className="w-3 h-3 shrink-0" /> ETA: {stop.eta}
+                              </span>
+                              <span className="text-[10px] text-slate-500">
+                                • {stop.distanceFromPrevKm} km ({stop.durationFromPrevMin}m)
+                              </span>
+                              <span className="text-[10px] font-extrabold text-blue-700 bg-blue-50/80 px-1.5 py-0.5 rounded border border-blue-200/60">
+                                📍 {liveDist} km away
+                              </span>
                             </div>
 
-                            <button
-                              onClick={() => onOpenJobDetail(job)}
-                              className="px-2.5 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-600 text-blue-700 hover:text-white font-bold text-xs flex items-center gap-1 transition border border-blue-200"
-                            >
-                              <FileText className="w-3 h-3" />
-                              <span>Quote / Job</span>
-                            </button>
+                            {/* Job Title */}
+                            <h4 className="font-bold text-sm text-slate-900 mt-1 leading-snug break-words">
+                              {job.title}
+                            </h4>
+
+                            {/* Address */}
+                            <div className="flex items-center gap-1 text-xs text-slate-500 mt-0.5">
+                              <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                              <span className="truncate">{job.address}</span>
+                            </div>
+
+                            {/* Client & Price */}
+                            <div className="flex items-center gap-3 text-xs text-slate-700 mt-1 font-medium">
+                              <span className="truncate">{job.clientName}</span>
+                              {job.quote && (
+                                <span className="text-emerald-700 font-bold shrink-0">
+                                  {formatCurrency(job.quote.totalAmount)}
+                                </span>
+                              )}
+                            </div>
                           </div>
+                        </div>
+
+                        {/* Bottom Responsive Action Strip */}
+                        <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between gap-2 flex-wrap">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {job.isAgencyJob && job.realEstateAgentPhone && (
+                              <a
+                                href={`tel:${job.realEstateAgentPhone}`}
+                                className="p-2 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 transition active:scale-95 shrink-0"
+                                title={`Call Property Manager (${job.realEstateAgentName})`}
+                              >
+                                <Building2 className="w-3.5 h-3.5 text-purple-600" />
+                              </a>
+                            )}
+                            <a
+                              href={`tel:${job.clientPhone}`}
+                              className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition active:scale-95 shrink-0"
+                              title="Call Client / Tenant"
+                            >
+                              <Phone className="w-3.5 h-3.5 text-emerald-600" />
+                            </a>
+                            <a
+                              href={buildSmsLink(job.clientPhone, onMyWaySms)}
+                              className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-blue-600 transition active:scale-95 shrink-0"
+                              title="Send 'On My Way' SMS"
+                            >
+                              <MessageSquare className="w-3.5 h-3.5" />
+                            </a>
+                            <a
+                              href={singleStopNavUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="px-3 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200/80 font-bold text-xs flex items-center gap-1 transition active:scale-95 shrink-0"
+                              title="Directions with Google Maps"
+                            >
+                              <Navigation className="w-3.5 h-3.5 text-amber-600" />
+                              <span>Directions</span>
+                            </a>
+                          </div>
+
+                          <button
+                            onClick={() => onOpenJobDetail(job)}
+                            className="px-3 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-600 text-blue-700 hover:text-white font-bold text-xs flex items-center gap-1 transition border border-blue-200 active:scale-95 ml-auto shrink-0"
+                          >
+                            <FileText className="w-3 h-3" />
+                            <span>Job Details</span>
+                          </button>
                         </div>
                       </div>
                     );

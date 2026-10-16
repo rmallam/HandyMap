@@ -128,40 +128,19 @@ export const JobList: React.FC<JobListProps> = ({
   });
 
   return (
-    <div className="flex flex-col h-full bg-slate-50 overflow-y-auto pb-[calc(6.5rem+env(safe-area-inset-bottom,0px))] text-slate-900 p-3 sm:p-6 max-w-5xl mx-auto w-full">
-      {/* Top Title & Action Buttons */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 mb-4 sm:mb-5">
+    <div className="flex flex-col h-full bg-slate-50 overflow-y-auto overflow-x-hidden pb-[calc(6.5rem+env(safe-area-inset-bottom,0px))] text-slate-900 p-3 sm:p-6 max-w-5xl mx-auto w-full">
+      {/* Top Title & Quick Stats */}
+      <div className="flex items-center justify-between gap-2 mb-3">
         <div>
-          <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+          <h1 className="text-base sm:text-lg font-black text-slate-900 tracking-tight flex items-center gap-1.5">
             <span>Jobs & Estimates</span>
-            <span className="text-[11px] font-black px-2 py-0.5 rounded-full bg-slate-200 text-slate-700">
+            <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-slate-200/90 text-slate-700">
               {filteredJobs.length}
             </span>
           </h1>
-          <p className="text-xs text-slate-500 mt-0.5 font-medium">
-            Manage customer requests, approved estimates, and real estate work orders.
+          <p className="text-[11px] text-slate-500 font-medium">
+            Customer requests, approved estimates & agency orders
           </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          {onOpenImport && (
-            <button
-              onClick={onOpenImport}
-              className="px-3.5 py-2.5 rounded-2xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-extrabold text-xs flex items-center justify-center gap-1.5 shadow-sm transition active:scale-95"
-              title="Bulk import jobs from Excel or CSV spreadsheet"
-            >
-              <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
-              <span>Import Excel</span>
-            </button>
-          )}
-
-          <button
-            onClick={onAddNewJob}
-            className="px-4 py-2.5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-extrabold text-xs flex items-center justify-center gap-2 shadow-lg shadow-blue-500/25 transition active:scale-95"
-          >
-            <Plus className="w-4 h-4 stroke-[3]" />
-            <span>New Lead / Quote</span>
-          </button>
         </div>
       </div>
 
@@ -277,8 +256,8 @@ export const JobList: React.FC<JobListProps> = ({
       </div>
 
       {/* Date Filter Bar: Today / Tomorrow / This Week / All Dates */}
-      <div className="flex items-center justify-between gap-2 mb-3.5 flex-wrap">
-        <div className="flex items-center gap-1 bg-white p-1 rounded-2xl border border-slate-200/90 shadow-xs overflow-x-auto no-scrollbar">
+      <div className="flex items-center justify-between gap-2 mb-3.5 flex-wrap max-w-full">
+        <div className="flex items-center gap-1 bg-white p-1 rounded-2xl border border-slate-200/90 shadow-xs overflow-x-auto no-scrollbar max-w-full">
           <div className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-black text-slate-500 uppercase tracking-wider shrink-0 border-r border-slate-200/80 mr-0.5">
             <Calendar className="w-3.5 h-3.5 text-blue-600 stroke-[2.4]" />
             <span className="text-[11px]">When:</span>

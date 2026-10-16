@@ -122,6 +122,7 @@ interface ProfileModalProps {
   onClose: () => void;
   onSaveProfile: (updatedProfile: HandymanProfile) => void;
   onOpenAuth?: () => void;
+  onOpenImport?: () => void;
 }
 
 export const ProfileModal: React.FC<ProfileModalProps> = ({
@@ -130,7 +131,8 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
   currentUserEmail,
   onClose,
   onSaveProfile,
-  onOpenAuth
+  onOpenAuth,
+  onOpenImport
 }) => {
   const [formData, setFormData] = useState<HandymanProfile>({
     ...profile,
@@ -706,6 +708,35 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
               </div>
             </div>
           </div>
+
+          {/* Bulk Import from Excel Section */}
+          {onOpenImport && (
+            <div className="bg-gradient-to-r from-emerald-50/80 to-teal-50/80 rounded-2xl border border-emerald-200/90 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-emerald-100 text-emerald-800 flex items-center justify-center shrink-0 shadow-xs">
+                  <FileSpreadsheet className="w-5 h-5 text-emerald-700" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-black text-emerald-950">Bulk Import Jobs from Excel</h4>
+                  <p className="text-[11px] text-emerald-850/80 mt-0.5">
+                    Upload .xlsx or .csv work order spreadsheets to populate customer and agency jobs.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  triggerHapticFeedback('light');
+                  onClose();
+                  onOpenImport();
+                }}
+                className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition shrink-0"
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5" />
+                <span>Import Excel / CSV</span>
+              </button>
+            </div>
+          )}
 
           {/* Footer Actions */}
           <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-3">

@@ -721,6 +721,7 @@ export function App() {
         onClose={() => setIsProfileModalOpen(false)}
         onSaveProfile={handleUpdateProfile}
         onOpenAuth={() => setIsAuthModalOpen(true)}
+        onOpenImport={() => setIsImportModalOpen(true)}
       />
 
       {/* Handyman User & Password / Email OTP Authentication Modal */}
@@ -742,7 +743,7 @@ export function App() {
       />
 
       {/* Mobile Thumb-Zone Floating Action Button (FAB) */}
-      {(activeTab === 'map' || activeTab === 'jobs') && (
+      {(activeTab === 'map' || activeTab === 'jobs' || activeTab === 'route') && (
         <button
           onClick={() => setIsNewJobOpen(true)}
           className="fixed bottom-[calc(4.6rem+env(safe-area-inset-bottom,0px))] right-3.5 z-30 sm:hidden bg-gradient-to-tr from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-xl shadow-blue-600/40 w-13 h-13 rounded-full flex items-center justify-center active:scale-95 transition-all duration-150 border-2 border-white/80"
