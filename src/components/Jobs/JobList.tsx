@@ -114,7 +114,7 @@ export const JobList: React.FC<JobListProps> = ({
   const filteredJobs = statusAndAgencyJobs.filter(job => {
     const matchesDate = matchesDateFilter(job, dateFilter);
 
-    const searchLower = searchTerm.toLowerCase();
+    const searchLower = searchTerm.toLowerCase().trim();
     const matchesSearch =
       job.title.toLowerCase().includes(searchLower) ||
       job.clientName.toLowerCase().includes(searchLower) ||
@@ -122,7 +122,13 @@ export const JobList: React.FC<JobListProps> = ({
       job.jobNumber.toLowerCase().includes(searchLower) ||
       job.category.toLowerCase().includes(searchLower) ||
       (job.realEstateAgency && job.realEstateAgency.toLowerCase().includes(searchLower)) ||
-      (job.workOrderNumber && job.workOrderNumber.toLowerCase().includes(searchLower));
+      (job.realEstateAgentName && job.realEstateAgentName.toLowerCase().includes(searchLower)) ||
+      (job.realEstateAgentEmail && job.realEstateAgentEmail.toLowerCase().includes(searchLower)) ||
+      (job.realEstateAgentPhone && job.realEstateAgentPhone.toLowerCase().includes(searchLower)) ||
+      (job.workOrderNumber && job.workOrderNumber.toLowerCase().includes(searchLower)) ||
+      (job.tenant1Name && job.tenant1Name.toLowerCase().includes(searchLower)) ||
+      (job.tenant2Name && job.tenant2Name.toLowerCase().includes(searchLower)) ||
+      (job.tenantName && job.tenantName.toLowerCase().includes(searchLower));
 
     return matchesDate && matchesSearch;
   });
@@ -153,7 +159,7 @@ export const JobList: React.FC<JobListProps> = ({
             type="text"
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
-            placeholder="Search client, address, agency, work order #, or trade..."
+            placeholder="Search client, agent name, agency, address, or trade..."
             className="w-full bg-white border border-slate-200/90 rounded-2xl pl-10 pr-9 py-2.5 text-xs text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none shadow-sm transition font-medium"
           />
           {searchTerm && (
@@ -622,15 +628,20 @@ export const JobList: React.FC<JobListProps> = ({
                     {job.description}
                   </p>
 
-                  {/* Real Estate Agency Work Order Pill */}
-                  {job.isAgencyJob && job.realEstateAgency && (
-                    <div className="mt-3 px-3 py-1.5 rounded-2xl bg-gradient-to-r from-purple-50 to-indigo-50/40 border border-purple-200/80 text-[11px] font-extrabold text-purple-900 flex items-center justify-between">
-                      <span className="flex items-center gap-1.5">
+                  {/* Real Estate Agency & Agent Work Order Pill */}
+                  {job.isAgencyJob && (job.realEstateAgency || job.realEstateAgentName) && (
+                    <div className="mt-3 px-3 py-1.5 rounded-2xl bg-gradient-to-r from-purple-50 to-indigo-50/40 border border-purple-200/80 text-[11px] font-extrabold text-purple-900 flex items-center justify-between flex-wrap gap-1">
+                      <span className="flex items-center gap-1.5 min-w-0">
                         <Building2 className="w-3.5 h-3.5 text-purple-600 shrink-0" />
-                        <span>{job.realEstateAgency}</span>
+                        <span className="truncate">{job.realEstateAgency || 'Real Estate Agency'}</span>
+                        {job.realEstateAgentName && (
+                          <span className="text-[10px] text-purple-700 font-semibold truncate">
+                            • Agent: {job.realEstateAgentName}
+                          </span>
+                        )}
                       </span>
                       {job.workOrderNumber && (
-                        <span className="font-mono text-[10px] font-black text-purple-800 bg-purple-200/70 px-2 py-0.5 rounded-lg">
+                        <span className="font-mono text-[10px] font-black text-purple-800 bg-purple-200/70 px-2 py-0.5 rounded-lg shrink-0">
                           WO #{job.workOrderNumber}
                         </span>
                       )}
