@@ -35,7 +35,9 @@ import {
   Navigation2,
   CheckCircle2,
   Download,
-  Receipt
+  Receipt,
+  ChevronDown,
+  User
 } from 'lucide-react';
 
 interface JobListProps {
@@ -59,6 +61,7 @@ export const JobList: React.FC<JobListProps> = ({
   const [statusFilter, setStatusFilter] = useState<JobStatus | 'all' | 'all_total'>('all');
   const [dateFilter, setDateFilter] = useState<DateFilterType>('all');
   const [agencyFilter, setAgencyFilter] = useState<string>('all');
+  const [agentFilter, setAgentFilter] = useState<string>('all');
   const agencyCount = jobs.filter(j => j.isAgencyJob && j.realEstateAgency && j.realEstateAgency.trim().length > 0).length;
 
   const activeJobsCount = jobs.filter(j => j.status !== 'invoiced' && j.status !== 'cancelled').length;
@@ -81,7 +84,25 @@ export const JobList: React.FC<JobListProps> = ({
     )
   ).sort();
 
-  // 1. Status & Agency baseline (Used for dynamic date counts)
+  // Extract unique agents based on currently selected agency
+  const dynamicAgents = Array.from(
+    new Set(
+      jobs
+        .filter(j => {
+          if (agencyFilter === 'all' || agencyFilter === 'agency_only') {
+            return Boolean(j.isAgencyJob && j.realEstateAgentName?.trim());
+          }
+          if (agencyFilter === 'direct_only') return false;
+          return Boolean(
+            j.realEstateAgency?.trim().toLowerCase() === agencyFilter.trim().toLowerCase() &&
+            j.realEstateAgentName?.trim()
+          );
+        })
+        .map(j => j.realEstateAgentName!.trim())
+    )
+  ).sort();
+
+  // 1. Status & Agency & Agent baseline (Used for dynamic date counts)
   const statusAndAgencyJobs = jobs.filter(job => {
     let matchesStatus = true;
     if (statusFilter === 'all') {
@@ -104,7 +125,15 @@ export const JobList: React.FC<JobListProps> = ({
       );
     }
 
-    return matchesStatus && matchesAgency;
+    let matchesAgent = true;
+    if (agentFilter !== 'all') {
+      matchesAgent = Boolean(
+        job.realEstateAgentName &&
+        job.realEstateAgentName.trim().toLowerCase() === agentFilter.trim().toLowerCase()
+      );
+    }
+
+    return matchesStatus && matchesAgency && matchesAgent;
   });
 
   // Calculate live counts for Today, Tomorrow, This Week under current status
@@ -357,93 +386,155 @@ export const JobList: React.FC<JobListProps> = ({
         )}
       </div>
 
-      {/* Real Estate Agency Filter Bar */}
+      {/* Real Estate Agency & Agent Smart Cascading Filter */}
       {agencyCount > 0 && (
-        <div className="bg-white p-2 sm:p-2.5 rounded-2xl border border-slate-200/90 shadow-sm mb-5 flex items-center gap-2 overflow-x-auto no-scrollbar">
-          <span className="text-[11px] font-bold text-slate-400 uppercase flex items-center gap-1.5 shrink-0 px-2">
-            <Building2 className="w-3.5 h-3.5 text-purple-600" /> Agency Filter:
-          </span>
-
-          <button
-            onClick={() => setAgencyFilter('all')}
-            className={`px-2.5 py-1 rounded-xl text-xs font-bold whitespace-nowrap transition ${
-              agencyFilter === 'all'
-                ? 'bg-purple-700 text-white shadow-sm'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-            }`}
-          >
-            All Sources
-          </button>
-
-          <button
-            onClick={() => setAgencyFilter('agency_only')}
-            className={`px-2.5 py-1 rounded-xl text-xs font-bold whitespace-nowrap transition flex items-center gap-1.5 ${
-              agencyFilter === 'agency_only'
-                ? 'bg-purple-700 text-white shadow-sm'
-                : 'text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200/60'
-            }`}
-          >
-            <span>All Agency Orders</span>
-            <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
-              agencyFilter === 'agency_only' ? 'bg-purple-800 text-white' : 'bg-purple-200 text-purple-800'
-            }`}>
-              {agencyCount}
-            </span>
-          </button>
-
-          {dynamicAgencies.map(agency => {
-            const count = jobs.filter(j => j.realEstateAgency?.trim().toLowerCase() === agency.toLowerCase()).length;
-            if (count === 0) return null;
-            const isSelected = agencyFilter.trim().toLowerCase() === agency.toLowerCase();
-            return (
-              <button
-                key={agency}
-                onClick={() => setAgencyFilter(agency)}
-                className={`px-2.5 py-1 rounded-xl text-xs font-bold whitespace-nowrap transition flex items-center gap-1.5 ${
-                  isSelected
-                    ? 'bg-purple-700 text-white shadow-sm'
-                    : 'text-slate-600 hover:text-purple-900 hover:bg-purple-50 border border-slate-200/60'
+        <div className="bg-white px-2.5 py-2 rounded-2xl border border-slate-200/90 shadow-xs mb-3 transition">
+          <div className="flex items-center gap-1.5">
+            {/* Agency Selector */}
+            <div className="relative flex-1 min-w-0">
+              <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-purple-600">
+                <Building2 className="w-3.5 h-3.5" />
+              </div>
+              <select
+                value={agencyFilter}
+                onChange={(e) => {
+                  triggerHapticFeedback('light');
+                  setAgencyFilter(e.target.value);
+                  setAgentFilter('all');
+                }}
+                className={`w-full appearance-none pl-7 pr-6 py-1.5 text-xs font-bold rounded-xl border transition truncate focus:outline-none focus:ring-2 focus:ring-purple-500/20 ${
+                  agencyFilter !== 'all'
+                    ? 'bg-purple-50 text-purple-900 border-purple-300 font-black'
+                    : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
                 }`}
               >
-                <span>{agency}</span>
-                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
-                  isSelected ? 'bg-purple-800 text-white' : 'bg-slate-100 text-slate-600'
-                }`}>
-                  {count}
-                </span>
+                <option value="all">🏢 All Sources</option>
+                <option value="agency_only">🏢 All Agencies ({agencyCount})</option>
+                <option value="direct_only">👤 Direct Clients</option>
+                {dynamicAgencies.length > 0 && (
+                  <optgroup label="Agencies">
+                    {dynamicAgencies.map((agency) => {
+                      const count = jobs.filter(
+                        (j) => j.realEstateAgency?.trim().toLowerCase() === agency.toLowerCase()
+                      ).length;
+                      return (
+                        <option key={agency} value={agency}>
+                          {agency} ({count})
+                        </option>
+                      );
+                    })}
+                  </optgroup>
+                )}
+              </select>
+              <div className="absolute inset-y-0 right-0 pr-2 flex items-center pointer-events-none text-slate-400">
+                <ChevronDown className="w-3.5 h-3.5" />
+              </div>
+            </div>
+
+            {/* Agent / Property Manager Selector */}
+            <div className="relative flex-1 min-w-0">
+              <div
+                className={`absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none ${
+                  agencyFilter === 'direct_only' ? 'text-slate-300' : 'text-indigo-600'
+                }`}
+              >
+                <User className="w-3.5 h-3.5" />
+              </div>
+              <select
+                value={agentFilter}
+                disabled={agencyFilter === 'direct_only'}
+                onChange={(e) => {
+                  triggerHapticFeedback('light');
+                  setAgentFilter(e.target.value);
+                }}
+                className={`w-full appearance-none pl-7 pr-6 py-1.5 text-xs font-bold rounded-xl border transition truncate focus:outline-none focus:ring-2 focus:ring-indigo-500/20 ${
+                  agencyFilter === 'direct_only'
+                    ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed opacity-60'
+                    : agentFilter !== 'all'
+                    ? 'bg-indigo-50 text-indigo-900 border-indigo-300 font-black'
+                    : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                }`}
+              >
+                {agencyFilter === 'direct_only' ? (
+                  <option value="all">No Agents (Direct)</option>
+                ) : (
+                  <>
+                    <option value="all">
+                      {agencyFilter !== 'all' && agencyFilter !== 'agency_only'
+                        ? `All in ${agencyFilter}`
+                        : dynamicAgents.length > 0
+                        ? `All Agents (${dynamicAgents.length})`
+                        : 'All Agents'}
+                    </option>
+                    {dynamicAgents.map((agent) => {
+                      const count = jobs.filter((j) => {
+                        const matchesThisAgent =
+                          j.realEstateAgentName?.trim().toLowerCase() === agent.toLowerCase();
+                        if (!matchesThisAgent) return false;
+                        if (agencyFilter !== 'all' && agencyFilter !== 'agency_only') {
+                          return (
+                            j.realEstateAgency?.trim().toLowerCase() ===
+                            agencyFilter.trim().toLowerCase()
+                          );
+                        }
+                        return true;
+                      }).length;
+
+                      return (
+                        <option key={agent} value={agent}>
+                          {agent} ({count})
+                        </option>
+                      );
+                    })}
+                  </>
+                )}
+              </select>
+              <div className="absolute inset-y-0 right-0 pr-2 flex items-center pointer-events-none text-slate-400">
+                <ChevronDown className="w-3.5 h-3.5" />
+              </div>
+            </div>
+
+            {/* Clear Filter Button */}
+            {(agencyFilter !== 'all' || agentFilter !== 'all') && (
+              <button
+                type="button"
+                onClick={() => {
+                  triggerHapticFeedback('light');
+                  setAgencyFilter('all');
+                  setAgentFilter('all');
+                }}
+                className="h-8 w-8 flex items-center justify-center rounded-xl bg-slate-100 hover:bg-red-50 hover:text-red-600 text-slate-500 border border-slate-200/80 transition shrink-0"
+                title="Reset agency & agent filters"
+                aria-label="Reset filters"
+              >
+                <X className="w-3.5 h-3.5 stroke-[2.5]" />
               </button>
-            );
-          })}
-
-          <button
-            onClick={() => setAgencyFilter('direct_only')}
-            className={`px-2.5 py-1 rounded-xl text-xs font-bold whitespace-nowrap transition ${
-              agencyFilter === 'direct_only'
-                ? 'bg-slate-800 text-white shadow-sm'
-                : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
-            }`}
-          >
-            Direct Residential Only
-          </button>
-        </div>
-      )}
-
-      {/* Active Filter Notice if specific agency is isolated */}
-      {agencyFilter !== 'all' && (
-        <div className="bg-purple-50 border border-purple-200 rounded-2xl p-3 mb-4 flex items-center justify-between text-xs text-purple-900 animate-in fade-in">
-          <div className="flex items-center gap-2">
-            <Building2 className="w-4 h-4 text-purple-700 shrink-0" />
-            <span>
-              Showing ONLY work orders for: <strong>{agencyFilter === 'agency_only' ? 'All Real Estate Agencies' : agencyFilter === 'direct_only' ? 'Direct Residential Clients' : agencyFilter}</strong> ({filteredJobs.length} {filteredJobs.length === 1 ? 'job' : 'jobs'})
-            </span>
+            )}
           </div>
-          <button
-            onClick={() => setAgencyFilter('all')}
-            className="p-1 rounded-lg hover:bg-purple-200/60 text-purple-700 transition"
-            title="Clear agency filter"
-          >
-            <X className="w-3.5 h-3.5" />
-          </button>
+
+          {/* Micro Active Filter Tag (Ultra compact 1-line indicator when filtered) */}
+          {(agencyFilter !== 'all' || agentFilter !== 'all') && (
+            <div className="mt-1.5 pt-1.5 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500 px-0.5">
+              <span className="truncate">
+                Showing:{' '}
+                <strong className="text-purple-900 font-bold">
+                  {agencyFilter === 'agency_only'
+                    ? 'All Agency Orders'
+                    : agencyFilter === 'direct_only'
+                    ? 'Direct Clients'
+                    : agencyFilter}
+                </strong>
+                {agentFilter !== 'all' && (
+                  <>
+                    {' '}• Agent: <strong className="text-indigo-900 font-bold">{agentFilter}</strong>
+                  </>
+                )}
+              </span>
+              <span className="text-[10px] font-black text-purple-700 bg-purple-100/70 px-2 py-0.5 rounded-full shrink-0 ml-2">
+                {filteredJobs.length} {filteredJobs.length === 1 ? 'job' : 'jobs'}
+              </span>
+            </div>
+          )}
         </div>
       )}
 
