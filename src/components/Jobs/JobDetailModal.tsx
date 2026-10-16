@@ -7,7 +7,7 @@ import { stitchBeforeAndAfterPhotos, processImageFile } from '../../utils/photoS
 import { generateQuotePDF } from '../../services/pdfGenerator';
 import { triggerHapticFeedback } from '../../services/nativeMobile';
 import { SignaturePadModal } from '../Common/SignaturePadModal';
-import { SUBURBS_LIST } from '../../data/mockJobs';
+import { SUBURBS_LIST, REAL_ESTATE_AGENCIES } from '../../data/mockJobs';
 import { AddressAutocomplete, AddressResult } from '../Common/AddressAutocomplete';
 import { QuoteBuilder } from './QuoteBuilder';
 import { TimeTracker } from './TimeTracker';
@@ -62,7 +62,8 @@ import {
   Image as ImageIcon,
   Loader2,
   Users,
-  Mail
+  Mail,
+  Copy
 } from 'lucide-react';
 
 interface JobDetailModalProps {
@@ -217,6 +218,43 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
   const [editWorkOrderNumber, setEditWorkOrderNumber] = useState(job.workOrderNumber || '');
   const [isQuickRescheduleOpen, setIsQuickRescheduleOpen] = useState(false);
   const [quickRescheduleTime, setQuickRescheduleTime] = useState(formatForDateTimeLocal(job.appointmentTime));
+
+  const [isAddressCopied, setIsAddressCopied] = useState(false);
+  const [isCalendarMenuOpen, setIsCalendarMenuOpen] = useState(false);
+  const calendarMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent | TouchEvent) => {
+      if (calendarMenuRef.current && !calendarMenuRef.current.contains(e.target as Node)) {
+        setIsCalendarMenuOpen(false);
+      }
+    };
+    if (isCalendarMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('touchstart', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, [isCalendarMenuOpen]);
+
+  const handleCopyAddress = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    triggerHapticFeedback('light');
+    if (navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(job.address);
+    } else {
+      const textArea = document.createElement('textarea');
+      textArea.value = job.address;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+    }
+    setIsAddressCopied(true);
+    setTimeout(() => setIsAddressCopied(false), 2000);
+  };
 
   const renderDetailPhoneBadge = (phoneStr: string) => {
     const count = getPhoneDigitCount(phoneStr);
@@ -502,8 +540,13 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
   };
 
   // Save entire job & scope edits
-  const handleSaveAllJobEdits = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSaveAllJobEdits = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!editTitle.trim()) {
+      alert('Please enter a job title');
+      return;
+    }
+    triggerHapticFeedback('success');
     const updatedJob: Job = {
       ...job,
       jobNumber: editJobNumber.trim() || job.jobNumber,
@@ -633,103 +676,158 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
   ];
 
   return (
-    <div className="fixed inset-0 z-[3000] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/70 backdrop-blur-md overflow-y-auto animate-in fade-in duration-150">
-      <div className="bg-white border-t sm:border border-slate-200/90 rounded-t-[32px] sm:rounded-3xl w-full max-w-3xl max-h-[92dvh] flex flex-col shadow-2xl overflow-hidden text-slate-900 pb-[env(safe-area-inset-bottom,0px)]">
-        
-        {/* Mobile Drag Indicator Bar */}
-        <div className="w-12 h-1.5 bg-slate-300 rounded-full mx-auto my-2.5 sm:hidden shrink-0" />
+    <div className="fixed inset-0 z-[3000] flex items-stretch sm:items-center justify-center p-0 sm:p-4 bg-slate-900/80 backdrop-blur-sm sm:backdrop-blur-md overflow-hidden animate-in fade-in duration-150">
+      <div className="bg-white border-0 sm:border border-slate-200/90 rounded-none sm:rounded-3xl w-full max-w-3xl h-full sm:h-auto sm:max-h-[92dvh] flex flex-col shadow-2xl overflow-hidden text-slate-900 pb-[env(safe-area-inset-bottom,0px)]">
 
         {/* Top Header */}
-        <div className="p-4 sm:p-5 border-b border-slate-200/80 flex items-start justify-between gap-4 bg-white shrink-0">
-          <div className="flex flex-col gap-1 flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-mono text-xs font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
-                {job.jobNumber}
-              </span>
+        <div className="p-3 sm:p-4 border-b border-slate-200/80 flex items-center justify-between gap-2.5 bg-white shrink-0">
+          {isEditing ? (
+            <div className="flex items-center justify-between w-full">
+              {/* TOP LEFT SAVE & CANCEL BUTTONS */}
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleSaveAllJobEdits()}
+                  className="px-4 py-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-black text-xs shadow-md shadow-blue-500/25 flex items-center gap-1.5 transition active:scale-95"
+                >
+                  <Save className="w-3.5 h-3.5 stroke-[2.5]" />
+                  <span>Save Changes</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    triggerHapticFeedback('light');
+                    setIsEditing(false);
+                  }}
+                  className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition active:scale-95"
+                >
+                  Cancel
+                </button>
+              </div>
 
-              {/* Status Picker Dropdown */}
-              <select
-                value={job.status}
-                onChange={e => handleStatusChange(e.target.value as JobStatus)}
-                className={`text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full border cursor-pointer shadow-sm ${statusCfg.bgClass} ${statusCfg.textClass} ${statusCfg.borderClass} focus:outline-none`}
-              >
-                <option value="quote_requested">🟠 Needs Quote (Site Visit)</option>
-                <option value="quoted">🟣 Quoted (Pending Approval)</option>
-                <option value="in_progress">🟢 In Progress / Active</option>
-                <option value="urgent">🔴 Urgent / Emergency</option>
-                <option value="completed">⚪ Completed</option>
-                <option value="invoiced">🔵 Invoiced & Paid</option>
-                <option value="cancelled">🚫 Cancelled (Did Not Proceed)</option>
-              </select>
-
-              <span className="text-xs font-semibold bg-slate-100 text-slate-700 px-2.5 py-0.5 rounded-full flex items-center gap-1 border border-slate-200/60">
-                <Tag className="w-3 h-3 text-blue-600" /> {job.category}
-              </span>
-
-              {job.isAgencyJob && job.realEstateAgency && (
-                <span className="text-xs font-bold bg-purple-100 text-purple-900 px-2.5 py-0.5 rounded-full flex items-center gap-1 border border-purple-200">
-                  <Building2 className="w-3 h-3 text-purple-700" />
-                  {job.realEstateAgency}
-                  {job.workOrderNumber && <span className="font-mono opacity-80">({job.workOrderNumber})</span>}
-                </span>
-              )}
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-slate-500 hidden sm:inline">Editing Job Scope</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    triggerHapticFeedback('light');
+                    setIsEditing(false);
+                  }}
+                  className="p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 transition shrink-0"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
             </div>
+          ) : (
+            <div className="flex flex-col gap-1 flex-1 min-w-0">
+              {/* Row 1: ID, Status, Category, Agency Tag */}
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="font-mono text-[11px] font-black text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200/60 shrink-0">
+                  {job.jobNumber}
+                </span>
 
-            <h2 className="text-base sm:text-lg font-bold text-slate-900 mt-1 leading-snug truncate">
-              {job.title}
-            </h2>
-          </div>
+                {/* Status Picker Dropdown */}
+                <select
+                  value={job.status}
+                  onChange={e => handleStatusChange(e.target.value as JobStatus)}
+                  className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border cursor-pointer shadow-2xs ${statusCfg.bgClass} ${statusCfg.textClass} ${statusCfg.borderClass} focus:outline-none`}
+                >
+                  <option value="quote_requested">🟠 Needs Quote</option>
+                  <option value="quoted">🟣 Quoted</option>
+                  <option value="in_progress">🟢 In Progress</option>
+                  <option value="urgent">🔴 Urgent</option>
+                  <option value="completed">⚪ Completed</option>
+                  <option value="invoiced">🔵 Paid Archive</option>
+                  <option value="cancelled">🚫 Cancelled</option>
+                </select>
 
-          <div className="flex items-center gap-1.5 shrink-0">
-            {(job.status === 'completed' || job.status === 'invoiced') && (
+                <span className="text-[10px] font-bold bg-slate-100 text-slate-700 px-2 py-0.5 rounded border border-slate-200/60 truncate max-w-[110px] shrink-0">
+                  {job.category}
+                </span>
+
+                {job.isAgencyJob && job.realEstateAgency && (
+                  <span className="text-[10px] font-bold bg-purple-100 text-purple-900 px-2 py-0.5 rounded border border-purple-200 truncate max-w-[130px] flex items-center gap-1 shrink-0">
+                    <Building2 className="w-2.5 h-2.5 text-purple-700 shrink-0" />
+                    <span className="truncate">{job.realEstateAgency}</span>
+                  </span>
+                )}
+              </div>
+
+              {/* Row 2: Title */}
+              <h2 className="text-sm sm:text-base font-black text-slate-900 leading-tight truncate">
+                {job.title}
+              </h2>
+
+              {/* Row 3: Client Name & Address with Copy button */}
+              <div className="flex items-center gap-1.5 text-xs text-slate-600 min-w-0">
+                <span className="font-bold text-slate-900 shrink-0 truncate max-w-[120px]">{job.clientName}</span>
+                <span className="text-slate-300 shrink-0">•</span>
+                <div className="flex items-center gap-1 min-w-0 flex-1">
+                  <MapPin className="w-3 h-3 text-blue-600 shrink-0" />
+                  <span className="truncate text-slate-600 font-medium text-[11px]">{job.address}</span>
+                  <button
+                    type="button"
+                    onClick={handleCopyAddress}
+                    className="p-1 rounded hover:bg-slate-200 text-slate-400 hover:text-blue-600 transition shrink-0 inline-flex items-center gap-0.5"
+                    title="Copy Address"
+                    aria-label="Copy Address"
+                  >
+                    {isAddressCopied ? (
+                      <Check className="w-3.5 h-3.5 text-emerald-600" />
+                    ) : (
+                      <Copy className="w-3.5 h-3.5" />
+                    )}
+                  </button>
+                  {isAddressCopied && (
+                    <span className="text-[10px] font-bold text-emerald-600 shrink-0 animate-in fade-in">Copied!</span>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {!isEditing && (
+            <div className="flex items-center gap-1 shrink-0">
+              {(job.status === 'completed' || job.status === 'invoiced') && (
+                <button
+                  type="button"
+                  onClick={() => generateQuotePDF(job, profile)}
+                  className="px-2 py-1.5 rounded-xl text-xs font-extrabold bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-1 shadow-2xs transition active:scale-95 cursor-pointer shrink-0"
+                  title="Generate & Download Official Tax Invoice PDF"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Invoice</span>
+                </button>
+              )}
+
               <button
                 type="button"
-                onClick={() => generateQuotePDF(job, profile)}
-                className="px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-extrabold bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-1 shadow-sm transition active:scale-95 cursor-pointer shrink-0"
-                title="Generate & Download Official Tax Invoice PDF"
+                onClick={() => setIsEditing(true)}
+                className="px-2.5 py-1.5 rounded-xl text-xs font-bold bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 shadow-2xs flex items-center gap-1 transition shrink-0"
               >
-                <Download className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Tax Invoice (PDF)</span>
-                <span className="sm:hidden">Invoice</span>
+                <Pencil className="w-3.5 h-3.5" />
+                <span>Edit</span>
               </button>
-            )}
 
-            <button
-              onClick={() => setIsEditing(!isEditing)}
-              className={`px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 transition border shrink-0 ${
-                isEditing
-                  ? 'bg-blue-50 text-blue-700 border-blue-200'
-                  : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200 shadow-sm'
-              }`}
-            >
-              <Pencil className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">{isEditing ? 'Cancel Edit' : 'Edit Job'}</span>
-              <span className="sm:hidden">{isEditing ? 'Cancel' : 'Edit'}</span>
-            </button>
-
-            <button
-              onClick={onClose}
-              className="p-1.5 sm:p-2 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 transition shrink-0"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
+              <button
+                type="button"
+                onClick={onClose}
+                className="p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 transition shrink-0"
+                aria-label="Close"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
         </div>
 
-        {/* Client Quick Contact & Calendar Sync Banner */}
-        <div className="px-4 sm:px-5 py-3 bg-slate-50 border-b border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 shrink-0 text-xs">
-          <div className="min-w-0">
-            <p className="font-bold text-slate-900 text-sm truncate">{job.clientName}</p>
-            <div className="flex items-center gap-1 text-slate-500 mt-0.5">
-              <MapPin className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-              <span className="truncate">{job.address}</span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-1.5 flex-wrap sm:flex-nowrap shrink-0">
+        {/* Client Quick Contact & Calendar Sync Actions (Only shown in view mode) */}
+        {!isEditing && (
+          <div className="px-3 sm:px-4 py-1.5 bg-slate-50 border-b border-slate-200/80 flex items-center gap-1.5 shrink-0 text-xs">
             <a
               href={`tel:${job.clientPhone}`}
-              className="flex-1 sm:flex-initial justify-center px-2.5 py-1.5 rounded-xl bg-white hover:bg-slate-100 text-slate-800 font-semibold flex items-center gap-1 transition border border-slate-200 shadow-sm"
+              className="flex-1 justify-center py-1.5 px-2 rounded-xl bg-white hover:bg-slate-100 text-slate-800 font-semibold flex items-center gap-1 transition border border-slate-200 shadow-2xs"
               title="Call Client"
             >
               <Phone className="w-3.5 h-3.5 text-emerald-600" />
@@ -740,7 +838,7 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
               href={buildWhatsAppLink(job.clientPhone, quickSmsTemplates[0].text)}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex-1 sm:flex-initial justify-center px-2.5 py-1.5 rounded-xl bg-white hover:bg-slate-100 text-emerald-800 font-semibold flex items-center gap-1 transition border border-slate-200 shadow-sm"
+              className="flex-1 justify-center py-1.5 px-2 rounded-xl bg-white hover:bg-slate-100 text-emerald-800 font-semibold flex items-center gap-1 transition border border-slate-200 shadow-2xs"
               title="WhatsApp Client"
             >
               <Send className="w-3.5 h-3.5 text-emerald-600" />
@@ -751,110 +849,148 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
               href={googleNavUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex-1 sm:flex-initial justify-center px-2.5 py-1.5 rounded-xl bg-white hover:bg-slate-100 text-amber-800 font-semibold flex items-center gap-1 transition border border-slate-200 shadow-sm"
-              title="Google Maps Navigation Directions"
+              className="flex-1 justify-center py-1.5 px-2 rounded-xl bg-white hover:bg-slate-100 text-amber-800 font-semibold flex items-center gap-1 transition border border-slate-200 shadow-2xs"
+              title="Directions"
             >
               <Navigation2 className="w-3.5 h-3.5 text-amber-600" />
               <span>Directions</span>
             </a>
 
-            {/* 1-Click Calendar Sync */}
+            {/* Combined 1-Button Calendar with Dropdown */}
+            <div className="relative flex-1" ref={calendarMenuRef}>
+              <button
+                type="button"
+                onClick={() => {
+                  triggerHapticFeedback('light');
+                  setIsCalendarMenuOpen(!isCalendarMenuOpen);
+                }}
+                className={`w-full py-1.5 px-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1 transition border shadow-2xs ${
+                  isCalendarMenuOpen
+                    ? 'bg-blue-50 text-blue-700 border-blue-300'
+                    : 'bg-white hover:bg-slate-100 text-slate-800 border-slate-200'
+                }`}
+                title="Add to Calendar"
+              >
+                <Calendar className="w-3.5 h-3.5 text-blue-600" />
+                <span>Calendar</span>
+                <ChevronDown className="w-3 h-3 text-slate-400" />
+              </button>
+
+              {isCalendarMenuOpen && (
+                <div className="absolute right-0 top-full mt-1.5 w-48 bg-white rounded-2xl shadow-xl border border-slate-200 p-1.5 z-50 animate-in fade-in zoom-in-95">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      triggerHapticFeedback('light');
+                      setIsCalendarMenuOpen(false);
+                      window.open(buildGoogleCalendarUrl(job, profile), '_blank');
+                    }}
+                    className="w-full text-left px-3 py-2 rounded-xl hover:bg-blue-50 text-xs font-bold text-slate-800 hover:text-blue-700 flex items-center gap-2 transition"
+                  >
+                    <Calendar className="w-4 h-4 text-blue-600 shrink-0" />
+                    <div>
+                      <div className="font-bold">Google Calendar</div>
+                      <div className="text-[10px] text-slate-400">Web / Android</div>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      triggerHapticFeedback('light');
+                      setIsCalendarMenuOpen(false);
+                      downloadIcsCalendarFile(job, profile);
+                    }}
+                    className="w-full text-left px-3 py-2 rounded-xl hover:bg-slate-100 text-xs font-bold text-slate-800 flex items-center gap-2 transition"
+                  >
+                    <Download className="w-4 h-4 text-slate-600 shrink-0" />
+                    <div>
+                      <div className="font-bold">Apple / Outlook</div>
+                      <div className="text-[10px] text-slate-400">Download .ics file</div>
+                    </div>
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Navigation Tabs (Apple Segmented Bar Style - Only shown in view mode) */}
+        {!isEditing && (
+          <div className="px-4 sm:px-6 py-2 bg-slate-100/80 border-b border-slate-200/80 flex items-center gap-1.5 shrink-0 overflow-x-auto no-scrollbar">
             <button
-              type="button"
-              onClick={() => window.open(buildGoogleCalendarUrl(job, profile), '_blank')}
-              className="flex-1 sm:flex-initial justify-center px-2 py-1.5 rounded-xl bg-white hover:bg-blue-50 text-blue-800 font-semibold flex items-center gap-1 transition border border-blue-200 shadow-sm"
-              title="Add to Google Calendar"
+              onClick={() => {
+                triggerHapticFeedback('light');
+                setActiveTab('overview');
+              }}
+              className={`py-1.5 px-3 rounded-xl text-xs font-black flex items-center gap-1.5 whitespace-nowrap transition-all active:scale-95 ${
+                activeTab === 'overview'
+                  ? 'bg-white text-slate-900 shadow-sm border border-slate-200/60'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
+              }`}
             >
-              <Calendar className="w-3.5 h-3.5 text-blue-600" />
-              <span>G-Cal</span>
+              <ListTodo className="w-3.5 h-3.5 text-blue-600 stroke-[2.4]" />
+              <span>Scope & Tasks</span>
+              {totalTasksCount > 0 && (
+                <span className={`text-[10px] px-2 py-0.2 rounded-full font-black ${
+                  activeTab === 'overview' ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-700'
+                }`}>
+                  {completedTasksCount}/{totalTasksCount}
+                </span>
+              )}
             </button>
 
             <button
-              type="button"
-              onClick={() => downloadIcsCalendarFile(job, profile)}
-              className="flex-1 sm:flex-initial justify-center px-2 py-1.5 rounded-xl bg-white hover:bg-slate-100 text-slate-800 font-semibold flex items-center gap-1 transition border border-slate-200 shadow-sm"
-              title="Download Apple / Outlook iCal (.ics) file"
+              onClick={() => {
+                triggerHapticFeedback('light');
+                setActiveTab('quote');
+              }}
+              className={`py-1.5 px-3 rounded-xl text-xs font-black flex items-center gap-1.5 whitespace-nowrap transition-all active:scale-95 ${
+                activeTab === 'quote'
+                  ? 'bg-white text-slate-900 shadow-sm border border-slate-200/60'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
+              }`}
             >
-              <Download className="w-3.5 h-3.5 text-slate-600" />
-              <span>iCal</span>
+              <Sparkles className="w-3.5 h-3.5 text-amber-500 stroke-[2.4]" />
+              <span>Quote & Pricing</span>
+            </button>
+
+            <button
+              onClick={() => {
+                triggerHapticFeedback('light');
+                setActiveTab('photos');
+              }}
+              className={`py-1.5 px-3 rounded-xl text-xs font-black flex items-center gap-1.5 whitespace-nowrap transition-all active:scale-95 ${
+                activeTab === 'photos'
+                  ? 'bg-white text-slate-900 shadow-sm border border-slate-200/60'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
+              }`}
+            >
+              <Camera className="w-3.5 h-3.5 text-blue-600 stroke-[2.4]" />
+              <span>Photos & Stitcher</span>
+              <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${
+                activeTab === 'photos' ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-700'
+              }`}>
+                {job.photos.length}
+              </span>
+            </button>
+
+            <button
+              onClick={() => {
+                triggerHapticFeedback('light');
+                setActiveTab('time');
+              }}
+              className={`py-1.5 px-3 rounded-xl text-xs font-black flex items-center gap-1.5 whitespace-nowrap transition-all active:scale-95 ${
+                activeTab === 'time'
+                  ? 'bg-white text-slate-900 shadow-sm border border-slate-200/60'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
+              }`}
+            >
+              <Clock className="w-3.5 h-3.5 text-indigo-600 stroke-[2.4]" />
+              <span>Time Tracker</span>
             </button>
           </div>
-        </div>
-
-        {/* Navigation Tabs (Apple Segmented Bar Style) */}
-        <div className="px-4 sm:px-6 py-2.5 bg-slate-100/80 border-b border-slate-200/80 flex items-center gap-1.5 shrink-0 overflow-x-auto no-scrollbar">
-          <button
-            onClick={() => {
-              triggerHapticFeedback('light');
-              setActiveTab('overview');
-            }}
-            className={`py-2 px-3.5 rounded-xl text-xs font-black flex items-center gap-1.5 whitespace-nowrap transition-all active:scale-95 ${
-              activeTab === 'overview'
-                ? 'bg-white text-slate-900 shadow-sm border border-slate-200/60'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
-            }`}
-          >
-            <ListTodo className="w-3.5 h-3.5 text-blue-600 stroke-[2.4]" />
-            <span>Scope & Tasks</span>
-            {totalTasksCount > 0 && (
-              <span className={`text-[10px] px-2 py-0.2 rounded-full font-black ${
-                activeTab === 'overview' ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-700'
-              }`}>
-                {completedTasksCount}/{totalTasksCount}
-              </span>
-            )}
-          </button>
-
-          <button
-            onClick={() => {
-              triggerHapticFeedback('light');
-              setActiveTab('quote');
-            }}
-            className={`py-2 px-3.5 rounded-xl text-xs font-black flex items-center gap-1.5 whitespace-nowrap transition-all active:scale-95 ${
-              activeTab === 'quote'
-                ? 'bg-white text-slate-900 shadow-sm border border-slate-200/60'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
-            }`}
-          >
-            <Sparkles className="w-3.5 h-3.5 text-amber-500 stroke-[2.4]" />
-            <span>Quote & Pricing</span>
-          </button>
-
-          <button
-            onClick={() => {
-              triggerHapticFeedback('light');
-              setActiveTab('photos');
-            }}
-            className={`py-2 px-3.5 rounded-xl text-xs font-black flex items-center gap-1.5 whitespace-nowrap transition-all active:scale-95 ${
-              activeTab === 'photos'
-                ? 'bg-white text-slate-900 shadow-sm border border-slate-200/60'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
-            }`}
-          >
-            <Camera className="w-3.5 h-3.5 text-blue-600 stroke-[2.4]" />
-            <span>Photos & Stitcher</span>
-            <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${
-              activeTab === 'photos' ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-700'
-            }`}>
-              {job.photos.length}
-            </span>
-          </button>
-
-          <button
-            onClick={() => {
-              triggerHapticFeedback('light');
-              setActiveTab('time');
-            }}
-            className={`py-2 px-3.5 rounded-xl text-xs font-black flex items-center gap-1.5 whitespace-nowrap transition-all active:scale-95 ${
-              activeTab === 'time'
-                ? 'bg-white text-slate-900 shadow-sm border border-slate-200/60'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
-            }`}
-          >
-            <Clock className="w-3.5 h-3.5 text-indigo-600 stroke-[2.4]" />
-            <span>Time Tracker</span>
-          </button>
-        </div>
+        )}
 
         {/* Tab Content Body */}
         <div className="p-4 sm:p-6 overflow-y-auto flex-1 bg-slate-50/50">
@@ -1221,23 +1357,47 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                 </div>
 
                 {/* Real Estate Agency Edit Section */}
-                {editIsAgencyJob && (
-                  <div className="pt-2 border-t border-slate-200/80 space-y-3">
-                    <span className="text-[10px] font-black uppercase tracking-wider text-purple-900 flex items-center gap-1.5">
-                      <Building2 className="w-3.5 h-3.5 text-purple-600" />
-                      Real Estate Agency
-                    </span>
-                    <div className="bg-purple-50/60 rounded-xl p-3 border border-purple-200 space-y-2">
+                <div className="pt-2 border-t border-slate-200/80 space-y-3">
+                  <div className="flex items-center justify-between p-3 rounded-2xl bg-purple-50/70 border border-purple-200/80">
+                    <div className="flex items-center gap-2">
+                      <Building2 className="w-4 h-4 text-purple-700" />
+                      <div>
+                        <span className="text-xs font-black text-purple-950 block">Real Estate Agency Work Order</span>
+                        <span className="text-[10px] text-purple-700">Assign to agency partner, agent & work order</span>
+                      </div>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={editIsAgencyJob}
+                        onChange={e => {
+                          triggerHapticFeedback('light');
+                          setEditIsAgencyJob(e.target.checked);
+                        }}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+                    </label>
+                  </div>
+
+                  {editIsAgencyJob && (
+                    <div className="bg-purple-50/60 rounded-xl p-3 border border-purple-200 space-y-2.5 animate-in fade-in">
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                         <div>
                           <label className="text-[10px] font-bold text-purple-950 block mb-1">Agency Partner</label>
                           <input
                             type="text"
+                            list="agency-options"
                             value={editRealEstateAgency}
                             onChange={e => setEditRealEstateAgency(e.target.value)}
                             placeholder="e.g. Ray White Point Cook"
                             className="w-full bg-white border border-purple-200 rounded-xl px-2.5 py-1.5 text-xs text-slate-900 outline-none"
                           />
+                          <datalist id="agency-options">
+                            {REAL_ESTATE_AGENCIES.map(agency => (
+                              <option key={agency} value={agency} />
+                            ))}
+                          </datalist>
                         </div>
                         <div>
                           <label className="text-[10px] font-bold text-purple-950 block mb-1">Property Manager Name</label>
@@ -1272,10 +1432,20 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                             className="w-full bg-white border border-purple-200 rounded-xl px-2.5 py-1.5 text-xs text-slate-900 outline-none"
                           />
                         </div>
+                        <div className="sm:col-span-2">
+                          <label className="text-[10px] font-bold text-purple-950 block mb-1">Agency Work Order / Reference # (Optional)</label>
+                          <input
+                            type="text"
+                            value={editWorkOrderNumber}
+                            onChange={e => setEditWorkOrderNumber(e.target.value)}
+                            placeholder="e.g. WO-88219"
+                            className="w-full bg-white border border-purple-200 rounded-xl px-2.5 py-1.5 text-xs text-slate-900 font-mono outline-none"
+                          />
+                        </div>
                       </div>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
 
                 {/* Smart Phone Match Banner */}
                 {editPhoneMatchedCustomer && (
