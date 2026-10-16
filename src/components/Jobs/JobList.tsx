@@ -179,30 +179,49 @@ export const JobList: React.FC<JobListProps> = ({
         </div>
       </div>
 
-      {/* Search & Status Controls */}
-      <div className="flex flex-col sm:flex-row gap-2.5 mb-3">
-        {/* Search Box */}
-        <div className="relative flex-1">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5 stroke-[2.2]" />
+      {/* Prominent Standalone Search Bar */}
+      <div className="relative mb-3 group">
+        <div className="relative flex items-center">
+          {/* Blue Icon Accent Badge */}
+          <div className="absolute left-2.5 top-1/2 -translate-y-1/2 flex items-center justify-center w-8 h-8 rounded-xl bg-blue-600 text-white shadow-xs group-focus-within:bg-blue-700 group-focus-within:scale-105 transition pointer-events-none">
+            <Search className="w-4 h-4 stroke-[2.5]" />
+          </div>
+
           <input
             type="text"
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
-            placeholder="Search client, agent name, agency, address, or trade..."
-            className="w-full bg-white border border-slate-200/90 rounded-2xl pl-10 pr-9 py-2.5 text-xs text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none shadow-sm transition font-medium"
+            placeholder="Search by client, agent, agency, phone, address, or trade..."
+            className="w-full bg-white border-2 border-slate-200/90 hover:border-blue-300 focus:border-blue-600 rounded-2xl pl-12 pr-12 py-3 text-sm font-semibold text-slate-900 placeholder:text-slate-400 placeholder:font-normal outline-none shadow-xs hover:shadow-sm focus:shadow-md focus:ring-4 focus:ring-blue-500/10 transition-all"
           />
-          {searchTerm && (
-            <button
-              onClick={() => setSearchTerm('')}
-              className="absolute right-3 top-3 p-0.5 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-700"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          )}
-        </div>
 
-        {/* Status Filter Pills */}
-        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1">
+          {/* Right Action / Match indicator */}
+          <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+            {searchTerm ? (
+              <>
+                <span className="text-[10px] font-black text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200/80">
+                  {filteredJobs.length} {filteredJobs.length === 1 ? 'match' : 'matches'}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    triggerHapticFeedback('light');
+                    setSearchTerm('');
+                  }}
+                  className="p-1 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 transition active:scale-95"
+                  title="Clear search"
+                  aria-label="Clear search"
+                >
+                  <X className="w-3.5 h-3.5 stroke-[2.5]" />
+                </button>
+              </>
+            ) : null}
+          </div>
+        </div>
+      </div>
+
+      {/* Status Filter Pills */}
+      <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1 mb-3">
           <button
             onClick={() => setStatusFilter('all')}
             className={`px-3 py-2 rounded-2xl text-xs font-black whitespace-nowrap transition-all ${
@@ -288,7 +307,6 @@ export const JobList: React.FC<JobListProps> = ({
             </button>
           )}
         </div>
-      </div>
 
       {/* Date Filter Bar: Today / Tomorrow / This Week / All Dates */}
       <div className="flex items-center justify-between gap-2 mb-3.5 flex-wrap max-w-full">
@@ -597,6 +615,20 @@ export const JobList: React.FC<JobListProps> = ({
           </div>
 
           <div className="flex items-center justify-center gap-3 pt-2 flex-wrap">
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => {
+                  triggerHapticFeedback('light');
+                  setSearchTerm('');
+                }}
+                className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black text-xs flex items-center gap-2 shadow-sm transition active:scale-95"
+              >
+                <X className="w-4 h-4 stroke-[2.5]" />
+                <span>Clear Search &quot;{searchTerm}&quot;</span>
+              </button>
+            )}
+
             {dateFilter !== 'all' && (
               <button
                 type="button"
