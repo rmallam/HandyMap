@@ -136,8 +136,9 @@ export const JobList: React.FC<JobListProps> = ({
     return matchesStatus && matchesAgency && matchesAgent;
   });
 
-  // Calculate live counts for Today, Tomorrow, This Week under current status
-  const dateCounts = calculateDateFilterCounts(statusAndAgencyJobs);
+  // Calculate stable date counts for Today, Tomorrow, This Week across active open jobs
+  const activeOpenJobs = jobs.filter(j => j.status !== 'invoiced' && j.status !== 'cancelled');
+  const dateCounts = calculateDateFilterCounts(activeOpenJobs);
 
   // 2. Filter by Date and Search term
   const filteredJobs = statusAndAgencyJobs.filter(job => {
@@ -223,7 +224,10 @@ export const JobList: React.FC<JobListProps> = ({
       {/* Status Filter Pills */}
       <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1 mb-3">
           <button
-            onClick={() => setStatusFilter('all')}
+            onClick={() => {
+              setStatusFilter('all');
+              setDateFilter('all');
+            }}
             className={`px-3 py-2 rounded-2xl text-xs font-black whitespace-nowrap transition-all ${
               statusFilter === 'all'
                 ? 'bg-slate-900 text-white shadow-md shadow-slate-900/20'
@@ -233,7 +237,10 @@ export const JobList: React.FC<JobListProps> = ({
             All Open ({activeJobsCount})
           </button>
           <button
-            onClick={() => setStatusFilter('quote_requested')}
+            onClick={() => {
+              setStatusFilter('quote_requested');
+              setDateFilter('all');
+            }}
             className={`px-3 py-2 rounded-2xl text-xs font-black whitespace-nowrap transition-all border ${
               statusFilter === 'quote_requested'
                 ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-white border-amber-500 shadow-md shadow-amber-500/20'
@@ -243,7 +250,10 @@ export const JobList: React.FC<JobListProps> = ({
             Needs Quote ({quoteReqCount})
           </button>
           <button
-            onClick={() => setStatusFilter('in_progress')}
+            onClick={() => {
+              setStatusFilter('in_progress');
+              setDateFilter('all');
+            }}
             className={`px-3 py-2 rounded-2xl text-xs font-black whitespace-nowrap transition-all border ${
               statusFilter === 'in_progress'
                 ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white border-emerald-500 shadow-md shadow-emerald-500/20'
@@ -253,7 +263,10 @@ export const JobList: React.FC<JobListProps> = ({
             In Progress ({inProgressCount})
           </button>
           <button
-            onClick={() => setStatusFilter('quoted')}
+            onClick={() => {
+              setStatusFilter('quoted');
+              setDateFilter('all');
+            }}
             className={`px-3 py-2 rounded-2xl text-xs font-black whitespace-nowrap transition-all border ${
               statusFilter === 'quoted'
                 ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white border-purple-500 shadow-md shadow-purple-500/20'
@@ -264,7 +277,10 @@ export const JobList: React.FC<JobListProps> = ({
           </button>
           {urgentCount > 0 && (
             <button
-              onClick={() => setStatusFilter('urgent')}
+              onClick={() => {
+                setStatusFilter('urgent');
+                setDateFilter('all');
+              }}
               className={`px-3 py-2 rounded-2xl text-xs font-black whitespace-nowrap transition-all border ${
                 statusFilter === 'urgent'
                   ? 'bg-gradient-to-r from-red-600 to-rose-600 text-white border-red-500 shadow-md shadow-red-500/20'
@@ -275,7 +291,10 @@ export const JobList: React.FC<JobListProps> = ({
             </button>
           )}
           <button
-            onClick={() => setStatusFilter('completed')}
+            onClick={() => {
+              setStatusFilter('completed');
+              setDateFilter('all');
+            }}
             className={`px-3 py-2 rounded-2xl text-xs font-bold whitespace-nowrap transition-all border ${
               statusFilter === 'completed'
                 ? 'bg-slate-700 text-white border-slate-800 shadow-md'
@@ -285,7 +304,10 @@ export const JobList: React.FC<JobListProps> = ({
             Completed ({completedCount})
           </button>
           <button
-            onClick={() => setStatusFilter('invoiced')}
+            onClick={() => {
+              setStatusFilter('invoiced');
+              setDateFilter('all');
+            }}
             className={`px-3 py-2 rounded-2xl text-xs font-bold whitespace-nowrap transition-all border ${
               statusFilter === 'invoiced'
                 ? 'bg-gradient-to-r from-blue-600 to-indigo-700 text-white border-blue-600 shadow-md shadow-blue-500/20'
@@ -296,7 +318,10 @@ export const JobList: React.FC<JobListProps> = ({
           </button>
           {cancelledCount > 0 && (
             <button
-              onClick={() => setStatusFilter('cancelled')}
+              onClick={() => {
+                setStatusFilter('cancelled');
+                setDateFilter('all');
+              }}
               className={`px-3 py-2 rounded-2xl text-xs font-bold whitespace-nowrap transition-all border ${
                 statusFilter === 'cancelled'
                   ? 'bg-gradient-to-r from-rose-600 to-red-600 text-white border-rose-600 shadow-md shadow-rose-500/20'
@@ -309,8 +334,8 @@ export const JobList: React.FC<JobListProps> = ({
         </div>
 
       {/* Date Filter Bar: Today / Tomorrow / This Week / All Dates */}
-      <div className="flex items-center justify-between gap-2 mb-3.5 flex-wrap max-w-full">
-        <div className="flex items-center gap-1 bg-white p-1 rounded-2xl border border-slate-200/90 shadow-xs overflow-x-auto no-scrollbar max-w-full">
+      <div className="shrink-0 flex items-center justify-between gap-2 mb-3.5 flex-wrap max-w-full">
+        <div className="shrink-0 flex items-center gap-1.5 bg-white p-1 rounded-2xl border border-slate-200/90 shadow-xs overflow-x-auto no-scrollbar max-w-full">
           <div className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-black text-slate-500 uppercase tracking-wider shrink-0 border-r border-slate-200/80 mr-0.5">
             <Calendar className="w-3.5 h-3.5 text-blue-600 stroke-[2.4]" />
             <span className="text-[11px]">When:</span>
@@ -321,29 +346,37 @@ export const JobList: React.FC<JobListProps> = ({
               triggerHapticFeedback('light');
               setDateFilter('all');
             }}
-            className={`px-3 py-1.5 rounded-xl text-xs font-black transition active:scale-95 whitespace-nowrap ${
+            className={`shrink-0 min-h-[34px] px-3.5 py-1.5 rounded-xl text-xs font-black transition active:scale-95 flex items-center gap-1.5 whitespace-nowrap ${
               dateFilter === 'all'
                 ? 'bg-slate-900 text-white shadow-xs'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/80'
+                : 'text-slate-600 bg-slate-50/90 hover:text-slate-900 hover:bg-slate-100 border border-slate-200/70'
             }`}
           >
-            All Dates ({dateCounts.all})
+            <span>All Dates</span>
+            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+              dateFilter === 'all' ? 'bg-white/20 text-white' : 'bg-slate-200/80 text-slate-700'
+            }`}>
+              {dateCounts.all}
+            </span>
           </button>
 
           <button
             onClick={() => {
               triggerHapticFeedback('light');
               setDateFilter('today');
+              if (statusFilter !== 'all' && statusFilter !== 'all_total') {
+                setStatusFilter('all');
+              }
             }}
-            className={`px-3 py-1.5 rounded-xl text-xs font-black transition active:scale-95 flex items-center gap-1.5 whitespace-nowrap ${
+            className={`shrink-0 min-h-[34px] px-3.5 py-1.5 rounded-xl text-xs font-black transition active:scale-95 flex items-center gap-1.5 whitespace-nowrap ${
               dateFilter === 'today'
                 ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/20'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/80'
+                : 'text-slate-600 bg-slate-50/90 hover:text-slate-900 hover:bg-slate-100 border border-slate-200/70'
             }`}
           >
             <span>Today</span>
-            <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
-              dateFilter === 'today' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'
+            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+              dateFilter === 'today' ? 'bg-white/20 text-white' : 'bg-slate-200/80 text-slate-700'
             }`}>
               {dateCounts.today}
             </span>
@@ -353,16 +386,19 @@ export const JobList: React.FC<JobListProps> = ({
             onClick={() => {
               triggerHapticFeedback('light');
               setDateFilter('tomorrow');
+              if (statusFilter !== 'all' && statusFilter !== 'all_total') {
+                setStatusFilter('all');
+              }
             }}
-            className={`px-3 py-1.5 rounded-xl text-xs font-black transition active:scale-95 flex items-center gap-1.5 whitespace-nowrap ${
+            className={`shrink-0 min-h-[34px] px-3.5 py-1.5 rounded-xl text-xs font-black transition active:scale-95 flex items-center gap-1.5 whitespace-nowrap ${
               dateFilter === 'tomorrow'
                 ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/20'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/80'
+                : 'text-slate-600 bg-slate-50/90 hover:text-slate-900 hover:bg-slate-100 border border-slate-200/70'
             }`}
           >
             <span>Tomorrow</span>
-            <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
-              dateFilter === 'tomorrow' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'
+            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+              dateFilter === 'tomorrow' ? 'bg-white/20 text-white' : 'bg-slate-200/80 text-slate-700'
             }`}>
               {dateCounts.tomorrow}
             </span>
@@ -372,16 +408,19 @@ export const JobList: React.FC<JobListProps> = ({
             onClick={() => {
               triggerHapticFeedback('light');
               setDateFilter('this_week');
+              if (statusFilter !== 'all' && statusFilter !== 'all_total') {
+                setStatusFilter('all');
+              }
             }}
-            className={`px-3 py-1.5 rounded-xl text-xs font-black transition active:scale-95 flex items-center gap-1.5 whitespace-nowrap ${
+            className={`shrink-0 min-h-[34px] px-3.5 py-1.5 rounded-xl text-xs font-black transition active:scale-95 flex items-center gap-1.5 whitespace-nowrap ${
               dateFilter === 'this_week'
                 ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/20'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/80'
+                : 'text-slate-600 bg-slate-50/90 hover:text-slate-900 hover:bg-slate-100 border border-slate-200/70'
             }`}
           >
             <span>This Week</span>
-            <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
-              dateFilter === 'this_week' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'
+            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+              dateFilter === 'this_week' ? 'bg-white/20 text-white' : 'bg-slate-200/80 text-slate-700'
             }`}>
               {dateCounts.this_week}
             </span>
@@ -818,16 +857,23 @@ export const JobList: React.FC<JobListProps> = ({
                             {formatCurrency(job.quote.totalAmount, profile.currencySymbol)}
                           </span>
                           {job.appointmentTime && (
-                            <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.2 rounded border border-slate-200/60 hidden xs:inline-flex items-center gap-1 truncate">
+                            <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200/60 hidden xs:inline-flex items-center gap-1 truncate">
                               {getRelativeJobDateLabel(job.appointmentTime)}
                             </span>
                           )}
                         </div>
                       ) : (
-                        <span className="text-[10px] text-amber-800 font-extrabold flex items-center gap-1 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200/80 truncate">
-                          <Calendar className="w-2.5 h-2.5 text-amber-600 shrink-0" />
-                          <span className="truncate">{getRelativeJobDateLabel(job.appointmentTime || job.quoteRequestedDate) || 'Pending'}</span>
-                        </span>
+                        job.appointmentTime ? (
+                          <span className="text-[10px] text-amber-800 font-extrabold flex items-center gap-1 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200/80 truncate">
+                            <Calendar className="w-2.5 h-2.5 text-amber-600 shrink-0" />
+                            <span className="truncate">{getRelativeJobDateLabel(job.appointmentTime)}</span>
+                          </span>
+                        ) : (
+                          <span className="text-[10px] text-slate-500 font-semibold flex items-center gap-1 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200/80 truncate">
+                            <Calendar className="w-2.5 h-2.5 text-slate-400 shrink-0" />
+                            <span className="truncate">Unscheduled</span>
+                          </span>
+                        )
                       )}
                     </div>
 

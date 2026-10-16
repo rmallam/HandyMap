@@ -27,21 +27,29 @@ export const DayScheduleView: React.FC<DayScheduleViewProps> = ({
 }) => {
   const [dateFilter, setDateFilter] = useState<DateFilterType>('today');
 
-  // Baseline open jobs
-  const openJobs = jobs.filter(
-    j => j.status !== 'completed' && j.status !== 'invoiced' && j.status !== 'cancelled'
+  // Active open jobs (excluding archived invoiced and cancelled jobs)
+  const activeJobs = jobs.filter(
+    j => j.status !== 'invoiced' && j.status !== 'cancelled'
   );
 
-  const dateCounts = calculateDateFilterCounts(openJobs);
+  // Scheduled jobs have an explicit appointmentTime set
+  const scheduledJobsAll = activeJobs.filter(j => Boolean(j.appointmentTime));
 
-  // Filter and sort jobs by appointmentTime or quoteRequestedDate
-  const scheduledJobs = openJobs
-    .filter(j => matchesDateFilter(j, dateFilter))
+  const dateCounts = calculateDateFilterCounts(scheduledJobsAll);
+
+  // Filter and sort jobs strictly by appointmentTime
+  const scheduledJobs = scheduledJobsAll
+    .filter(j => {
+      if (dateFilter === 'all') return true;
+      return matchesDateFilter(j, dateFilter);
+    })
     .sort((a, b) => {
-      const timeA = a.appointmentTime ? new Date(a.appointmentTime).getTime() : new Date(a.quoteRequestedDate).getTime();
-      const timeB = b.appointmentTime ? new Date(b.appointmentTime).getTime() : new Date(b.quoteRequestedDate).getTime();
+      const timeA = new Date(a.appointmentTime!).getTime();
+      const timeB = new Date(b.appointmentTime!).getTime();
       return timeA - timeB;
     });
+
+  const unscheduledCount = activeJobs.filter(j => !j.appointmentTime).length;
 
   const getSubtitle = () => {
     const now = new Date();
@@ -109,21 +117,21 @@ export const DayScheduleView: React.FC<DayScheduleViewProps> = ({
       </div>
 
       {/* Date Filter Segmented Bar */}
-      <div className="flex items-center gap-1 bg-white p-1 rounded-2xl border border-slate-200/90 shadow-xs mb-6 overflow-x-auto no-scrollbar">
+      <div className="shrink-0 flex items-center gap-1.5 bg-white p-1.5 rounded-2xl border border-slate-200/90 shadow-xs mb-5 overflow-x-auto no-scrollbar">
         <button
           onClick={() => {
             triggerHapticFeedback('light');
             setDateFilter('today');
           }}
-          className={`px-3 py-1.5 rounded-xl text-xs font-black transition active:scale-95 flex items-center gap-1.5 whitespace-nowrap ${
+          className={`shrink-0 min-h-[38px] px-3.5 py-1.5 rounded-xl text-xs font-black transition active:scale-95 flex items-center gap-1.5 whitespace-nowrap ${
             dateFilter === 'today'
               ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/20'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/80'
+              : 'text-slate-600 bg-slate-50/90 hover:text-slate-900 hover:bg-slate-100 border border-slate-200/70'
           }`}
         >
           <span>Today</span>
-          <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
-            dateFilter === 'today' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'
+          <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+            dateFilter === 'today' ? 'bg-white/20 text-white' : 'bg-slate-200/80 text-slate-700'
           }`}>
             {dateCounts.today}
           </span>
@@ -134,15 +142,15 @@ export const DayScheduleView: React.FC<DayScheduleViewProps> = ({
             triggerHapticFeedback('light');
             setDateFilter('tomorrow');
           }}
-          className={`px-3 py-1.5 rounded-xl text-xs font-black transition active:scale-95 flex items-center gap-1.5 whitespace-nowrap ${
+          className={`shrink-0 min-h-[38px] px-3.5 py-1.5 rounded-xl text-xs font-black transition active:scale-95 flex items-center gap-1.5 whitespace-nowrap ${
             dateFilter === 'tomorrow'
               ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/20'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/80'
+              : 'text-slate-600 bg-slate-50/90 hover:text-slate-900 hover:bg-slate-100 border border-slate-200/70'
           }`}
         >
           <span>Tomorrow</span>
-          <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
-            dateFilter === 'tomorrow' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'
+          <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+            dateFilter === 'tomorrow' ? 'bg-white/20 text-white' : 'bg-slate-200/80 text-slate-700'
           }`}>
             {dateCounts.tomorrow}
           </span>
@@ -153,15 +161,15 @@ export const DayScheduleView: React.FC<DayScheduleViewProps> = ({
             triggerHapticFeedback('light');
             setDateFilter('this_week');
           }}
-          className={`px-3 py-1.5 rounded-xl text-xs font-black transition active:scale-95 flex items-center gap-1.5 whitespace-nowrap ${
+          className={`shrink-0 min-h-[38px] px-3.5 py-1.5 rounded-xl text-xs font-black transition active:scale-95 flex items-center gap-1.5 whitespace-nowrap ${
             dateFilter === 'this_week'
               ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/20'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/80'
+              : 'text-slate-600 bg-slate-50/90 hover:text-slate-900 hover:bg-slate-100 border border-slate-200/70'
           }`}
         >
           <span>This Week</span>
-          <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
-            dateFilter === 'this_week' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'
+          <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+            dateFilter === 'this_week' ? 'bg-white/20 text-white' : 'bg-slate-200/80 text-slate-700'
           }`}>
             {dateCounts.this_week}
           </span>
@@ -172,15 +180,15 @@ export const DayScheduleView: React.FC<DayScheduleViewProps> = ({
             triggerHapticFeedback('light');
             setDateFilter('all');
           }}
-          className={`px-3 py-1.5 rounded-xl text-xs font-black transition active:scale-95 flex items-center gap-1.5 whitespace-nowrap ${
+          className={`shrink-0 min-h-[38px] px-3.5 py-1.5 rounded-xl text-xs font-black transition active:scale-95 flex items-center gap-1.5 whitespace-nowrap ${
             dateFilter === 'all'
               ? 'bg-slate-900 text-white shadow-xs'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/80'
+              : 'text-slate-600 bg-slate-50/90 hover:text-slate-900 hover:bg-slate-100 border border-slate-200/70'
           }`}
         >
-          <span>All Upcoming</span>
-          <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
-            dateFilter === 'all' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'
+          <span>All Scheduled</span>
+          <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+            dateFilter === 'all' ? 'bg-white/20 text-white' : 'bg-slate-200/80 text-slate-700'
           }`}>
             {dateCounts.all}
           </span>
@@ -201,17 +209,17 @@ export const DayScheduleView: React.FC<DayScheduleViewProps> = ({
                 ? 'No visits scheduled for Tomorrow'
                 : dateFilter === 'this_week'
                 ? 'No visits scheduled for This Week'
-                : 'No upcoming visits found'}
+                : 'No scheduled visits found'}
             </p>
             <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto font-medium">
-              {dateFilter === 'today'
-                ? 'Enjoy your downtime, or check tomorrow and this week to plan ahead.'
-                : 'Select a job to set an appointment time, or view all upcoming visits.'}
+              {unscheduledCount > 0
+                ? `You have ${unscheduledCount} active ${unscheduledCount === 1 ? 'job' : 'jobs'} in your pipeline pending an appointment time.`
+                : 'All jobs in your pipeline have been attended to or archived.'}
             </p>
           </div>
 
-          <div className="flex items-center justify-center gap-2 pt-2">
-            {dateFilter !== 'all' && (
+          <div className="flex items-center justify-center gap-2 pt-2 flex-wrap">
+            {dateFilter !== 'all' && dateCounts.all > 0 && (
               <button
                 type="button"
                 onClick={() => {
@@ -220,7 +228,7 @@ export const DayScheduleView: React.FC<DayScheduleViewProps> = ({
                 }}
                 className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-black text-xs rounded-xl shadow-sm transition active:scale-95"
               >
-                View All Upcoming ({dateCounts.all})
+                View All Scheduled ({dateCounts.all})
               </button>
             )}
             {dateFilter === 'today' && dateCounts.tomorrow > 0 && (
@@ -241,7 +249,7 @@ export const DayScheduleView: React.FC<DayScheduleViewProps> = ({
         <div className="relative pl-6 sm:pl-8 border-l-2 border-slate-200 flex flex-col gap-5 ml-3 sm:ml-4 mt-2">
         {scheduledJobs.map((job, index) => {
           const statusCfg = STATUS_CONFIG[job.status];
-          const appointmentDate = job.appointmentTime ? new Date(job.appointmentTime) : new Date(job.quoteRequestedDate);
+          const appointmentDate = new Date(job.appointmentTime!);
           const timeFormatted = formatTime(appointmentDate.toISOString());
 
           return (

@@ -4,17 +4,15 @@ export type DateFilterType = 'all' | 'today' | 'tomorrow' | 'this_week';
 
 /**
  * Extracts target date for a job.
- * Priority:
- * 1. appointmentTime (explicit scheduled date & time)
- * 2. quoteRequestedDate (date job was requested)
- * 3. createdAt
+ * Only returns a date if the job has an explicit appointmentTime scheduled.
+ * Unscheduled jobs return null so they are not falsely treated as today's visits.
  */
 export function getJobTargetDate(job: Job): Date | null {
-  const dateStr = job.appointmentTime || job.quoteRequestedDate || job.createdAt;
-  if (!dateStr) return null;
-  const d = new Date(dateStr);
+  if (!job.appointmentTime) return null;
+  const d = new Date(job.appointmentTime);
   return isNaN(d.getTime()) ? null : d;
 }
+
 
 /**
  * Checks whether two Date objects share the same local calendar day.

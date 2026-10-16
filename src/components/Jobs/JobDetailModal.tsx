@@ -1013,25 +1013,6 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                     <p className="text-[11px] text-slate-500 font-medium">Update title, description, trade category, or client address.</p>
                   </div>
                 </div>
-
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      triggerHapticFeedback('light');
-                      setIsEditing(false);
-                    }}
-                    className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition active:scale-95"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-black text-xs shadow-md shadow-blue-500/25 flex items-center gap-1.5 transition active:scale-95"
-                  >
-                    <Save className="w-3.5 h-3.5 stroke-[2.5]" /> Save
-                  </button>
-                </div>
               </div>
 
               {/* Group 1: Title & ID */}
@@ -1506,25 +1487,6 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                     </select>
                   </div>
                 </div>
-              </div>
-
-              <div className="pt-2 border-t border-slate-100 flex items-center justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    triggerHapticFeedback('light');
-                    setIsEditing(false);
-                  }}
-                  className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition active:scale-95"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-black text-xs shadow-lg shadow-blue-500/25 flex items-center gap-1.5 transition active:scale-95"
-                >
-                  <Save className="w-4 h-4 stroke-[2.5]" /> Save Scope & Job Changes
-                </button>
               </div>
             </form>
           ) : null}
