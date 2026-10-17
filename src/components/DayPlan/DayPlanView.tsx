@@ -29,7 +29,7 @@ import {
   Zap,
   RotateCcw,
   Building2,
-  Map,
+  Map as MapIcon,
   Compass,
   Crosshair,
   RefreshCw,
@@ -38,8 +38,14 @@ import {
   CalendarDays,
   Check,
   ChevronDown,
-  Layers,
-  ArrowRight
+  Plus,
+  X,
+  Search,
+  ArrowUp,
+  ArrowDown,
+  ArrowRight,
+  SlidersHorizontal,
+  Info
 } from 'lucide-react';
 
 export interface DayPlanViewProps {
@@ -57,6 +63,7 @@ export interface DayPlanViewProps {
   onToggleStopCompleted: (stopId: string) => void;
   onClearRoute: () => void;
   onSwitchToMap: () => void;
+  onUpdateJob?: (updatedJob: Job) => Promise<void> | void;
   isUsingGPS?: boolean;
   isLocatingGPS?: boolean;
   onRefreshLocation?: () => void;
@@ -76,6 +83,7 @@ export const DayPlanView: React.FC<DayPlanViewProps> = ({
   onToggleStopCompleted,
   onClearRoute,
   onSwitchToMap,
+  onUpdateJob,
   isUsingGPS = false,
   isLocatingGPS = false,
   onRefreshLocation,
@@ -86,7 +94,14 @@ export const DayPlanView: React.FC<DayPlanViewProps> = ({
   const [selectedGoal, setSelectedGoal] = useState<RouteFilterType>('quotes_only');
   const [selectedSuburb, setSelectedSuburb] = useState<string>('all');
   const [prioritizeAgency, setPrioritizeAgency] = useState<boolean>(true);
-  const [showUnscheduledQueue, setShowUnscheduledQueue] = useState<boolean>(false);
+  const [showUnscheduledQueue, setShowUnscheduledQueue] = useState<boolean>(true);
+
+  // Manual Add / Remove state
+  const [isAddJobModalOpen, setIsAddJobModalOpen] = useState(false);
+  const [addJobSearchQuery, setAddJobSearchQuery] = useState('');
+  const [manuallyAddedJobIds, setManuallyAddedJobIds] = useState<string[]>([]);
+  const [manuallyRemovedJobIds, setManuallyRemovedJobIds] = useState<string[]>([]);
+  const [customStopOrder, setCustomStopOrder] = useState<string[]>([]); // Array of job IDs in custom order
 
   // Active open jobs (excluding archived invoiced and cancelled jobs)
   const activeJobs = useMemo(
@@ -105,8 +120,8 @@ export const DayPlanView: React.FC<DayPlanViewProps> = ({
     [scheduledJobsAll]
   );
 
-  // Filter scheduled jobs by date filter and sort chronologically
-  const scheduledJobs = useMemo(() => {
+  // Filter scheduled jobs by date filter
+  const baseScheduledJobs = useMemo(() => {
     return scheduledJobsAll
       .filter(j => {
         if (dateFilter === 'all') return true;
@@ -119,13 +134,86 @@ export const DayPlanView: React.FC<DayPlanViewProps> = ({
       });
   }, [scheduledJobsAll, dateFilter]);
 
-  // Unscheduled active jobs
-  const unscheduledJobs = useMemo(
-    () => activeJobs.filter(j => !j.appointmentTime),
-    [activeJobs]
-  );
+  // Combine with manually added jobs and filter out manually removed jobs
+  const effectiveDayJobs: Job[] = useMemo(() => {
+    // Start with base jobs matching the date filter
+    let list = baseScheduledJobs.filter(j => !manuallyRemovedJobIds.includes(j.id));
 
-  // Goal-filtered jobs for route optimization
+    // Append manually added jobs if they are not already in the list
+    const existingIds = new Set(list.map(j => j.id));
+    for (const addedId of manuallyAddedJobIds) {
+      if (!existingIds.has(addedId)) {
+        const jobToAdd = jobs.find(j => j.id === addedId);
+        if (jobToAdd && jobToAdd.status !== 'cancelled' && jobToAdd.status !== 'invoiced') {
+          list.push(jobToAdd);
+          existingIds.add(addedId);
+        }
+      }
+    }
+
+    // Apply custom stop order if set
+    if (customStopOrder.length > 0) {
+      const orderMap = new Map(customStopOrder.map((id, idx) => [id, idx]));
+      list.sort((a, b) => {
+        const orderA = orderMap.has(a.id) ? orderMap.get(a.id)! : 999;
+        const orderB = orderMap.has(b.id) ? orderMap.get(b.id)! : 999;
+        return orderA - orderB;
+      });
+    }
+
+    return list;
+  }, [baseScheduledJobs, manuallyAddedJobIds, manuallyRemovedJobIds, customStopOrder, jobs]);
+
+  // Build sequential RouteStop objects with live distance from previous stop
+  const activeStops: RouteStop[] = useMemo(() => {
+    let prevCoords = currentLocation;
+    return effectiveDayJobs.map((job, idx) => {
+      const dist = Math.round(
+        calculateDistanceKm(prevCoords[0], prevCoords[1], job.coordinates[0], job.coordinates[1]) * 10
+      ) / 10;
+      const travelMins = Math.max(3, Math.round((dist / 38) * 60));
+      prevCoords = job.coordinates;
+
+      return {
+        id: `stop-${job.id}`,
+        job,
+        stopOrder: idx + 1,
+        distanceFromPrevKm: dist,
+        durationFromPrevMin: travelMins,
+        eta: job.appointmentTime ? formatTime(job.appointmentTime) : `Stop #${idx + 1}`,
+        isCompleted: job.status === 'completed'
+      };
+    });
+  }, [effectiveDayJobs, currentLocation]);
+
+  // Unscheduled active jobs (jobs without appointmentTime and not already in effectiveDayJobs)
+  const unscheduledJobs = useMemo(() => {
+    const scheduledIds = new Set(effectiveDayJobs.map(j => j.id));
+    return activeJobs.filter(j => !j.appointmentTime && !scheduledIds.has(j.id));
+  }, [activeJobs, effectiveDayJobs]);
+
+  // All eligible jobs available to add to today's plan
+  const availableJobsToAdd = useMemo(() => {
+    const currentStopIds = new Set(effectiveDayJobs.map(j => j.id));
+    const query = addJobSearchQuery.toLowerCase().trim();
+
+    return activeJobs
+      .filter(j => !currentStopIds.has(j.id))
+      .filter(j => {
+        if (!query) return true;
+        return (
+          j.title.toLowerCase().includes(query) ||
+          j.clientName.toLowerCase().includes(query) ||
+          j.address.toLowerCase().includes(query) ||
+          j.jobNumber.toLowerCase().includes(query) ||
+          (j.realEstateAgency && j.realEstateAgency.toLowerCase().includes(query)) ||
+          (j.realEstateAgentName && j.realEstateAgentName.toLowerCase().includes(query)) ||
+          j.category.toLowerCase().includes(query)
+        );
+      });
+  }, [activeJobs, effectiveDayJobs, addJobSearchQuery]);
+
+  // Goal-filtered jobs for route optimization panel
   const goalFilteredJobs = useMemo(() => {
     return jobs.filter(j => {
       if (selectedGoal === 'quotes_only') return j.status === 'quote_requested';
@@ -149,36 +237,7 @@ export const DayPlanView: React.FC<DayPlanViewProps> = ({
     return counts;
   }, [goalFilteredJobs]);
 
-  // Determine the sequence of stops to display:
-  // If an activeRoute exists and user is in 'smart' or 'route_control', prioritize activeRoute stops.
-  // Otherwise, use scheduled jobs for the selected date.
-  const activeStops: RouteStop[] = useMemo(() => {
-    if (activeRoute && activeRoute.stops.length > 0) {
-      return activeRoute.stops;
-    }
-
-    // Build synthesized route stops from scheduledJobs
-    let prevCoords = currentLocation;
-    return scheduledJobs.map((job, idx) => {
-      const dist = Math.round(
-        calculateDistanceKm(prevCoords[0], prevCoords[1], job.coordinates[0], job.coordinates[1]) * 10
-      ) / 10;
-      const travelMins = Math.max(3, Math.round((dist / 38) * 60));
-      prevCoords = job.coordinates;
-
-      return {
-        id: `synth-stop-${job.id}`,
-        job,
-        stopOrder: idx + 1,
-        distanceFromPrevKm: dist,
-        durationFromPrevMin: travelMins,
-        eta: job.appointmentTime ? formatTime(job.appointmentTime) : `Stop #${idx + 1}`,
-        isCompleted: job.status === 'completed'
-      };
-    });
-  }, [activeRoute, scheduledJobs, currentLocation]);
-
-  // Master Google Maps Route omitting fixed origin so navigation begins from driver's live GPS
+  // Master Google Maps Route link
   const masterGoogleMapsUrl = useMemo(() => {
     const coordsToRoute = activeStops.map(s => s.job.coordinates);
     return coordsToRoute.length > 0
@@ -192,14 +251,82 @@ export const DayPlanView: React.FC<DayPlanViewProps> = ({
   const progressPercent = totalStopsCount > 0 ? Math.round((completedStopsCount / totalStopsCount) * 100) : 0;
 
   const totalDistanceKm = useMemo(() => {
-    if (activeRoute) return activeRoute.totalDistanceKm;
     return Math.round(activeStops.reduce((sum, s) => sum + s.distanceFromPrevKm, 0) * 10) / 10;
-  }, [activeRoute, activeStops]);
+  }, [activeStops]);
 
   const totalDriveTimeMinutes = useMemo(() => {
-    if (activeRoute) return activeRoute.totalDurationMin;
     return activeStops.reduce((sum, s) => sum + s.durationFromPrevMin, 0);
-  }, [activeRoute, activeStops]);
+  }, [activeStops]);
+
+  // ---------------------------------------------------------------------------
+  // HANDLERS FOR ADDING / REMOVING / REORDERING JOBS
+  // ---------------------------------------------------------------------------
+  const handleAddJobToDay = (jobToAdd: Job, customTime?: string) => {
+    triggerHapticFeedback('success');
+
+    // Calculate appointment timestamp
+    const now = new Date();
+    const targetDate = new Date();
+    if (dateFilter === 'tomorrow') {
+      targetDate.setDate(targetDate.getDate() + 1);
+    }
+
+    let finalIsoTime: string;
+    if (customTime) {
+      const [hours, minutes] = customTime.split(':').map(Number);
+      targetDate.setHours(hours, minutes, 0, 0);
+      finalIsoTime = targetDate.toISOString();
+    } else {
+      // Default to next available hour or keep current
+      targetDate.setHours(now.getHours() + 1, 0, 0, 0);
+      finalIsoTime = targetDate.toISOString();
+    }
+
+    const updatedJob: Job = {
+      ...jobToAdd,
+      appointmentTime: finalIsoTime,
+      updatedAt: new Date().toISOString()
+    };
+
+    if (onUpdateJob) {
+      onUpdateJob(updatedJob);
+    }
+
+    setManuallyAddedJobIds(prev => [...new Set([...prev, jobToAdd.id])]);
+    setManuallyRemovedJobIds(prev => prev.filter(id => id !== jobToAdd.id));
+    setCustomStopOrder(prev => [...prev.filter(id => id !== jobToAdd.id), jobToAdd.id]);
+    setIsAddJobModalOpen(false);
+  };
+
+  const handleRemoveJobFromDay = (jobToRemove: Job) => {
+    triggerHapticFeedback('warning');
+
+    const updatedJob: Job = {
+      ...jobToRemove,
+      appointmentTime: undefined,
+      updatedAt: new Date().toISOString()
+    };
+
+    if (onUpdateJob) {
+      onUpdateJob(updatedJob);
+    }
+
+    setManuallyRemovedJobIds(prev => [...new Set([...prev, jobToRemove.id])]);
+    setManuallyAddedJobIds(prev => prev.filter(id => id !== jobToRemove.id));
+    setCustomStopOrder(prev => prev.filter(id => id !== jobToRemove.id));
+  };
+
+  const handleMoveStop = (index: number, direction: 'up' | 'down') => {
+    triggerHapticFeedback('light');
+    const newIndex = direction === 'up' ? index - 1 : index + 1;
+    if (newIndex < 0 || newIndex >= effectiveDayJobs.length) return;
+
+    const currentOrder = effectiveDayJobs.map(j => j.id);
+    const temp = currentOrder[index];
+    currentOrder[index] = currentOrder[newIndex];
+    currentOrder[newIndex] = temp;
+    setCustomStopOrder(currentOrder);
+  };
 
   const handleRunOptimization = (
     goal = selectedGoal,
@@ -213,57 +340,57 @@ export const DayPlanView: React.FC<DayPlanViewProps> = ({
   const getSubtitle = () => {
     const now = new Date();
     if (dateFilter === 'today') {
-      return now.toLocaleDateString('en-AU', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' });
+      return now.toLocaleDateString('en-AU', { weekday: 'short', month: 'short', day: 'numeric' });
     }
     if (dateFilter === 'tomorrow') {
       const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
-      return tomorrow.toLocaleDateString('en-AU', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' });
+      return tomorrow.toLocaleDateString('en-AU', { weekday: 'short', month: 'short', day: 'numeric' });
     }
     if (dateFilter === 'this_week') {
-      return 'Current Calendar Week (Monday - Sunday)';
+      return 'Current Week (Mon - Sun)';
     }
-    return 'All Scheduled & Planned Visits';
+    return 'All Planned Visits';
   };
 
   return (
-    <div className="flex flex-col h-full bg-slate-50 overflow-y-auto overflow-x-hidden pb-[calc(6.5rem+env(safe-area-inset-bottom,0px))] text-slate-900 p-3 sm:p-6 max-w-4xl mx-auto w-full">
+    <div className="flex flex-col h-full bg-slate-50 overflow-y-auto overflow-x-hidden pb-[calc(6.5rem+env(safe-area-inset-bottom,0px))] text-slate-900 p-3 sm:p-5 max-w-4xl mx-auto w-full select-none">
       
       {/* --------------------------------------------------------------------- */}
-      {/* TOP HEADER & TITLE                                                    */}
+      {/* 1. COMPACT TOP HEADER                                                 */}
       {/* --------------------------------------------------------------------- */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-        <div>
-          <div className="flex items-center gap-2.5">
-            <div className="p-2.5 bg-gradient-to-tr from-blue-600 to-indigo-600 text-white rounded-2xl shadow-md shadow-blue-500/20 shrink-0">
-              <CalendarDays className="w-5 h-5 stroke-[2.4]" />
-            </div>
-            <div>
-              <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
-                <span>Day Plan</span>
-                <span className="text-[10px] bg-blue-100 text-blue-700 font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wider">
-                  Schedule + Route
-                </span>
+      <div className="flex items-center justify-between gap-2 mb-2.5 shrink-0">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="p-2 bg-gradient-to-tr from-blue-600 to-indigo-600 text-white rounded-xl shadow-xs shrink-0">
+            <CalendarDays className="w-4 h-4 stroke-[2.5]" />
+          </div>
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <h1 className="text-base sm:text-lg font-black text-slate-950 tracking-tight leading-tight">
+                Day Plan
               </h1>
-              <p className="text-xs text-slate-500 mt-0.5 font-medium">
-                {getSubtitle()} • <strong className="text-slate-800 font-black">{totalStopsCount} Stops</strong>
-              </p>
+              <span className="text-[10px] bg-blue-100 text-blue-700 font-extrabold px-2 py-0.2 rounded-full">
+                {totalStopsCount} {totalStopsCount === 1 ? 'Stop' : 'Stops'}
+              </span>
             </div>
+            <p className="text-[11px] text-slate-500 font-medium truncate">
+              {getSubtitle()} • {totalDistanceKm} km road sequence
+            </p>
           </div>
         </div>
 
-        {/* Master Actions */}
-        <div className="flex items-center gap-2 self-start sm:self-auto shrink-0 flex-wrap">
+        {/* Action Buttons: Google Tour & Map Switch */}
+        <div className="flex items-center gap-1.5 shrink-0">
           {totalStopsCount > 0 && (
             <a
               href={masterGoogleMapsUrl}
               target="_blank"
               rel="noopener noreferrer"
               onClick={() => triggerHapticFeedback('light')}
-              className="px-3.5 py-2 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs flex items-center gap-1.5 shadow-md shadow-slate-900/15 transition active:scale-95"
-              title="Launch full sequence in Google Maps app"
+              className="px-2.5 sm:px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-[11px] sm:text-xs flex items-center gap-1 shadow-xs transition active:scale-95"
+              title="Launch full driving sequence in Google Maps app"
             >
-              <ExternalLink className="w-3.5 h-3.5 stroke-[2.5]" />
-              <span>🗺️ Start Google Tour</span>
+              <ExternalLink className="w-3.5 h-3.5 stroke-[2.2]" />
+              <span>Google Tour</span>
             </a>
           )}
 
@@ -272,40 +399,26 @@ export const DayPlanView: React.FC<DayPlanViewProps> = ({
               triggerHapticFeedback('light');
               onSwitchToMap();
             }}
-            className="px-3 py-2 rounded-2xl bg-white hover:bg-slate-100 text-slate-700 border border-slate-200/90 font-bold text-xs flex items-center gap-1.5 shadow-xs transition active:scale-95"
+            className="p-1.5 rounded-xl bg-white hover:bg-slate-100 text-slate-700 border border-slate-200/90 shadow-xs transition active:scale-95"
             title="Open Interactive Map"
           >
-            <Map className="w-3.5 h-3.5 text-blue-600 stroke-[2.2]" />
-            <span className="hidden xs:inline">Map</span>
+            <MapIcon className="w-4 h-4 text-blue-600 stroke-[2.2]" />
           </button>
-
-          {activeRoute && (
-            <button
-              onClick={() => {
-                triggerHapticFeedback('warning');
-                onClearRoute();
-              }}
-              className="p-2 rounded-2xl bg-white hover:bg-slate-100 text-slate-400 hover:text-slate-800 border border-slate-200/90 shadow-xs transition active:scale-95"
-              title="Reset Optimized Sequence"
-            >
-              <RotateCcw className="w-4 h-4 stroke-[2.2]" />
-            </button>
-          )}
         </div>
       </div>
 
       {/* --------------------------------------------------------------------- */}
-      {/* 1. DATE SELECTOR PILLS                                                */}
+      {/* 2. DATE SELECTOR PILLS (Horizontal Scrollable, Never Cut Off)          */}
       {/* --------------------------------------------------------------------- */}
-      <div className="shrink-0 flex items-center gap-1.5 bg-white p-1 rounded-2xl border border-slate-200/90 shadow-xs mb-3 overflow-x-auto no-scrollbar">
+      <div className="shrink-0 flex items-center gap-1 bg-white p-1 rounded-2xl border border-slate-200/90 shadow-2xs mb-2.5 overflow-x-auto no-scrollbar">
         <button
           onClick={() => {
             triggerHapticFeedback('light');
             setDateFilter('today');
           }}
-          className={`flex-1 min-h-[38px] px-3.5 py-1.5 rounded-xl text-xs font-black transition active:scale-95 flex items-center justify-center gap-1.5 whitespace-nowrap ${
+          className={`flex-1 min-w-[70px] py-1.5 px-2.5 rounded-xl text-xs font-black transition active:scale-95 flex items-center justify-center gap-1 whitespace-nowrap ${
             dateFilter === 'today'
-              ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/20'
+              ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-xs'
               : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
           }`}
         >
@@ -322,9 +435,9 @@ export const DayPlanView: React.FC<DayPlanViewProps> = ({
             triggerHapticFeedback('light');
             setDateFilter('tomorrow');
           }}
-          className={`flex-1 min-h-[38px] px-3.5 py-1.5 rounded-xl text-xs font-black transition active:scale-95 flex items-center justify-center gap-1.5 whitespace-nowrap ${
+          className={`flex-1 min-w-[70px] py-1.5 px-2.5 rounded-xl text-xs font-black transition active:scale-95 flex items-center justify-center gap-1 whitespace-nowrap ${
             dateFilter === 'tomorrow'
-              ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/20'
+              ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-xs'
               : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
           }`}
         >
@@ -341,9 +454,9 @@ export const DayPlanView: React.FC<DayPlanViewProps> = ({
             triggerHapticFeedback('light');
             setDateFilter('this_week');
           }}
-          className={`flex-1 min-h-[38px] px-3.5 py-1.5 rounded-xl text-xs font-black transition active:scale-95 flex items-center justify-center gap-1.5 whitespace-nowrap ${
+          className={`flex-1 min-w-[75px] py-1.5 px-2.5 rounded-xl text-xs font-black transition active:scale-95 flex items-center justify-center gap-1 whitespace-nowrap ${
             dateFilter === 'this_week'
-              ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/20'
+              ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-xs'
               : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
           }`}
         >
@@ -360,13 +473,13 @@ export const DayPlanView: React.FC<DayPlanViewProps> = ({
             triggerHapticFeedback('light');
             setDateFilter('all');
           }}
-          className={`flex-1 min-h-[38px] px-3.5 py-1.5 rounded-xl text-xs font-black transition active:scale-95 flex items-center justify-center gap-1.5 whitespace-nowrap ${
+          className={`flex-1 min-w-[60px] py-1.5 px-2.5 rounded-xl text-xs font-black transition active:scale-95 flex items-center justify-center gap-1 whitespace-nowrap ${
             dateFilter === 'all'
               ? 'bg-slate-900 text-white shadow-xs'
               : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
           }`}
         >
-          <span>All Planned</span>
+          <span>All</span>
           <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
             dateFilter === 'all' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
           }`}>
@@ -376,25 +489,22 @@ export const DayPlanView: React.FC<DayPlanViewProps> = ({
       </div>
 
       {/* --------------------------------------------------------------------- */}
-      {/* 2. VIEW MODE SWITCHER (Smart Plan | Timeline | Route Tuning)          */}
+      {/* 3. SLEEK SUB-VIEW TOGGLE (Smart Plan | Timeline | Optimizer)           */}
       {/* --------------------------------------------------------------------- */}
-      <div className="bg-slate-200/80 p-1 rounded-2xl flex items-center gap-1 text-xs font-black text-slate-600 mb-3.5">
+      <div className="bg-slate-200/80 p-0.5 rounded-xl flex items-center gap-1 text-[11px] font-black text-slate-600 mb-2.5 shrink-0">
         <button
           onClick={() => {
             triggerHapticFeedback('light');
             setViewMode('smart');
           }}
-          className={`flex-1 py-1.5 rounded-xl transition flex items-center justify-center gap-1.5 ${
+          className={`flex-1 py-1 px-2 rounded-lg transition flex items-center justify-center gap-1 ${
             viewMode === 'smart'
-              ? 'bg-white text-slate-900 shadow-sm font-black'
+              ? 'bg-white text-slate-900 shadow-2xs font-black'
               : 'hover:text-slate-900 font-bold'
           }`}
         >
-          <Zap className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
+          <Zap className="w-3 h-3 text-amber-500 fill-amber-500" />
           <span>Smart Plan</span>
-          <span className="text-[9px] bg-blue-50 text-blue-700 px-1.5 py-0.2 rounded-md font-bold hidden xs:inline">
-            Best
-          </span>
         </button>
 
         <button
@@ -402,13 +512,13 @@ export const DayPlanView: React.FC<DayPlanViewProps> = ({
             triggerHapticFeedback('light');
             setViewMode('timeline');
           }}
-          className={`flex-1 py-1.5 rounded-xl transition flex items-center justify-center gap-1.5 ${
+          className={`flex-1 py-1 px-2 rounded-lg transition flex items-center justify-center gap-1 ${
             viewMode === 'timeline'
-              ? 'bg-white text-slate-900 shadow-sm font-black'
+              ? 'bg-white text-slate-900 shadow-2xs font-black'
               : 'hover:text-slate-900 font-bold'
           }`}
         >
-          <Clock className="w-3.5 h-3.5 text-blue-600" />
+          <Clock className="w-3 h-3 text-blue-600" />
           <span>Timeline</span>
         </button>
 
@@ -417,226 +527,185 @@ export const DayPlanView: React.FC<DayPlanViewProps> = ({
             triggerHapticFeedback('light');
             setViewMode('route_control');
           }}
-          className={`flex-1 py-1.5 rounded-xl transition flex items-center justify-center gap-1.5 ${
+          className={`flex-1 py-1 px-2 rounded-lg transition flex items-center justify-center gap-1 ${
             viewMode === 'route_control'
-              ? 'bg-white text-slate-900 shadow-sm font-black'
+              ? 'bg-white text-slate-900 shadow-2xs font-black'
               : 'hover:text-slate-900 font-bold'
           }`}
         >
-          <Navigation className="w-3.5 h-3.5 text-indigo-600" />
+          <SlidersHorizontal className="w-3 h-3 text-indigo-600" />
           <span>Optimizer</span>
-          {activeRoute && (
-            <span className="w-1.5 h-1.5 bg-blue-600 rounded-full animate-pulse"></span>
+          {activeRoute && <span className="w-1.5 h-1.5 bg-blue-600 rounded-full animate-pulse"></span>}
+        </button>
+      </div>
+
+      {/* --------------------------------------------------------------------- */}
+      {/* 4. SLEEK & COMPACT ROUTE STATS STRIP (No More Awkward Giant Dark Box)  */}
+      {/* --------------------------------------------------------------------- */}
+      <div className="bg-slate-900 text-white rounded-2xl p-2.5 sm:p-3 shadow-xs mb-3 shrink-0 flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="p-1.5 bg-white/10 rounded-xl text-amber-400 shrink-0">
+            <Navigation className="w-4 h-4 stroke-[2.2]" />
+          </div>
+          <div className="min-w-0">
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-base sm:text-lg font-black tracking-tight">{totalDistanceKm} km</span>
+              <span className="text-[11px] text-slate-300 font-medium">
+                • ~{totalDriveTimeMinutes}m drive
+              </span>
+            </div>
+            <p className="text-[10px] text-slate-400 font-medium truncate">
+              {isUsingGPS ? '📍 Origin: Live GPS' : `🏠 Base: ${profile.baseAddress?.split(',')[0] || 'Point Cook'}`}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 shrink-0">
+          <span className="text-[11px] font-black px-2 py-0.5 rounded-full bg-white/10 text-emerald-400 border border-white/10">
+            {completedStopsCount}/{totalStopsCount} Done
+          </span>
+
+          <button
+            onClick={() => handleRunOptimization(selectedGoal, selectedSuburb, prioritizeAgency)}
+            disabled={isOptimizing}
+            className="text-[10px] font-extrabold text-amber-300 hover:text-white flex items-center gap-1 px-2 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 transition active:scale-95"
+            title="Recalculate shortest road sequence"
+          >
+            <Sparkles className="w-3 h-3" />
+            <span>{isOptimizing ? 'Optimizing...' : 'Re-Order'}</span>
+          </button>
+        </div>
+      </div>
+
+      {/* --------------------------------------------------------------------- */}
+      {/* 5. ADD JOB BUTTON (High Visibility & Flexibility)                     */}
+      {/* --------------------------------------------------------------------- */}
+      <div className="flex items-center gap-2 mb-3 shrink-0">
+        <button
+          onClick={() => {
+            triggerHapticFeedback('light');
+            setIsAddJobModalOpen(true);
+          }}
+          className="flex-1 py-2.5 px-3.5 rounded-2xl bg-blue-50 hover:bg-blue-100 text-blue-700 border-2 border-dashed border-blue-300 font-black text-xs flex items-center justify-center gap-1.5 shadow-xs transition active:scale-[0.98]"
+        >
+          <Plus className="w-4 h-4 stroke-[2.8]" />
+          <span>Add Job to Today's Plan</span>
+          {unscheduledJobs.length > 0 && (
+            <span className="ml-1 text-[10px] bg-blue-200 text-blue-900 px-1.5 py-0.2 rounded-full font-bold">
+              {unscheduledJobs.length} unscheduled available
+            </span>
           )}
         </button>
       </div>
 
       {/* --------------------------------------------------------------------- */}
-      {/* 3. HERO METRICS CARD                                                  */}
-      {/* --------------------------------------------------------------------- */}
-      <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 rounded-3xl p-4 sm:p-5 text-white shadow-md relative overflow-hidden mb-4">
-        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-bold text-blue-300 uppercase tracking-widest">
-                Daily Driving Route
-              </span>
-              {activeRoute && (
-                <span className="text-[9px] bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 px-2 py-0.2 rounded-full font-bold">
-                  ⚡ Auto-Optimized
-                </span>
-              )}
-            </div>
-            <div className="flex items-baseline gap-2 mt-1">
-              <span className="text-2xl sm:text-3xl font-black">{totalDistanceKm} km</span>
-              <span className="text-xs text-blue-200 font-semibold">
-                • ~{totalDriveTimeMinutes} mins travel time
-              </span>
-            </div>
-          </div>
-
-          <div className="sm:text-right">
-            <span className="text-[10px] font-bold text-emerald-300 uppercase tracking-wider block">
-              Execution Progress
-            </span>
-            <div className="flex items-center sm:justify-end gap-2 mt-0.5">
-              <span className="text-xs font-black bg-white/10 text-white px-2.5 py-1 rounded-full border border-white/15">
-                {completedStopsCount} of {totalStopsCount} Done ({progressPercent}%)
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Progress Bar Line */}
-        <div className="w-full bg-white/10 rounded-full h-1.5 mt-3.5 overflow-hidden">
-          <div
-            className="bg-gradient-to-r from-emerald-400 to-blue-400 h-full rounded-full transition-all duration-500"
-            style={{ width: `${progressPercent}%` }}
-          ></div>
-        </div>
-
-        {/* Bottom Origin Bar */}
-        <div className="mt-3.5 pt-3 border-t border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-blue-100">
-          <div className="flex items-center gap-2 min-w-0">
-            <span className="text-blue-300 shrink-0 font-medium">Origin:</span>
-            <span className="font-extrabold truncate">
-              {isUsingGPS
-                ? `📍 Live GPS (${currentLocation[0].toFixed(3)}, ${currentLocation[1].toFixed(3)})`
-                : (profile.baseAddress ? `🏠 ${profile.baseAddress.split(',')[0]}` : 'Base: Point Cook')}
-            </span>
-          </div>
-
-          <div className="flex items-center gap-2 shrink-0">
-            {onToggleGpsMode && (
-              <button
-                onClick={() => {
-                  triggerHapticFeedback('light');
-                  onToggleGpsMode();
-                }}
-                className="text-[11px] font-bold text-blue-200 hover:text-white underline underline-offset-2 transition"
-              >
-                {isUsingGPS ? 'Switch to Hub' : 'Use Live GPS'}
-              </button>
-            )}
-
-            <button
-              onClick={() => handleRunOptimization(selectedGoal, selectedSuburb, prioritizeAgency)}
-              disabled={isOptimizing}
-              className="text-[11px] font-black text-amber-300 hover:text-white flex items-center gap-1 transition active:scale-95"
-            >
-              <Sparkles className="w-3 h-3" />
-              <span>{isOptimizing ? 'Optimizing...' : 'Re-Optimize Order'}</span>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* --------------------------------------------------------------------- */}
-      {/* 4. OPTIMIZER CONTROL PANEL (Shown when 'route_control' is active)     */}
+      {/* 6. OPTIMIZER CONTROL PANEL (Expanded in 'route_control' mode)          */}
       {/* --------------------------------------------------------------------- */}
       {viewMode === 'route_control' && (
-        <div className="bg-white rounded-3xl border border-slate-200/90 p-4 sm:p-5 mb-4 shadow-sm flex flex-col gap-4 animate-in fade-in duration-200">
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">
-                Route Objective
-              </label>
-              <span className="text-[11px] font-bold text-slate-500">
-                {goalFilteredJobs.length} Eligible Jobs
-              </span>
-            </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              {/* Closest to Me */}
-              <button
-                onClick={() => {
-                  setSelectedGoal('closest_to_me');
-                  handleRunOptimization('closest_to_me', selectedSuburb, prioritizeAgency);
-                }}
-                className={`p-3 rounded-2xl border text-left flex flex-col justify-between transition active:scale-95 ${
-                  selectedGoal === 'closest_to_me'
-                    ? 'bg-indigo-50 border-indigo-500 ring-2 ring-indigo-400/25 shadow-xs'
-                    : 'bg-slate-50 hover:bg-slate-100 border-slate-200/80'
-                }`}
-              >
-                <div className="flex items-center justify-between w-full mb-1">
-                  <Crosshair className="w-4 h-4 text-indigo-600" />
-                  <span className="text-[10px] font-black px-1.5 py-0.2 rounded-full bg-slate-200 text-slate-700">
-                    {activeJobs.length}
-                  </span>
-                </div>
-                <div>
-                  <p className="text-xs font-black text-slate-900 leading-snug">Closest to Me</p>
-                  <p className="text-[10px] text-slate-500">Nearest stop first</p>
-                </div>
-              </button>
-
-              {/* Quotes Tour */}
-              <button
-                onClick={() => {
-                  setSelectedGoal('quotes_only');
-                  handleRunOptimization('quotes_only', selectedSuburb, prioritizeAgency);
-                }}
-                className={`p-3 rounded-2xl border text-left flex flex-col justify-between transition active:scale-95 ${
-                  selectedGoal === 'quotes_only'
-                    ? 'bg-amber-50 border-amber-400 ring-2 ring-amber-400/20 shadow-xs'
-                    : 'bg-slate-50 hover:bg-slate-100 border-slate-200/80'
-                }`}
-              >
-                <div className="flex items-center justify-between w-full mb-1">
-                  <Sparkles className="w-4 h-4 text-amber-500" />
-                  <span className="text-[10px] font-black px-1.5 py-0.2 rounded-full bg-slate-200 text-slate-700">
-                    {quoteJobs.length}
-                  </span>
-                </div>
-                <div>
-                  <p className="text-xs font-black text-slate-900 leading-snug">Quotes Tour</p>
-                  <p className="text-[10px] text-slate-500">Estimates only</p>
-                </div>
-              </button>
-
-              {/* Active Work */}
-              <button
-                onClick={() => {
-                  setSelectedGoal('active_only');
-                  handleRunOptimization('active_only', selectedSuburb, prioritizeAgency);
-                }}
-                className={`p-3 rounded-2xl border text-left flex flex-col justify-between transition active:scale-95 ${
-                  selectedGoal === 'active_only'
-                    ? 'bg-emerald-50 border-emerald-400 ring-2 ring-emerald-400/20 shadow-xs'
-                    : 'bg-slate-50 hover:bg-slate-100 border-slate-200/80'
-                }`}
-              >
-                <div className="flex items-center justify-between w-full mb-1">
-                  <Zap className="w-4 h-4 text-emerald-600" />
-                  <span className="text-[10px] font-black px-1.5 py-0.2 rounded-full bg-slate-200 text-slate-700">
-                    {inProgressJobs.length}
-                  </span>
-                </div>
-                <div>
-                  <p className="text-xs font-black text-slate-900 leading-snug">Active Work</p>
-                  <p className="text-[10px] text-slate-500">In-progress jobs</p>
-                </div>
-              </button>
-
-              {/* Urgent + Quotes */}
-              <button
-                onClick={() => {
-                  setSelectedGoal('urgent_and_quotes');
-                  handleRunOptimization('urgent_and_quotes', selectedSuburb, prioritizeAgency);
-                }}
-                className={`p-3 rounded-2xl border text-left flex flex-col justify-between transition active:scale-95 ${
-                  selectedGoal === 'urgent_and_quotes'
-                    ? 'bg-rose-50 border-rose-400 ring-2 ring-rose-400/20 shadow-xs'
-                    : 'bg-slate-50 hover:bg-slate-100 border-slate-200/80'
-                }`}
-              >
-                <div className="flex items-center justify-between w-full mb-1">
-                  <Clock className="w-4 h-4 text-rose-500" />
-                  <span className="text-[10px] font-black px-1.5 py-0.2 rounded-full bg-slate-200 text-slate-700">
-                    {urgentJobs.length + quoteJobs.length}
-                  </span>
-                </div>
-                <div>
-                  <p className="text-xs font-black text-slate-900 leading-snug">Urgent + Quotes</p>
-                  <p className="text-[10px] text-slate-500">Highest priority</p>
-                </div>
-              </button>
-            </div>
+        <div className="bg-white rounded-2xl border border-slate-200/90 p-3.5 mb-3 shadow-xs flex flex-col gap-3 animate-in fade-in duration-150">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+              Routing Goals
+            </span>
+            <span className="text-[11px] font-bold text-slate-500">
+              {goalFilteredJobs.length} Eligible Jobs
+            </span>
           </div>
 
-          {/* Suburb Filter Pills & Agency Priority */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-slate-100 text-xs">
-            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1">
-              <span className="text-[10px] font-bold uppercase text-slate-400 shrink-0">Suburb:</span>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+            <button
+              onClick={() => {
+                setSelectedGoal('closest_to_me');
+                handleRunOptimization('closest_to_me', selectedSuburb, prioritizeAgency);
+              }}
+              className={`p-2.5 rounded-xl border text-left flex flex-col justify-between transition active:scale-95 ${
+                selectedGoal === 'closest_to_me'
+                  ? 'bg-indigo-50 border-indigo-500 ring-2 ring-indigo-400/25'
+                  : 'bg-slate-50 hover:bg-slate-100 border-slate-200/80'
+              }`}
+            >
+              <div className="flex items-center justify-between mb-1">
+                <Crosshair className="w-3.5 h-3.5 text-indigo-600" />
+                <span className="text-[9px] font-black px-1.5 py-0.2 rounded-full bg-slate-200 text-slate-700">
+                  {activeJobs.length}
+                </span>
+              </div>
+              <p className="text-xs font-black text-slate-900">Closest to Me</p>
+            </button>
+
+            <button
+              onClick={() => {
+                setSelectedGoal('quotes_only');
+                handleRunOptimization('quotes_only', selectedSuburb, prioritizeAgency);
+              }}
+              className={`p-2.5 rounded-xl border text-left flex flex-col justify-between transition active:scale-95 ${
+                selectedGoal === 'quotes_only'
+                  ? 'bg-amber-50 border-amber-400 ring-2 ring-amber-400/20'
+                  : 'bg-slate-50 hover:bg-slate-100 border-slate-200/80'
+              }`}
+            >
+              <div className="flex items-center justify-between mb-1">
+                <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                <span className="text-[9px] font-black px-1.5 py-0.2 rounded-full bg-slate-200 text-slate-700">
+                  {quoteJobs.length}
+                </span>
+              </div>
+              <p className="text-xs font-black text-slate-900">Quotes Only</p>
+            </button>
+
+            <button
+              onClick={() => {
+                setSelectedGoal('active_only');
+                handleRunOptimization('active_only', selectedSuburb, prioritizeAgency);
+              }}
+              className={`p-2.5 rounded-xl border text-left flex flex-col justify-between transition active:scale-95 ${
+                selectedGoal === 'active_only'
+                  ? 'bg-emerald-50 border-emerald-400 ring-2 ring-emerald-400/20'
+                  : 'bg-slate-50 hover:bg-slate-100 border-slate-200/80'
+              }`}
+            >
+              <div className="flex items-center justify-between mb-1">
+                <Zap className="w-3.5 h-3.5 text-emerald-600" />
+                <span className="text-[9px] font-black px-1.5 py-0.2 rounded-full bg-slate-200 text-slate-700">
+                  {inProgressJobs.length}
+                </span>
+              </div>
+              <p className="text-xs font-black text-slate-900">Active Work</p>
+            </button>
+
+            <button
+              onClick={() => {
+                setSelectedGoal('urgent_and_quotes');
+                handleRunOptimization('urgent_and_quotes', selectedSuburb, prioritizeAgency);
+              }}
+              className={`p-2.5 rounded-xl border text-left flex flex-col justify-between transition active:scale-95 ${
+                selectedGoal === 'urgent_and_quotes'
+                  ? 'bg-rose-50 border-rose-400 ring-2 ring-rose-400/20'
+                  : 'bg-slate-50 hover:bg-slate-100 border-slate-200/80'
+              }`}
+            >
+              <div className="flex items-center justify-between mb-1">
+                <Clock className="w-3.5 h-3.5 text-rose-500" />
+                <span className="text-[9px] font-black px-1.5 py-0.2 rounded-full bg-slate-200 text-slate-700">
+                  {urgentJobs.length + quoteJobs.length}
+                </span>
+              </div>
+              <p className="text-xs font-black text-slate-900">Urgent + Quotes</p>
+            </button>
+          </div>
+
+          {/* Suburb selector & Agency Priority */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2 border-t border-slate-100 text-xs">
+            <div className="flex items-center gap-1 overflow-x-auto no-scrollbar py-0.5">
+              <span className="text-[10px] font-bold text-slate-400 shrink-0">Suburb:</span>
               <button
                 onClick={() => {
                   setSelectedSuburb('all');
                   handleRunOptimization(selectedGoal, 'all', prioritizeAgency);
                 }}
-                className={`px-2.5 py-1 rounded-xl text-xs font-bold transition shrink-0 ${
+                className={`px-2 py-0.5 rounded-lg text-xs font-bold transition shrink-0 ${
                   selectedSuburb === 'all'
-                    ? 'bg-blue-600 text-white shadow-xs'
+                    ? 'bg-blue-600 text-white'
                     : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                 }`}
               >
@@ -652,20 +721,20 @@ export const DayPlanView: React.FC<DayPlanViewProps> = ({
                       setSelectedSuburb(sub);
                       handleRunOptimization(selectedGoal, sub, prioritizeAgency);
                     }}
-                    className={`px-2.5 py-1 rounded-xl text-xs font-bold transition flex items-center gap-1 shrink-0 ${
+                    className={`px-2 py-0.5 rounded-lg text-xs font-bold transition flex items-center gap-1 shrink-0 ${
                       selectedSuburb === sub
-                        ? 'bg-blue-600 text-white shadow-xs'
+                        ? 'bg-blue-600 text-white'
                         : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                     }`}
                   >
                     <span>{sub}</span>
-                    <span className="text-[10px] opacity-75">({count})</span>
+                    <span className="text-[9px] opacity-75">({count})</span>
                   </button>
                 );
               })}
             </div>
 
-            <label className="flex items-center gap-2 cursor-pointer font-bold text-slate-800 shrink-0 select-none">
+            <label className="flex items-center gap-1.5 cursor-pointer font-bold text-slate-700 shrink-0 select-none">
               <input
                 type="checkbox"
                 checked={prioritizeAgency}
@@ -673,50 +742,48 @@ export const DayPlanView: React.FC<DayPlanViewProps> = ({
                   setPrioritizeAgency(e.target.checked);
                   handleRunOptimization(selectedGoal, selectedSuburb, e.target.checked);
                 }}
-                className="w-4 h-4 text-purple-600 rounded-md focus:ring-purple-500 border-slate-300"
+                className="w-3.5 h-3.5 text-purple-600 rounded focus:ring-purple-500 border-slate-300"
               />
-              <span className="text-xs">Prioritize Agency Work Orders</span>
+              <span className="text-[11px]">Agency Priority</span>
             </label>
           </div>
         </div>
       )}
 
       {/* --------------------------------------------------------------------- */}
-      {/* 5. STOP SEQUENCE TIMELINE (The Core Plan)                             */}
+      {/* 7. STOP SEQUENCE CARDS (Timeline with Transit Connectors)             */}
       {/* --------------------------------------------------------------------- */}
       {totalStopsCount === 0 ? (
-        <div className="text-center py-14 bg-white rounded-3xl border border-slate-200/90 shadow-sm p-6 space-y-3 mb-4">
+        <div className="text-center py-12 bg-white rounded-3xl border border-slate-200/90 shadow-2xs p-6 space-y-3 mb-4">
           <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto shadow-inner">
             <Clock className="w-6 h-6 stroke-[2.2]" />
           </div>
           <div>
-            <p className="text-slate-900 font-black text-base">
+            <p className="text-slate-900 font-black text-sm sm:text-base">
               {dateFilter === 'today'
-                ? 'No visits scheduled for Today'
+                ? 'No stops on Today’s plan'
                 : dateFilter === 'tomorrow'
-                ? 'No visits scheduled for Tomorrow'
-                : dateFilter === 'this_week'
-                ? 'No visits scheduled for This Week'
-                : 'No scheduled visits found'}
+                ? 'No stops scheduled for Tomorrow'
+                : 'No stops found for this filter'}
             </p>
             <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto font-medium">
-              {unscheduledJobs.length > 0
-                ? `You have ${unscheduledJobs.length} active leads in your pipeline ready to be slotted in.`
-                : 'All jobs in your pipeline have been completed or attended to.'}
+              Tap the button below to add any job from your pipeline to today's driving route.
             </p>
           </div>
 
-          {unscheduledJobs.length > 0 && (
-            <button
-              onClick={() => handleRunOptimization('all', 'all', true)}
-              className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs shadow-md shadow-blue-500/20 transition active:scale-95"
-            >
-              ⚡ Auto-Generate Route for All Open Leads
-            </button>
-          )}
+          <button
+            onClick={() => {
+              triggerHapticFeedback('light');
+              setIsAddJobModalOpen(true);
+            }}
+            className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs shadow-md shadow-blue-500/20 transition active:scale-95 inline-flex items-center gap-1.5"
+          >
+            <Plus className="w-4 h-4 stroke-[3]" />
+            <span>Select Jobs to Add to Route</span>
+          </button>
         </div>
       ) : (
-        <div className="flex flex-col gap-3 mb-4">
+        <div className="flex flex-col gap-2.5 mb-4">
           {activeStops.map((stop, index) => {
             const job = stop.job;
             const statusCfg = STATUS_CONFIG[job.status];
@@ -731,36 +798,37 @@ export const DayPlanView: React.FC<DayPlanViewProps> = ({
 
             return (
               <React.Fragment key={stop.id || job.id}>
-                {/* INLINE TRANSIT CONNECTOR (Driving time from previous stop) */}
+                {/* INLINE TRANSIT CONNECTOR */}
                 {index > 0 && (
                   <div className="flex items-center justify-center gap-2 py-0.5">
-                    <div className="h-4 w-0.5 bg-slate-300"></div>
-                    <span className="bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200/90 text-[10px] sm:text-[11px] font-bold px-3 py-0.5 rounded-full shadow-2xs transition">
-                      🚗 {stop.durationFromPrevMin} mins drive ({stop.distanceFromPrevKm} km)
+                    <div className="h-3 w-0.5 bg-slate-300"></div>
+                    <span className="bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 text-[10px] font-bold px-2.5 py-0.5 rounded-full shadow-2xs transition">
+                      🚗 {stop.durationFromPrevMin}m drive ({stop.distanceFromPrevKm} km)
                     </span>
-                    <div className="h-4 w-0.5 bg-slate-300"></div>
+                    <div className="h-3 w-0.5 bg-slate-300"></div>
                   </div>
                 )}
 
                 {/* STOP CARD */}
                 <div
-                  className={`bg-white border rounded-3xl p-3.5 sm:p-4 shadow-sm transition-all ${
+                  className={`bg-white border rounded-2xl p-3 sm:p-4 shadow-xs transition-all relative ${
                     stop.isCompleted
                       ? 'border-emerald-200/90 bg-emerald-50/20 opacity-75'
                       : index === 0
-                      ? 'border-blue-500 ring-2 ring-blue-500/15 shadow-md'
+                      ? 'border-blue-500 ring-2 ring-blue-500/15'
                       : 'border-slate-200/90 hover:border-slate-300'
                   }`}
                 >
-                  {/* Card Header: Stop Number & Status */}
-                  <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
-                    <div className="flex items-center gap-2 flex-wrap">
+                  {/* Top Bar: Stop #, Time, Status, Re-order, Remove Button */}
+                  <div className="flex items-center justify-between gap-1.5 mb-1.5 flex-wrap">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {/* Stop Number / Completion Toggle */}
                       <button
                         onClick={() => {
                           triggerHapticFeedback('light');
                           onToggleStopCompleted(stop.id);
                         }}
-                        className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black transition active:scale-90 ${
+                        className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black transition active:scale-90 ${
                           stop.isCompleted
                             ? 'bg-emerald-600 text-white shadow-xs'
                             : 'bg-slate-100 border border-slate-300 text-slate-700 hover:border-emerald-500 hover:text-emerald-600'
@@ -771,57 +839,84 @@ export const DayPlanView: React.FC<DayPlanViewProps> = ({
                       </button>
 
                       {job.appointmentTime && (
-                        <span className="font-mono text-xs font-black text-blue-700 bg-blue-50 px-2 py-0.5 rounded-lg border border-blue-200/80">
+                        <span className="font-mono text-xs font-black text-blue-700 bg-blue-50 px-2 py-0.2 rounded-md border border-blue-200/80">
                           {formatTime(job.appointmentTime)}
                         </span>
                       )}
 
                       <span
-                        className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border ${statusCfg.bgClass} ${statusCfg.textClass} ${statusCfg.borderClass}`}
+                        className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.2 rounded-full border ${statusCfg.bgClass} ${statusCfg.textClass} ${statusCfg.borderClass}`}
                       >
                         {statusCfg.shortLabel}
                       </span>
 
                       {job.isAgencyJob && job.realEstateAgency && (
-                        <span className="text-[10px] font-extrabold text-purple-900 bg-purple-50 border border-purple-200 px-2 py-0.5 rounded-full flex items-center gap-1 truncate max-w-[150px]">
-                          <Building2 className="w-3 h-3 text-purple-700 shrink-0" />
+                        <span className="text-[9px] font-extrabold text-purple-900 bg-purple-50 border border-purple-200 px-2 py-0.2 rounded-full flex items-center gap-1 truncate max-w-[140px]">
+                          <Building2 className="w-2.5 h-2.5 text-purple-700 shrink-0" />
                           <span className="truncate">{job.realEstateAgency.split(' ')[0]}</span>
                           {job.workOrderNumber && <span className="font-mono text-purple-700">• {job.workOrderNumber}</span>}
                         </span>
                       )}
                     </div>
 
-                    <div className="flex items-center gap-2">
-                      {job.quote && (
-                        <span className="font-black text-xs text-slate-900">
-                          {formatCurrency(job.quote.totalAmount)}
-                        </span>
+                    {/* Right Tools: Reorder Arrows & REMOVE Button */}
+                    <div className="flex items-center gap-1 shrink-0">
+                      {/* Move Up */}
+                      {index > 0 && (
+                        <button
+                          onClick={() => handleMoveStop(index, 'up')}
+                          className="p-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
+                          title="Move stop earlier"
+                        >
+                          <ArrowUp className="w-3.5 h-3.5" />
+                        </button>
                       )}
-                      <span className="text-[10px] text-slate-400 font-bold hidden sm:inline">
-                        📍 {liveDist} km away
-                      </span>
+
+                      {/* Move Down */}
+                      {index < activeStops.length - 1 && (
+                        <button
+                          onClick={() => handleMoveStop(index, 'down')}
+                          className="p-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
+                          title="Move stop later"
+                        >
+                          <ArrowDown className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+
+                      {/* REMOVE FROM TIMELINE BUTTON */}
+                      <button
+                        onClick={() => {
+                          if (window.confirm(`Take "${job.title}" off today's route?\n(The job will stay safely in your pipeline).`)) {
+                            handleRemoveJobFromDay(job);
+                          }
+                        }}
+                        className="p-1 rounded-md text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition active:scale-95 ml-0.5"
+                        title="Remove from Today's Plan"
+                      >
+                        <X className="w-4 h-4 stroke-[2.4]" />
+                      </button>
                     </div>
                   </div>
 
-                  {/* Job Title & Scope */}
+                  {/* Job Title */}
                   <h3
                     onClick={() => onOpenJobDetail(job)}
                     className={`font-black text-sm sm:text-base text-slate-900 leading-snug cursor-pointer hover:text-blue-600 transition ${
-                      stop.isCompleted ? 'line-through text-slate-500' : ''
+                      stop.isCompleted ? 'line-through text-slate-400' : ''
                     }`}
                   >
                     {job.title}
                   </h3>
 
                   {/* Address */}
-                  <div className="flex items-center gap-1.5 text-xs text-slate-600 mt-1">
+                  <div className="flex items-center gap-1 text-xs text-slate-600 mt-1">
                     <MapPin className="w-3.5 h-3.5 text-blue-600 shrink-0" />
                     <span className="truncate font-medium">{job.address}</span>
                   </div>
 
-                  {/* Client & PM Info */}
-                  <div className="mt-2.5 pt-2 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
-                    <div className="flex items-center gap-2 text-slate-600">
+                  {/* Client & Price */}
+                  <div className="mt-2 pt-2 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                    <div className="flex items-center gap-1.5 text-slate-600">
                       <span className="font-bold text-slate-900">{job.clientName}</span>
                       {job.realEstateAgentName && (
                         <span className="text-[11px] text-purple-700 font-semibold truncate">
@@ -830,24 +925,24 @@ export const DayPlanView: React.FC<DayPlanViewProps> = ({
                       )}
                     </div>
 
-                    {/* Action Strip (44px mobile touch targets) */}
-                    <div className="flex items-center gap-1.5 flex-wrap">
+                    {/* Touch Action Buttons Strip */}
+                    <div className="flex items-center gap-1 flex-wrap">
                       <a
                         href={`tel:${job.clientPhone}`}
                         onClick={() => triggerHapticFeedback('light')}
-                        className="p-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200/80 transition active:scale-95"
+                        className="p-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 transition active:scale-95"
                         title="Call Client"
                       >
-                        <Phone className="w-3.5 h-3.5 stroke-[2.4]" />
+                        <Phone className="w-3.5 h-3.5 stroke-[2.2]" />
                       </a>
 
                       <a
                         href={`sms:${job.clientPhone.replace(/[^0-9+]/g, '')}?body=${encodeURIComponent(onMyWaySms)}`}
                         onClick={() => triggerHapticFeedback('light')}
-                        className="p-2 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200/80 transition active:scale-95"
+                        className="p-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 transition active:scale-95"
                         title="Send On My Way SMS"
                       >
-                        <MessageSquare className="w-3.5 h-3.5 stroke-[2.4]" />
+                        <MessageSquare className="w-3.5 h-3.5 stroke-[2.2]" />
                       </a>
 
                       <a
@@ -855,21 +950,20 @@ export const DayPlanView: React.FC<DayPlanViewProps> = ({
                         target="_blank"
                         rel="noopener noreferrer"
                         onClick={() => triggerHapticFeedback('light')}
-                        className="px-2.5 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200/90 font-bold text-xs flex items-center gap-1 transition active:scale-95"
+                        className="px-2 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 font-bold text-xs flex items-center gap-1 transition active:scale-95"
                         title="Start Google Maps Navigation"
                       >
-                        <Navigation className="w-3.5 h-3.5 text-amber-600 fill-amber-600" />
-                        <span className="text-[11px]">Navigate</span>
+                        <Navigation className="w-3 h-3 text-amber-600 fill-amber-600" />
+                        <span className="text-[10px] font-black">Navigate</span>
                       </a>
 
-                      {/* Calendar exports */}
                       <button
                         type="button"
                         onClick={() => {
                           triggerHapticFeedback('light');
                           window.open(buildGoogleCalendarUrl(job, profile), '_blank');
                         }}
-                        className="p-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200 transition active:scale-95"
+                        className="p-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200 transition active:scale-95"
                         title="Sync to Google Calendar"
                       >
                         <Calendar className="w-3.5 h-3.5 stroke-[2.2]" />
@@ -880,7 +974,7 @@ export const DayPlanView: React.FC<DayPlanViewProps> = ({
                           triggerHapticFeedback('light');
                           onOpenJobDetail(job);
                         }}
-                        className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-black text-xs flex items-center gap-1 shadow-xs transition active:scale-95"
+                        className="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-white font-black text-xs flex items-center gap-1 transition active:scale-95"
                       >
                         <span>Details</span>
                         <ArrowRight className="w-3 h-3 stroke-[2.5]" />
@@ -895,54 +989,52 @@ export const DayPlanView: React.FC<DayPlanViewProps> = ({
       )}
 
       {/* --------------------------------------------------------------------- */}
-      {/* 6. UNSCHEDULED / FLEXIBLE QUOTES ACCORDION DRAWER                     */}
+      {/* 8. UNSCHEDULED LEADS SECTION WITH DIRECT "ADD TO ROUTE" BUTTONS       */}
       {/* --------------------------------------------------------------------- */}
       {unscheduledJobs.length > 0 && (
-        <div className="bg-white border border-slate-200/90 rounded-3xl p-4 shadow-sm mb-4">
+        <div className="bg-white border border-slate-200/90 rounded-2xl p-3 shadow-2xs mb-4">
           <div
             onClick={() => setShowUnscheduledQueue(!showUnscheduledQueue)}
             className="flex items-center justify-between cursor-pointer select-none"
           >
-            <div className="flex items-center gap-2">
-              <span className="w-6 h-6 rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center font-black text-xs">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="w-5 h-5 rounded-lg bg-purple-50 text-purple-700 flex items-center justify-center font-black text-xs shrink-0">
                 📥
               </span>
-              <div>
-                <h4 className="font-extrabold text-xs text-slate-900">
+              <div className="min-w-0">
+                <h4 className="font-extrabold text-xs text-slate-900 truncate">
                   Unscheduled Pipeline Leads ({unscheduledJobs.length})
                 </h4>
-                <p className="text-[11px] text-slate-500">
-                  Quote requests without a set time that can be slotted into today's drive
+                <p className="text-[10px] text-slate-500 truncate">
+                  Quotes without a fixed time slot ready to add to today's drive
                 </p>
               </div>
             </div>
 
             <ChevronDown
-              className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${
+              className={`w-4 h-4 text-slate-400 transition-transform duration-200 shrink-0 ${
                 showUnscheduledQueue ? 'rotate-180' : ''
               }`}
             />
           </div>
 
           {showUnscheduledQueue && (
-            <div className="mt-3 pt-3 border-t border-slate-100 flex flex-col gap-2 animate-in fade-in duration-150">
-              {unscheduledJobs.slice(0, 5).map(ujob => (
+            <div className="mt-2.5 pt-2.5 border-t border-slate-100 flex flex-col gap-2 animate-in fade-in duration-150">
+              {unscheduledJobs.slice(0, 8).map(ujob => (
                 <div
                   key={ujob.id}
-                  className="p-2.5 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center justify-between gap-2 text-xs"
+                  className="p-2 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center justify-between gap-2 text-xs"
                 >
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <p className="font-bold text-slate-900 truncate">{ujob.title}</p>
-                    <p className="text-[11px] text-slate-500 truncate">{ujob.address}</p>
+                    <p className="text-[10px] text-slate-500 truncate">{ujob.address} • {ujob.clientName}</p>
                   </div>
                   <button
-                    onClick={() => {
-                      triggerHapticFeedback('light');
-                      onOpenJobDetail(ujob);
-                    }}
-                    className="px-2.5 py-1 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-[11px] shrink-0 transition active:scale-95"
+                    onClick={() => handleAddJobToDay(ujob)}
+                    className="px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-[11px] shrink-0 shadow-2xs transition active:scale-95 flex items-center gap-1"
                   >
-                    Set Time
+                    <Plus className="w-3 h-3 stroke-[3]" />
+                    <span>Add to Route</span>
                   </button>
                 </div>
               ))}
@@ -950,6 +1042,107 @@ export const DayPlanView: React.FC<DayPlanViewProps> = ({
           )}
         </div>
       )}
+
+      {/* --------------------------------------------------------------------- */}
+      {/* 9. MODAL: ADD ANY JOB TO TODAY'S PLAN / ROUTE                         */}
+      {/* --------------------------------------------------------------------- */}
+      {isAddJobModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-150">
+          <div className="bg-white w-full sm:max-w-lg max-h-[85vh] rounded-t-[28px] sm:rounded-3xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden animate-sheet-up">
+            
+            {/* Modal Header */}
+            <div className="p-4 border-b border-slate-100 flex items-center justify-between">
+              <div>
+                <h3 className="font-black text-base text-slate-900">Add Job to Day Plan</h3>
+                <p className="text-xs text-slate-500">
+                  Select any job to add to {dateFilter === 'today' ? "today's" : dateFilter === 'tomorrow' ? "tomorrow's" : "planned"} driving sequence
+                </p>
+              </div>
+              <button
+                onClick={() => setIsAddJobModalOpen(false)}
+                className="p-1.5 rounded-full text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition active:scale-95"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Search Input */}
+            <div className="p-3 border-b border-slate-100 bg-slate-50/50">
+              <div className="relative">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={addJobSearchQuery}
+                  onChange={e => setAddJobSearchQuery(e.target.value)}
+                  placeholder="Search by client, address, trade, or agency..."
+                  className="w-full bg-white border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs font-semibold text-slate-900 placeholder:text-slate-400 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/10"
+                />
+              </div>
+            </div>
+
+            {/* Jobs List */}
+            <div className="flex-1 overflow-y-auto p-3 space-y-2">
+              {availableJobsToAdd.length === 0 ? (
+                <div className="text-center py-10 text-slate-400">
+                  <p className="text-xs font-bold">No matching available jobs found</p>
+                  <p className="text-[11px] text-slate-400 mt-1">All active jobs may already be in the plan.</p>
+                </div>
+              ) : (
+                availableJobsToAdd.map(j => {
+                  const statusCfg = STATUS_CONFIG[j.status];
+                  return (
+                    <div
+                      key={j.id}
+                      className="p-3 bg-slate-50/80 hover:bg-white border border-slate-200/90 rounded-2xl flex items-center justify-between gap-2 transition hover:shadow-xs"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5 flex-wrap mb-1">
+                          <span className={`text-[9px] font-black uppercase px-2 py-0.2 rounded-full border ${statusCfg.bgClass} ${statusCfg.textClass} ${statusCfg.borderClass}`}>
+                            {statusCfg.shortLabel}
+                          </span>
+                          {j.realEstateAgency && (
+                            <span className="text-[9px] font-bold text-purple-700 bg-purple-50 px-1.5 py-0.2 rounded border border-purple-200 truncate max-w-[120px]">
+                              {j.realEstateAgency}
+                            </span>
+                          )}
+                          {!j.appointmentTime && (
+                            <span className="text-[9px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.2 rounded border border-amber-200">
+                              Unscheduled
+                            </span>
+                          )}
+                        </div>
+                        <h4 className="font-extrabold text-xs text-slate-900 truncate">{j.title}</h4>
+                        <p className="text-[11px] text-slate-500 truncate mt-0.5">{j.address} • {j.clientName}</p>
+                      </div>
+
+                      <button
+                        onClick={() => handleAddJobToDay(j)}
+                        className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black text-xs shrink-0 shadow-xs transition active:scale-95 flex items-center gap-1"
+                      >
+                        <Plus className="w-3.5 h-3.5 stroke-[3]" />
+                        <span>Add</span>
+                      </button>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-3 border-t border-slate-100 bg-slate-50 flex items-center justify-between text-xs text-slate-500">
+              <span>{availableJobsToAdd.length} eligible jobs</span>
+              <button
+                onClick={() => setIsAddJobModalOpen(false)}
+                className="px-3 py-1.5 rounded-xl bg-white border border-slate-200 font-bold text-slate-700 hover:bg-slate-100"
+              >
+                Close
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

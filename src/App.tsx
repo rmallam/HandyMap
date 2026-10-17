@@ -663,6 +663,7 @@ export function App() {
             onSwitchToMap={() => setActiveTab('map')}
             onRefreshLocation={() => handleRefreshLiveLocation(true)}
             onToggleGpsMode={handleToggleGpsMode}
+            onUpdateJob={handleUpdateSingleJob}
           />
         )}
 
