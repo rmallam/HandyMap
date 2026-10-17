@@ -136,9 +136,8 @@ export const JobList: React.FC<JobListProps> = ({
     return matchesStatus && matchesAgency && matchesAgent;
   });
 
-  // Calculate stable date counts for Today, Tomorrow, This Week across active open jobs
-  const activeOpenJobs = jobs.filter(j => j.status !== 'invoiced' && j.status !== 'cancelled');
-  const dateCounts = calculateDateFilterCounts(activeOpenJobs);
+  // Calculate date counts matching the current status and agency scope
+  const dateCounts = calculateDateFilterCounts(statusAndAgencyJobs);
 
   // 2. Filter by Date and Search term
   const filteredJobs = statusAndAgencyJobs.filter(job => {
@@ -166,7 +165,7 @@ export const JobList: React.FC<JobListProps> = ({
   return (
     <div className="flex flex-col h-full bg-slate-50 overflow-y-auto overflow-x-hidden pb-[calc(6.5rem+env(safe-area-inset-bottom,0px))] text-slate-900 p-3 sm:p-6 max-w-5xl mx-auto w-full">
       {/* Top Title & Quick Stats */}
-      <div className="flex items-center justify-between gap-2 mb-3">
+      <div className="shrink-0 flex items-center justify-between gap-2 mb-3">
         <div>
           <h1 className="text-base sm:text-lg font-black text-slate-900 tracking-tight flex items-center gap-1.5">
             <span>Jobs & Estimates</span>
@@ -181,7 +180,7 @@ export const JobList: React.FC<JobListProps> = ({
       </div>
 
       {/* Prominent Standalone Search Bar */}
-      <div className="relative mb-3 group">
+      <div className="shrink-0 relative mb-3 group">
         <div className="relative flex items-center">
           {/* Blue Icon Accent Badge */}
           <div className="absolute left-2.5 top-1/2 -translate-y-1/2 flex items-center justify-center w-8 h-8 rounded-xl bg-blue-600 text-white shadow-xs group-focus-within:bg-blue-700 group-focus-within:scale-105 transition pointer-events-none">
@@ -222,15 +221,15 @@ export const JobList: React.FC<JobListProps> = ({
       </div>
 
       {/* Status Filter Pills */}
-      <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1 mb-3">
+      <div className="shrink-0 flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1 mb-3 min-h-[46px]">
           <button
             onClick={() => {
               setStatusFilter('all');
               setDateFilter('all');
             }}
-            className={`px-3 py-2 rounded-2xl text-xs font-black whitespace-nowrap transition-all ${
+            className={`shrink-0 min-h-[36px] px-3.5 py-1.5 rounded-2xl text-xs font-black whitespace-nowrap transition-all border ${
               statusFilter === 'all'
-                ? 'bg-slate-900 text-white shadow-md shadow-slate-900/20'
+                ? 'bg-slate-900 text-white border-slate-900 shadow-md shadow-slate-900/20'
                 : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200/80 shadow-xs'
             }`}
           >
@@ -241,7 +240,7 @@ export const JobList: React.FC<JobListProps> = ({
               setStatusFilter('quote_requested');
               setDateFilter('all');
             }}
-            className={`px-3 py-2 rounded-2xl text-xs font-black whitespace-nowrap transition-all border ${
+            className={`shrink-0 min-h-[36px] px-3.5 py-1.5 rounded-2xl text-xs font-black whitespace-nowrap transition-all border ${
               statusFilter === 'quote_requested'
                 ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-white border-amber-500 shadow-md shadow-amber-500/20'
                 : 'bg-amber-50/80 text-amber-800 border-amber-200 hover:bg-amber-100 shadow-xs'
@@ -254,7 +253,7 @@ export const JobList: React.FC<JobListProps> = ({
               setStatusFilter('in_progress');
               setDateFilter('all');
             }}
-            className={`px-3 py-2 rounded-2xl text-xs font-black whitespace-nowrap transition-all border ${
+            className={`shrink-0 min-h-[36px] px-3.5 py-1.5 rounded-2xl text-xs font-black whitespace-nowrap transition-all border ${
               statusFilter === 'in_progress'
                 ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white border-emerald-500 shadow-md shadow-emerald-500/20'
                 : 'bg-emerald-50/80 text-emerald-800 border-emerald-200 hover:bg-emerald-100 shadow-xs'
@@ -267,7 +266,7 @@ export const JobList: React.FC<JobListProps> = ({
               setStatusFilter('quoted');
               setDateFilter('all');
             }}
-            className={`px-3 py-2 rounded-2xl text-xs font-black whitespace-nowrap transition-all border ${
+            className={`shrink-0 min-h-[36px] px-3.5 py-1.5 rounded-2xl text-xs font-black whitespace-nowrap transition-all border ${
               statusFilter === 'quoted'
                 ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white border-purple-500 shadow-md shadow-purple-500/20'
                 : 'bg-purple-50/80 text-purple-800 border-purple-200 hover:bg-purple-100 shadow-xs'
@@ -281,7 +280,7 @@ export const JobList: React.FC<JobListProps> = ({
                 setStatusFilter('urgent');
                 setDateFilter('all');
               }}
-              className={`px-3 py-2 rounded-2xl text-xs font-black whitespace-nowrap transition-all border ${
+              className={`shrink-0 min-h-[36px] px-3.5 py-1.5 rounded-2xl text-xs font-black whitespace-nowrap transition-all border ${
                 statusFilter === 'urgent'
                   ? 'bg-gradient-to-r from-red-600 to-rose-600 text-white border-red-500 shadow-md shadow-red-500/20'
                   : 'bg-red-50/80 text-red-700 border-red-200 hover:bg-red-100 shadow-xs'
@@ -295,7 +294,7 @@ export const JobList: React.FC<JobListProps> = ({
               setStatusFilter('completed');
               setDateFilter('all');
             }}
-            className={`px-3 py-2 rounded-2xl text-xs font-bold whitespace-nowrap transition-all border ${
+            className={`shrink-0 min-h-[36px] px-3.5 py-1.5 rounded-2xl text-xs font-bold whitespace-nowrap transition-all border ${
               statusFilter === 'completed'
                 ? 'bg-slate-700 text-white border-slate-800 shadow-md'
                 : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 shadow-xs'
@@ -308,7 +307,7 @@ export const JobList: React.FC<JobListProps> = ({
               setStatusFilter('invoiced');
               setDateFilter('all');
             }}
-            className={`px-3 py-2 rounded-2xl text-xs font-bold whitespace-nowrap transition-all border ${
+            className={`shrink-0 min-h-[36px] px-3.5 py-1.5 rounded-2xl text-xs font-bold whitespace-nowrap transition-all border ${
               statusFilter === 'invoiced'
                 ? 'bg-gradient-to-r from-blue-600 to-indigo-700 text-white border-blue-600 shadow-md shadow-blue-500/20'
                 : 'bg-blue-50 text-blue-900 border-blue-200 hover:bg-blue-100 shadow-xs'
@@ -322,7 +321,7 @@ export const JobList: React.FC<JobListProps> = ({
                 setStatusFilter('cancelled');
                 setDateFilter('all');
               }}
-              className={`px-3 py-2 rounded-2xl text-xs font-bold whitespace-nowrap transition-all border ${
+              className={`shrink-0 min-h-[36px] px-3.5 py-1.5 rounded-2xl text-xs font-bold whitespace-nowrap transition-all border ${
                 statusFilter === 'cancelled'
                   ? 'bg-gradient-to-r from-rose-600 to-red-600 text-white border-rose-600 shadow-md shadow-rose-500/20'
                   : 'bg-rose-50/80 text-rose-700 border-rose-200 hover:bg-rose-100 shadow-xs'
@@ -335,10 +334,10 @@ export const JobList: React.FC<JobListProps> = ({
 
       {/* Date Filter Bar: Today / Tomorrow / This Week / All Dates */}
       <div className="shrink-0 flex items-center justify-between gap-2 mb-3.5 flex-wrap max-w-full">
-        <div className="shrink-0 flex items-center gap-1.5 bg-white p-1 rounded-2xl border border-slate-200/90 shadow-xs overflow-x-auto no-scrollbar max-w-full">
-          <div className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-black text-slate-500 uppercase tracking-wider shrink-0 border-r border-slate-200/80 mr-0.5">
-            <Calendar className="w-3.5 h-3.5 text-blue-600 stroke-[2.4]" />
-            <span className="text-[11px]">When:</span>
+        <div className="shrink-0 flex items-center gap-1 bg-white p-1 rounded-2xl border border-slate-200/90 shadow-xs overflow-x-auto no-scrollbar max-w-full min-h-[42px]">
+          <div className="flex items-center gap-1 px-2 py-1 text-xs font-black text-blue-600 shrink-0 border-r border-slate-200/80 mr-0.5">
+            <Calendar className="w-3.5 h-3.5 stroke-[2.4]" />
+            <span className="text-[11px] hidden xs:inline">When:</span>
           </div>
 
           <button
@@ -346,13 +345,13 @@ export const JobList: React.FC<JobListProps> = ({
               triggerHapticFeedback('light');
               setDateFilter('all');
             }}
-            className={`shrink-0 min-h-[34px] px-3.5 py-1.5 rounded-xl text-xs font-black transition active:scale-95 flex items-center gap-1.5 whitespace-nowrap ${
+            className={`shrink-0 min-h-[34px] px-3 py-1.5 rounded-xl text-xs font-black transition active:scale-95 flex items-center gap-1.5 whitespace-nowrap ${
               dateFilter === 'all'
                 ? 'bg-slate-900 text-white shadow-xs'
                 : 'text-slate-600 bg-slate-50/90 hover:text-slate-900 hover:bg-slate-100 border border-slate-200/70'
             }`}
           >
-            <span>All Dates</span>
+            <span>All</span>
             <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
               dateFilter === 'all' ? 'bg-white/20 text-white' : 'bg-slate-200/80 text-slate-700'
             }`}>
@@ -364,11 +363,11 @@ export const JobList: React.FC<JobListProps> = ({
             onClick={() => {
               triggerHapticFeedback('light');
               setDateFilter('today');
-              if (statusFilter !== 'all' && statusFilter !== 'all_total') {
+              if (dateCounts.today === 0 && statusFilter !== 'all') {
                 setStatusFilter('all');
               }
             }}
-            className={`shrink-0 min-h-[34px] px-3.5 py-1.5 rounded-xl text-xs font-black transition active:scale-95 flex items-center gap-1.5 whitespace-nowrap ${
+            className={`shrink-0 min-h-[34px] px-3 py-1.5 rounded-xl text-xs font-black transition active:scale-95 flex items-center gap-1.5 whitespace-nowrap ${
               dateFilter === 'today'
                 ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/20'
                 : 'text-slate-600 bg-slate-50/90 hover:text-slate-900 hover:bg-slate-100 border border-slate-200/70'
@@ -386,11 +385,11 @@ export const JobList: React.FC<JobListProps> = ({
             onClick={() => {
               triggerHapticFeedback('light');
               setDateFilter('tomorrow');
-              if (statusFilter !== 'all' && statusFilter !== 'all_total') {
+              if (dateCounts.tomorrow === 0 && statusFilter !== 'all') {
                 setStatusFilter('all');
               }
             }}
-            className={`shrink-0 min-h-[34px] px-3.5 py-1.5 rounded-xl text-xs font-black transition active:scale-95 flex items-center gap-1.5 whitespace-nowrap ${
+            className={`shrink-0 min-h-[34px] px-3 py-1.5 rounded-xl text-xs font-black transition active:scale-95 flex items-center gap-1.5 whitespace-nowrap ${
               dateFilter === 'tomorrow'
                 ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/20'
                 : 'text-slate-600 bg-slate-50/90 hover:text-slate-900 hover:bg-slate-100 border border-slate-200/70'
@@ -408,11 +407,11 @@ export const JobList: React.FC<JobListProps> = ({
             onClick={() => {
               triggerHapticFeedback('light');
               setDateFilter('this_week');
-              if (statusFilter !== 'all' && statusFilter !== 'all_total') {
+              if (dateCounts.this_week === 0 && statusFilter !== 'all') {
                 setStatusFilter('all');
               }
             }}
-            className={`shrink-0 min-h-[34px] px-3.5 py-1.5 rounded-xl text-xs font-black transition active:scale-95 flex items-center gap-1.5 whitespace-nowrap ${
+            className={`shrink-0 min-h-[34px] px-3 py-1.5 rounded-xl text-xs font-black transition active:scale-95 flex items-center gap-1.5 whitespace-nowrap ${
               dateFilter === 'this_week'
                 ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/20'
                 : 'text-slate-600 bg-slate-50/90 hover:text-slate-900 hover:bg-slate-100 border border-slate-200/70'
@@ -434,7 +433,7 @@ export const JobList: React.FC<JobListProps> = ({
               triggerHapticFeedback('light');
               setDateFilter('all');
             }}
-            className="flex items-center gap-1.5 text-xs font-bold text-blue-700 hover:text-blue-900 bg-blue-50/90 px-3 py-1.5 rounded-xl border border-blue-200/80 transition shadow-xs"
+            className="shrink-0 flex items-center gap-1.5 text-xs font-bold text-blue-700 hover:text-blue-900 bg-blue-50/90 px-3 py-1.5 rounded-xl border border-blue-200/80 transition shadow-xs"
             title="Reset to all dates"
           >
             <span>Filtered: <strong className="font-black capitalize">{dateFilter.replace('_', ' ')}</strong> ({filteredJobs.length})</span>
@@ -445,7 +444,7 @@ export const JobList: React.FC<JobListProps> = ({
 
       {/* Real Estate Agency & Agent Smart Cascading Filter */}
       {agencyCount > 0 && (
-        <div className="bg-white px-2.5 py-2 rounded-2xl border border-slate-200/90 shadow-xs mb-3 transition">
+        <div className="shrink-0 bg-white px-2.5 py-2 rounded-2xl border border-slate-200/90 shadow-xs mb-3 transition">
           <div className="flex items-center gap-1.5">
             {/* Agency Selector */}
             <div className="relative flex-1 min-w-0">
