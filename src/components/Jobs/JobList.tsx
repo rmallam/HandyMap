@@ -226,6 +226,53 @@ export const JobList: React.FC<JobListProps> = ({
             Customer requests, approved estimates & agency orders
           </p>
         </div>
+
+        {/* Quick Action Buttons */}
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={() => {
+              triggerHapticFeedback('light');
+              onAddNewJob();
+            }}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs active:scale-95 transition"
+            title="Create New Job or Import Work Order PDF"
+          >
+            <Plus className="w-4 h-4 stroke-[2.5]" />
+            <span>New Job</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Quick Work Order PDF / Email Auto-Fill Banner */}
+      <div className="shrink-0 mb-3 bg-gradient-to-r from-blue-50/90 via-indigo-50/60 to-purple-50/60 border border-blue-200/90 rounded-2xl p-3 flex items-center justify-between gap-3 shadow-2xs">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+            <Sparkles className="w-4 h-4" />
+          </div>
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-xs font-black text-slate-900 truncate">Have a Work Order PDF?</span>
+              <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 uppercase tracking-wider">
+                100% Free
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-500 truncate">
+              Auto-fill Reliance, Ray White or PropertyMe jobs in 1 second
+            </p>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => {
+            triggerHapticFeedback('light');
+            onAddNewJob();
+          }}
+          className="shrink-0 inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold text-xs shadow-xs transition"
+        >
+          <span>Import PDF</span>
+          <ArrowRight className="w-3.5 h-3.5" />
+        </button>
       </div>
 
       {/* Prominent Standalone Search Bar */}

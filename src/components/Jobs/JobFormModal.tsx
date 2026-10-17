@@ -105,6 +105,7 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
   const [jobNumberInput, setJobNumberInput] = useState('J-');
   const [quoteNumberInput, setQuoteNumberInput] = useState('Q-');
   const [invoiceNumberInput, setInvoiceNumberInput] = useState('I-');
+  const [nteLimitInput, setNteLimitInput] = useState<string>('');
 
   // Real Estate Agency Fields
   const [isAgencyJob, setIsAgencyJob] = useState(false);
@@ -183,6 +184,11 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
     if (parsed.category) {
       setCategory(parsed.category);
     }
+    if (parsed.nteLimit) {
+      setNteLimitInput(String(parsed.nteLimit));
+    } else {
+      setNteLimitInput('');
+    }
     setStatus('quote_requested');
 
     // Attempt geocoding in background to pin marker on map
@@ -256,6 +262,7 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
       setImportErrorMsg(null);
       setShowPasteBox(false);
       setPastedText('');
+      setNteLimitInput('');
       setTenant1Name('');
       setTenant1Phone('');
       setTenant1Email('');
@@ -493,6 +500,31 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
       console.warn('Silent contact directory save notice:', err);
     }
 
+    const parsedLimit = parseFloat(nteLimitInput);
+    const initialQuote = !isNaN(parsedLimit) && parsedLimit > 0 ? {
+      id: `quote-${Date.now()}`,
+      quoteNumber: finalQuoteNum || `Q-${Math.floor(1000 + Math.random() * 9000)}`,
+      createdAt: new Date().toISOString(),
+      validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+      items: [{
+        id: `item-${Date.now()}-1`,
+        type: 'labor' as const,
+        description: title.trim() || 'Work Order Maintenance',
+        quantity: 1,
+        unitPrice: parsedLimit,
+        total: parsedLimit
+      }],
+      hourlyLaborRate: 85,
+      estimatedLaborHours: 1,
+      taxRatePercent: 10,
+      discountAmount: 0,
+      subtotal: parsedLimit,
+      taxAmount: 0,
+      totalAmount: parsedLimit,
+      notes: isAgencyJob && realEstateAgency ? `Approved Work Order Limit (${realEstateAgency})` : 'Work Order Estimate',
+      status: 'accepted' as const
+    } : undefined;
+
     const newJob: Job = {
       id: `job-${Date.now()}`,
       jobNumber,
@@ -510,6 +542,7 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
       category,
       description: description.trim() || 'Customer requested on-site estimate and inspection.',
       tasks: initialTasks,
+      quote: initialQuote,
       quoteRequestedDate: new Date().toISOString(),
       appointmentTime: appointmentTime ? new Date(appointmentTime).toISOString() : undefined,
       estimatedDurationMinutes: durationMin,
@@ -832,6 +865,32 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
                 <span className="font-mono font-bold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200/60 truncate">
                   {buildCompositeJobId(jobNumberInput, quoteNumberInput, invoiceNumberInput) || 'J-... (Auto-assigned if left blank)'}
                 </span>
+              </div>
+            </div>
+
+            {/* Approved Budget / Quote Limit */}
+            <div className="pt-1">
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-[10px] font-bold text-slate-600 block">
+                  Approved Budget / Quote Limit ($)
+                </label>
+                <span className="text-[9px] text-slate-400 font-medium">
+                  {nteLimitInput && !isNaN(parseFloat(nteLimitInput))
+                    ? `Pre-approved quote: $${parseFloat(nteLimitInput).toFixed(2)}`
+                    : 'Leave blank if quoting later'}
+                </span>
+              </div>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-slate-400 text-xs">$</span>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={nteLimitInput}
+                  onChange={e => setNteLimitInput(e.target.value)}
+                  placeholder="e.g. 350.00 (From work order NTE limit or phone estimate)"
+                  className="w-full bg-white border border-slate-200 rounded-xl pl-7 pr-3 py-2 text-slate-900 font-mono text-xs font-semibold placeholder:text-slate-400 placeholder:font-normal focus:border-blue-500 outline-none"
+                />
               </div>
             </div>
 
