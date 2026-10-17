@@ -136,8 +136,37 @@ export const JobList: React.FC<JobListProps> = ({
     return matchesStatus && matchesAgency && matchesAgent;
   });
 
-  // Calculate date counts matching the current status and agency scope
-  const dateCounts = calculateDateFilterCounts(statusAndAgencyJobs);
+  // Stable baseline for date counts across open jobs (respecting agency & agent filter)
+  const activeAgencyJobs = jobs.filter(job => {
+    const isStatusScope = (statusFilter === 'invoiced' || statusFilter === 'cancelled')
+      ? job.status === statusFilter
+      : job.status !== 'invoiced' && job.status !== 'cancelled';
+
+    let matchesAgency = true;
+    if (agencyFilter === 'agency_only') {
+      matchesAgency = Boolean(job.isAgencyJob && job.realEstateAgency && job.realEstateAgency.trim().length > 0);
+    } else if (agencyFilter === 'direct_only') {
+      matchesAgency = !job.isAgencyJob || !job.realEstateAgency || job.realEstateAgency.trim().length === 0;
+    } else if (agencyFilter !== 'all') {
+      matchesAgency = Boolean(
+        job.realEstateAgency &&
+        job.realEstateAgency.trim().toLowerCase() === agencyFilter.trim().toLowerCase()
+      );
+    }
+
+    let matchesAgent = true;
+    if (agentFilter !== 'all') {
+      matchesAgent = Boolean(
+        job.realEstateAgentName &&
+        job.realEstateAgentName.trim().toLowerCase() === agentFilter.trim().toLowerCase()
+      );
+    }
+
+    return isStatusScope && matchesAgency && matchesAgent;
+  });
+
+  // Stable date counts across open jobs
+  const dateCounts = calculateDateFilterCounts(activeAgencyJobs);
 
   // 2. Filter by Date and Search term
   const filteredJobs = statusAndAgencyJobs.filter(job => {
@@ -224,8 +253,8 @@ export const JobList: React.FC<JobListProps> = ({
       <div className="shrink-0 flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1 mb-3 min-h-[46px]">
           <button
             onClick={() => {
+              triggerHapticFeedback('light');
               setStatusFilter('all');
-              setDateFilter('all');
             }}
             className={`shrink-0 min-h-[36px] px-3.5 py-1.5 rounded-2xl text-xs font-black whitespace-nowrap transition-all border ${
               statusFilter === 'all'
@@ -237,8 +266,8 @@ export const JobList: React.FC<JobListProps> = ({
           </button>
           <button
             onClick={() => {
-              setStatusFilter('quote_requested');
-              setDateFilter('all');
+              triggerHapticFeedback('light');
+              setStatusFilter(prev => prev === 'quote_requested' ? 'all' : 'quote_requested');
             }}
             className={`shrink-0 min-h-[36px] px-3.5 py-1.5 rounded-2xl text-xs font-black whitespace-nowrap transition-all border ${
               statusFilter === 'quote_requested'
@@ -250,8 +279,8 @@ export const JobList: React.FC<JobListProps> = ({
           </button>
           <button
             onClick={() => {
-              setStatusFilter('in_progress');
-              setDateFilter('all');
+              triggerHapticFeedback('light');
+              setStatusFilter(prev => prev === 'in_progress' ? 'all' : 'in_progress');
             }}
             className={`shrink-0 min-h-[36px] px-3.5 py-1.5 rounded-2xl text-xs font-black whitespace-nowrap transition-all border ${
               statusFilter === 'in_progress'
@@ -263,8 +292,8 @@ export const JobList: React.FC<JobListProps> = ({
           </button>
           <button
             onClick={() => {
-              setStatusFilter('quoted');
-              setDateFilter('all');
+              triggerHapticFeedback('light');
+              setStatusFilter(prev => prev === 'quoted' ? 'all' : 'quoted');
             }}
             className={`shrink-0 min-h-[36px] px-3.5 py-1.5 rounded-2xl text-xs font-black whitespace-nowrap transition-all border ${
               statusFilter === 'quoted'
@@ -277,8 +306,8 @@ export const JobList: React.FC<JobListProps> = ({
           {urgentCount > 0 && (
             <button
               onClick={() => {
-                setStatusFilter('urgent');
-                setDateFilter('all');
+                triggerHapticFeedback('light');
+                setStatusFilter(prev => prev === 'urgent' ? 'all' : 'urgent');
               }}
               className={`shrink-0 min-h-[36px] px-3.5 py-1.5 rounded-2xl text-xs font-black whitespace-nowrap transition-all border ${
                 statusFilter === 'urgent'
@@ -291,8 +320,8 @@ export const JobList: React.FC<JobListProps> = ({
           )}
           <button
             onClick={() => {
-              setStatusFilter('completed');
-              setDateFilter('all');
+              triggerHapticFeedback('light');
+              setStatusFilter(prev => prev === 'completed' ? 'all' : 'completed');
             }}
             className={`shrink-0 min-h-[36px] px-3.5 py-1.5 rounded-2xl text-xs font-bold whitespace-nowrap transition-all border ${
               statusFilter === 'completed'
@@ -304,8 +333,8 @@ export const JobList: React.FC<JobListProps> = ({
           </button>
           <button
             onClick={() => {
-              setStatusFilter('invoiced');
-              setDateFilter('all');
+              triggerHapticFeedback('light');
+              setStatusFilter(prev => prev === 'invoiced' ? 'all' : 'invoiced');
             }}
             className={`shrink-0 min-h-[36px] px-3.5 py-1.5 rounded-2xl text-xs font-bold whitespace-nowrap transition-all border ${
               statusFilter === 'invoiced'
@@ -318,8 +347,8 @@ export const JobList: React.FC<JobListProps> = ({
           {cancelledCount > 0 && (
             <button
               onClick={() => {
-                setStatusFilter('cancelled');
-                setDateFilter('all');
+                triggerHapticFeedback('light');
+                setStatusFilter(prev => prev === 'cancelled' ? 'all' : 'cancelled');
               }}
               className={`shrink-0 min-h-[36px] px-3.5 py-1.5 rounded-2xl text-xs font-bold whitespace-nowrap transition-all border ${
                 statusFilter === 'cancelled'
@@ -333,7 +362,7 @@ export const JobList: React.FC<JobListProps> = ({
         </div>
 
       {/* Date Filter Bar: Today / Tomorrow / This Week / All Dates */}
-      <div className="shrink-0 flex items-center justify-between gap-2 mb-3.5 flex-wrap max-w-full">
+      <div className="shrink-0 flex items-center justify-between gap-2 mb-2 flex-wrap max-w-full">
         <div className="shrink-0 flex items-center gap-1 bg-white p-1 rounded-2xl border border-slate-200/90 shadow-xs overflow-x-auto no-scrollbar max-w-full min-h-[42px]">
           <div className="flex items-center gap-1 px-2 py-1 text-xs font-black text-blue-600 shrink-0 border-r border-slate-200/80 mr-0.5">
             <Calendar className="w-3.5 h-3.5 stroke-[2.4]" />
@@ -362,10 +391,7 @@ export const JobList: React.FC<JobListProps> = ({
           <button
             onClick={() => {
               triggerHapticFeedback('light');
-              setDateFilter('today');
-              if (dateCounts.today === 0 && statusFilter !== 'all') {
-                setStatusFilter('all');
-              }
+              setDateFilter(prev => prev === 'today' ? 'all' : 'today');
             }}
             className={`shrink-0 min-h-[34px] px-3 py-1.5 rounded-xl text-xs font-black transition active:scale-95 flex items-center gap-1.5 whitespace-nowrap ${
               dateFilter === 'today'
@@ -384,10 +410,7 @@ export const JobList: React.FC<JobListProps> = ({
           <button
             onClick={() => {
               triggerHapticFeedback('light');
-              setDateFilter('tomorrow');
-              if (dateCounts.tomorrow === 0 && statusFilter !== 'all') {
-                setStatusFilter('all');
-              }
+              setDateFilter(prev => prev === 'tomorrow' ? 'all' : 'tomorrow');
             }}
             className={`shrink-0 min-h-[34px] px-3 py-1.5 rounded-xl text-xs font-black transition active:scale-95 flex items-center gap-1.5 whitespace-nowrap ${
               dateFilter === 'tomorrow'
@@ -406,10 +429,7 @@ export const JobList: React.FC<JobListProps> = ({
           <button
             onClick={() => {
               triggerHapticFeedback('light');
-              setDateFilter('this_week');
-              if (dateCounts.this_week === 0 && statusFilter !== 'all') {
-                setStatusFilter('all');
-              }
+              setDateFilter(prev => prev === 'this_week' ? 'all' : 'this_week');
             }}
             className={`shrink-0 min-h-[34px] px-3 py-1.5 rounded-xl text-xs font-black transition active:scale-95 flex items-center gap-1.5 whitespace-nowrap ${
               dateFilter === 'this_week'
@@ -425,22 +445,105 @@ export const JobList: React.FC<JobListProps> = ({
             </span>
           </button>
         </div>
-
-        {/* Active Filter Clear Tag */}
-        {dateFilter !== 'all' && (
-          <button
-            onClick={() => {
-              triggerHapticFeedback('light');
-              setDateFilter('all');
-            }}
-            className="shrink-0 flex items-center gap-1.5 text-xs font-bold text-blue-700 hover:text-blue-900 bg-blue-50/90 px-3 py-1.5 rounded-xl border border-blue-200/80 transition shadow-xs"
-            title="Reset to all dates"
-          >
-            <span>Filtered: <strong className="font-black capitalize">{dateFilter.replace('_', ' ')}</strong> ({filteredJobs.length})</span>
-            <X className="w-3.5 h-3.5" />
-          </button>
-        )}
       </div>
+
+      {/* Active Filter Badges Ribbon (Removable pills for active status, date, agency, agent, or search) */}
+      {(statusFilter !== 'all' || dateFilter !== 'all' || agencyFilter !== 'all' || agentFilter !== 'all' || searchTerm) && (
+        <div className="shrink-0 flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1 mb-3 text-xs flex-wrap">
+          <span className="text-[11px] font-bold text-slate-400 shrink-0 flex items-center gap-1">
+            <Filter className="w-3 h-3 text-slate-400" />
+            Active:
+          </span>
+
+          {statusFilter !== 'all' && (
+            <button
+              onClick={() => {
+                triggerHapticFeedback('light');
+                setStatusFilter('all');
+              }}
+              className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-slate-900 text-white font-bold text-[11px] shadow-xs active:scale-95 transition"
+              title="Remove status filter"
+            >
+              <span>Status: <strong className="font-black">{STATUS_CONFIG[statusFilter as JobStatus]?.shortLabel || statusFilter}</strong></span>
+              <X className="w-3 h-3 stroke-[2.5]" />
+            </button>
+          )}
+
+          {dateFilter !== 'all' && (
+            <button
+              onClick={() => {
+                triggerHapticFeedback('light');
+                setDateFilter('all');
+              }}
+              className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-blue-600 text-white font-bold text-[11px] shadow-xs active:scale-95 transition"
+              title="Remove date filter"
+            >
+              <span>When: <strong className="font-black capitalize">{dateFilter === 'today' ? 'Today' : dateFilter === 'tomorrow' ? 'Tomorrow' : 'This Week'}</strong></span>
+              <X className="w-3 h-3 stroke-[2.5]" />
+            </button>
+          )}
+
+          {agencyFilter !== 'all' && (
+            <button
+              onClick={() => {
+                triggerHapticFeedback('light');
+                setAgencyFilter('all');
+                setAgentFilter('all');
+              }}
+              className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-purple-700 text-white font-bold text-[11px] shadow-xs active:scale-95 transition"
+              title="Remove agency filter"
+            >
+              <span>Agency: <strong className="font-black">{agencyFilter === 'agency_only' ? 'All Agencies' : agencyFilter === 'direct_only' ? 'Direct' : agencyFilter}</strong></span>
+              <X className="w-3 h-3 stroke-[2.5]" />
+            </button>
+          )}
+
+          {agentFilter !== 'all' && (
+            <button
+              onClick={() => {
+                triggerHapticFeedback('light');
+                setAgentFilter('all');
+              }}
+              className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-indigo-700 text-white font-bold text-[11px] shadow-xs active:scale-95 transition"
+              title="Remove agent filter"
+            >
+              <span>Agent: <strong className="font-black">{agentFilter}</strong></span>
+              <X className="w-3 h-3 stroke-[2.5]" />
+            </button>
+          )}
+
+          {searchTerm && (
+            <button
+              onClick={() => {
+                triggerHapticFeedback('light');
+                setSearchTerm('');
+              }}
+              className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-slate-200 text-slate-800 font-bold text-[11px] shadow-xs active:scale-95 transition"
+              title="Clear search term"
+            >
+              <span>&quot;<strong className="font-black truncate max-w-[90px] inline-block align-bottom">{searchTerm}</strong>&quot;</span>
+              <X className="w-3 h-3 stroke-[2.5]" />
+            </button>
+          )}
+
+          {/* Reset All Filters button if multiple filters active */}
+          {((statusFilter !== 'all' ? 1 : 0) + (dateFilter !== 'all' ? 1 : 0) + (agencyFilter !== 'all' ? 1 : 0) + (agentFilter !== 'all' ? 1 : 0) + (searchTerm ? 1 : 0)) > 1 && (
+            <button
+              onClick={() => {
+                triggerHapticFeedback('light');
+                setStatusFilter('all');
+                setDateFilter('all');
+                setAgencyFilter('all');
+                setAgentFilter('all');
+                setSearchTerm('');
+              }}
+              className="shrink-0 text-[11px] font-black text-rose-600 hover:text-rose-700 bg-rose-50 px-2 py-0.5 rounded-lg border border-rose-200 transition active:scale-95 ml-auto"
+            >
+              Clear All
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Real Estate Agency & Agent Smart Cascading Filter */}
       {agencyCount > 0 && (
@@ -637,17 +740,25 @@ export const JobList: React.FC<JobListProps> = ({
           </div>
           <div>
             <p className="text-slate-900 font-black text-base">
-              {dateFilter === 'today'
+              {statusFilter !== 'all' && dateFilter !== 'all'
+                ? `No ${STATUS_CONFIG[statusFilter as JobStatus]?.shortLabel || 'matching'} jobs scheduled for ${dateFilter === 'today' ? 'Today' : dateFilter === 'tomorrow' ? 'Tomorrow' : 'This Week'}`
+                : dateFilter === 'today'
                 ? 'No jobs scheduled for Today'
                 : dateFilter === 'tomorrow'
                 ? 'No jobs scheduled for Tomorrow'
                 : dateFilter === 'this_week'
                 ? 'No jobs scheduled for This Week'
+                : statusFilter !== 'all'
+                ? `No ${STATUS_CONFIG[statusFilter as JobStatus]?.shortLabel || 'matching'} jobs found`
                 : 'No matching jobs found'}
             </p>
             <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto font-medium">
-              {dateFilter !== 'all'
-                ? `You have 0 jobs scheduled for ${dateFilter.replace('_', ' ')} under the current status filter.`
+              {statusFilter !== 'all' && dateFilter !== 'all'
+                ? `You have ${statusAndAgencyJobs.length} ${STATUS_CONFIG[statusFilter as JobStatus]?.shortLabel || ''} job(s) in total, and ${dateCounts[dateFilter]} visit(s) scheduled for ${dateFilter.replace('_', ' ')}.`
+                : dateFilter !== 'all'
+                ? `You have 0 jobs scheduled for ${dateFilter.replace('_', ' ')} under the current filters.`
+                : statusFilter !== 'all'
+                ? `No jobs currently under status "${STATUS_CONFIG[statusFilter as JobStatus]?.label || statusFilter}".`
                 : 'Try adjusting your search terms, clearing your filters, or importing your job records.'}
             </p>
           </div>
@@ -667,16 +778,75 @@ export const JobList: React.FC<JobListProps> = ({
               </button>
             )}
 
-            {dateFilter !== 'all' && (
+            {/* If both status and date are filtered, provide 1-tap buttons for either */}
+            {statusFilter !== 'all' && dateFilter !== 'all' ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    triggerHapticFeedback('light');
+                    setDateFilter('all');
+                  }}
+                  className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-black text-xs flex items-center gap-2 shadow-sm transition active:scale-95"
+                >
+                  <span>View All {STATUS_CONFIG[statusFilter as JobStatus]?.shortLabel || 'Status'} ({statusAndAgencyJobs.length})</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    triggerHapticFeedback('light');
+                    setStatusFilter('all');
+                  }}
+                  className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black text-xs flex items-center gap-2 shadow-sm transition active:scale-95"
+                >
+                  <span>View All {dateFilter === 'today' ? "Today's" : dateFilter === 'tomorrow' ? "Tomorrow's" : "This Week's"} ({dateCounts[dateFilter]})</span>
+                </button>
+              </>
+            ) : (
+              <>
+                {dateFilter !== 'all' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      triggerHapticFeedback('light');
+                      setDateFilter('all');
+                    }}
+                    className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-black text-xs flex items-center gap-2 shadow-sm transition active:scale-95"
+                  >
+                    <span>View All Dates ({dateCounts.all})</span>
+                  </button>
+                )}
+
+                {statusFilter !== 'all' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      triggerHapticFeedback('light');
+                      setStatusFilter('all');
+                    }}
+                    className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-black text-xs flex items-center gap-2 shadow-sm transition active:scale-95"
+                  >
+                    <span>View All Open Jobs ({activeJobsCount})</span>
+                  </button>
+                )}
+              </>
+            )}
+
+            {(statusFilter !== 'all' || dateFilter !== 'all' || agencyFilter !== 'all' || agentFilter !== 'all' || searchTerm) && (
               <button
                 type="button"
                 onClick={() => {
                   triggerHapticFeedback('light');
+                  setStatusFilter('all');
                   setDateFilter('all');
+                  setAgencyFilter('all');
+                  setAgentFilter('all');
+                  setSearchTerm('');
                 }}
-                className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-black text-xs flex items-center gap-2 shadow-sm transition active:scale-95"
+                className="px-4 py-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs flex items-center gap-2 shadow-xs transition active:scale-95"
               >
-                <span>View All Dates ({dateCounts.all})</span>
+                <X className="w-4 h-4 stroke-[2.5]" />
+                <span>Reset All Filters</span>
               </button>
             )}
 
