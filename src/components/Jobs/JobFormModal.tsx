@@ -1173,22 +1173,34 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
               Status, Urgency & Estimated Time
             </span>
 
-            {/* Initial Pipeline Status - Locked to Needs Quote */}
+            {/* Initial Pipeline Status - Selectable Dropdown */}
             <div>
               <label className="text-[10px] font-bold text-slate-600 block mb-1.5">
                 Initial Pipeline Status
               </label>
-              <div className="flex items-center justify-between p-2.5 rounded-xl bg-amber-50/80 border border-amber-200/80">
-                <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse" />
-                  <span className="text-xs font-bold text-amber-900">Needs Quote (Site Visit)</span>
+              <div className="relative">
+                <select
+                  value={status}
+                  onChange={e => {
+                    triggerHapticFeedback('light');
+                    setStatus(e.target.value as JobStatus);
+                  }}
+                  className="w-full appearance-none bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none pr-9 cursor-pointer transition shadow-2xs"
+                >
+                  <option value="quote_requested">🟠 Needs Quote (Site Visit)</option>
+                  <option value="quoted">🟣 Quoted (Default / Approved Quote)</option>
+                  <option value="in_progress">🟢 In Progress / Confirmed Scheduled</option>
+                  <option value="urgent">🔴 Urgent / Emergency Repair</option>
+                  <option value="completed">⚪ Completed Work</option>
+                  <option value="invoiced">🔵 Invoiced & Finalized</option>
+                  <option value="cancelled">🚫 Cancelled</option>
+                </select>
+                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-400">
+                  <ChevronDown className="w-4 h-4" />
                 </div>
-                <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-amber-200/60 text-amber-800">
-                  New Job Default
-                </span>
               </div>
               <p className="text-[10px] text-slate-500 mt-1">
-                All newly entered jobs start in &quot;Needs Quote&quot;. Once estimated, advance to Quoted or In Progress.
+                Select starting status (e.g. choose &quot;Quoted&quot; if pre-quoted by Real Estate, or &quot;Needs Quote&quot; for inspection).
               </p>
             </div>
 
