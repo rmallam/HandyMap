@@ -90,11 +90,10 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
   const [tasks, setTasks] = useState<string[]>([]);
   const [taskInput, setTaskInput] = useState('');
   
-  // Structured Job / Quote / Invoice Reference IDs
-  const [defaultRefNum] = useState(() => Math.floor(1000 + Math.random() * 9000));
-  const [jobNumberInput, setJobNumberInput] = useState(`J-${defaultRefNum}`);
-  const [quoteNumberInput, setQuoteNumberInput] = useState(`Q-${defaultRefNum}`);
-  const [invoiceNumberInput, setInvoiceNumberInput] = useState(`I-${defaultRefNum}`);
+  // Structured Job / Quote / Invoice Reference IDs (default prefixes without pre-filled numbers)
+  const [jobNumberInput, setJobNumberInput] = useState('J-');
+  const [quoteNumberInput, setQuoteNumberInput] = useState('Q-');
+  const [invoiceNumberInput, setInvoiceNumberInput] = useState('I-');
 
   // Real Estate Agency Fields
   const [isAgencyJob, setIsAgencyJob] = useState(false);
@@ -329,7 +328,8 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
     const finalJobNum = ensurePrefix(jobNumberInput.trim(), 'J-');
     const finalQuoteNum = ensurePrefix(quoteNumberInput.trim(), 'Q-');
     const finalInvoiceNum = ensurePrefix(invoiceNumberInput.trim(), 'I-');
-    const jobNumber = buildCompositeJobId(finalJobNum, finalQuoteNum, finalInvoiceNum) || `J-${defaultRefNum} / Q-${defaultRefNum} / I-${defaultRefNum}`;
+    const randomJobNum = Math.floor(1000 + Math.random() * 9000);
+    const jobNumber = buildCompositeJobId(finalJobNum, finalQuoteNum, finalInvoiceNum) || `J-${randomJobNum}`;
 
     let initialTasks: JobTask[] = tasks.map((t, i) => ({
       id: `task-${Date.now()}-${i}`,
@@ -540,7 +540,7 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
               <div className="flex items-center gap-1.5 mt-1.5 text-[10px] text-slate-400">
                 <span>Display:</span>
                 <span className="font-mono font-bold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200/60 truncate">
-                  {buildCompositeJobId(jobNumberInput, quoteNumberInput, invoiceNumberInput) || 'J-... / Q-... / I-...'}
+                  {buildCompositeJobId(jobNumberInput, quoteNumberInput, invoiceNumberInput) || 'J-... (Auto-assigned if left blank)'}
                 </span>
               </div>
             </div>

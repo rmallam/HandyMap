@@ -202,9 +202,9 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
   // Full Scope / Job Edit Mode
   const [isEditing, setIsEditing] = useState(false);
   const initialJobIds = parseJobIdParts(job.jobNumber);
-  const [editJobNumber, setEditJobNumber] = useState(job.jobNumber.includes('/') ? initialJobIds.jobNumber : job.jobNumber);
-  const [editQuoteNumber, setEditQuoteNumber] = useState(job.quoteNumber || initialJobIds.quoteNumber || '');
-  const [editInvoiceNumber, setEditInvoiceNumber] = useState(job.invoiceNumber || initialJobIds.invoiceNumber || '');
+  const [editJobNumber, setEditJobNumber] = useState(job.jobNumber.includes('/') ? initialJobIds.jobNumber : (job.jobNumber || 'J-'));
+  const [editQuoteNumber, setEditQuoteNumber] = useState(job.quoteNumber || initialJobIds.quoteNumber || 'Q-');
+  const [editInvoiceNumber, setEditInvoiceNumber] = useState(job.invoiceNumber || initialJobIds.invoiceNumber || 'I-');
   const [editTitle, setEditTitle] = useState(job.title);
   const [editDescription, setEditDescription] = useState(job.description);
   const [editCategory, setEditCategory] = useState<JobCategory>(job.category);
@@ -370,9 +370,9 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
   // Sync edit form and photo stitcher when job prop changes
   useEffect(() => {
     const parsed = parseJobIdParts(job.jobNumber);
-    setEditJobNumber(job.jobNumber.includes('/') ? parsed.jobNumber : job.jobNumber);
-    setEditQuoteNumber(job.quoteNumber || parsed.quoteNumber || '');
-    setEditInvoiceNumber(job.invoiceNumber || parsed.invoiceNumber || '');
+    setEditJobNumber(job.jobNumber.includes('/') ? parsed.jobNumber : (job.jobNumber || 'J-'));
+    setEditQuoteNumber(job.quoteNumber || parsed.quoteNumber || 'Q-');
+    setEditInvoiceNumber(job.invoiceNumber || parsed.invoiceNumber || 'I-');
     setEditTitle(job.title);
     setEditDescription(job.description);
     setEditCategory(job.category);
@@ -1095,7 +1095,7 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                     <div className="flex items-center gap-1.5 mt-1 text-[10px] text-slate-400 font-mono">
                       <span>Display:</span>
                       <span className="font-bold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200/60 truncate">
-                        {buildCompositeJobId(editJobNumber, editQuoteNumber, editInvoiceNumber) || 'J-... / Q-... / I-...'}
+                        {buildCompositeJobId(editJobNumber, editQuoteNumber, editInvoiceNumber) || job.jobNumber}
                       </span>
                     </div>
                   </div>

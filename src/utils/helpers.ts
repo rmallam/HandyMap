@@ -316,23 +316,38 @@ export function ensurePrefix(val: string, prefix: string): string {
   const cleanPrefix = prefix.toUpperCase();
   const upper = trimmed.toUpperCase();
 
+  // If input is just the prefix itself with no number (e.g. "J-", "j-", "Q-", "I-", or "J", "Q", "I")
+  if (upper === cleanPrefix || upper === cleanPrefix.replace('-', '')) {
+    return '';
+  }
+
   if (upper.startsWith(cleanPrefix)) {
-    return cleanPrefix + trimmed.slice(cleanPrefix.length).trim();
+    const rest = trimmed.slice(cleanPrefix.length).trim();
+    if (!rest) return '';
+    return cleanPrefix + rest;
   }
 
   if (prefix === 'J-' && (upper.startsWith('JOB-') || upper.startsWith('REQ-'))) {
+    const rest = upper.startsWith('JOB-') ? trimmed.slice(4).trim() : trimmed.slice(4).trim();
+    if (!rest) return '';
     return trimmed;
   }
   if (prefix === 'Q-' && upper.startsWith('QTE-')) {
+    const rest = trimmed.slice(4).trim();
+    if (!rest) return '';
     return trimmed;
   }
   if (prefix === 'I-' && upper.startsWith('INV-')) {
+    const rest = trimmed.slice(4).trim();
+    if (!rest) return '';
     return trimmed;
   }
 
   const letter = cleanPrefix.replace('-', '');
   if (upper.startsWith(letter) && trimmed.length > 1 && trimmed[1] !== '-') {
-    return `${letter}-${trimmed.slice(1).trim()}`;
+    const rest = trimmed.slice(1).trim();
+    if (!rest) return '';
+    return `${letter}-${rest}`;
   }
 
   return `${cleanPrefix}${trimmed}`;
