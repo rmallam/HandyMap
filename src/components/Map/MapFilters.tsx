@@ -8,13 +8,15 @@ import { triggerHapticFeedback } from '../../services/nativeMobile';
 
 interface MapFiltersProps {
   jobs: Job[];
-  selectedStatus: JobStatus | 'all';
+  selectedStatus: JobStatus | 'all' | 'all_total';
   selectedSuburb?: string;
   selectedAgency?: string;
+  selectedAgent?: string;
   selectedDate?: DateFilterType;
-  onSelectStatus: (status: JobStatus | 'all') => void;
+  onSelectStatus: (status: JobStatus | 'all' | 'all_total') => void;
   onSelectSuburb?: (suburb: string) => void;
   onSelectAgency?: (agency: string) => void;
+  onSelectAgent?: (agent: string) => void;
   onSelectDate?: (date: DateFilterType) => void;
   onOptimizeQuotesRoute: () => void;
   isOptimizing?: boolean;
@@ -29,10 +31,12 @@ export const MapFilters: React.FC<MapFiltersProps> = ({
   selectedStatus,
   selectedSuburb = 'all',
   selectedAgency = 'all',
+  selectedAgent = 'all',
   selectedDate = 'all',
   onSelectStatus,
   onSelectSuburb,
   onSelectAgency,
+  onSelectAgent,
   onSelectDate,
   onOptimizeQuotesRoute,
   isOptimizing,
@@ -64,6 +68,26 @@ export const MapFilters: React.FC<MapFiltersProps> = ({
     )
   ).sort();
 
+  // Extract unique agents for currently selected agency
+  const availableAgents = Array.from(
+    new Set(
+      jobs
+        .filter(j => {
+          if (selectedAgency === 'all' || selectedAgency === 'agency_only') {
+            return j.isAgencyJob && Boolean(j.realEstateAgentName?.trim());
+          }
+          if (selectedAgency === 'direct_only') return false;
+          const targetAgency = selectedAgency.trim().toLowerCase();
+          const jobAgency = (j.realEstateAgency || '').trim().toLowerCase();
+          return (
+            (jobAgency === targetAgency || jobAgency.includes(targetAgency) || targetAgency.includes(jobAgency)) &&
+            Boolean(j.realEstateAgentName?.trim())
+          );
+        })
+        .map(j => j.realEstateAgentName!.trim())
+    )
+  ).sort();
+
   // Suburb counts
   const suburbCounts: Record<string, number> = {};
   jobs.forEach(j => {
@@ -80,12 +104,13 @@ export const MapFilters: React.FC<MapFiltersProps> = ({
   if (selectedStatus !== 'all') activeFiltersCount++;
   if (selectedSuburb !== 'all') activeFiltersCount++;
   if (selectedAgency !== 'all') activeFiltersCount++;
+  if (selectedAgent && selectedAgent !== 'all') activeFiltersCount++;
   if (selectedDate !== 'all') activeFiltersCount++;
 
   // Calculate visible matching jobs count
   const matchingJobsCount = jobs.filter(job => {
-    const matchesStatus = selectedStatus === 'all' 
-      ? (job.status !== 'invoiced' && job.status !== 'cancelled') 
+    const matchesStatus = (selectedStatus === 'all' || selectedStatus === 'all_total')
+      ? (selectedStatus === 'all' ? (job.status !== 'invoiced' && job.status !== 'cancelled') : true)
       : job.status === selectedStatus;
     const matchesSuburb = selectedSuburb === 'all' || extractSuburb(job) === selectedSuburb;
     let matchesAgency = true;
@@ -94,14 +119,30 @@ export const MapFilters: React.FC<MapFiltersProps> = ({
     } else if (selectedAgency === 'direct_only') {
       matchesAgency = !job.isAgencyJob || !job.realEstateAgency || job.realEstateAgency.trim().length === 0;
     } else if (selectedAgency !== 'all') {
+      const targetAgency = selectedAgency.trim().toLowerCase();
+      const jobAgency = (job.realEstateAgency || '').trim().toLowerCase();
       matchesAgency = Boolean(
-        job.realEstateAgency &&
-        job.realEstateAgency.trim().toLowerCase() === selectedAgency.trim().toLowerCase()
+        jobAgency &&
+        (jobAgency === targetAgency ||
+         jobAgency.includes(targetAgency) ||
+         targetAgency.includes(jobAgency))
+      );
+    }
+
+    let matchesAgent = true;
+    if (selectedAgent && selectedAgent !== 'all') {
+      const targetAgent = selectedAgent.trim().toLowerCase();
+      const jobAgent = (job.realEstateAgentName || '').trim().toLowerCase();
+      matchesAgent = Boolean(
+        jobAgent &&
+        (jobAgent === targetAgent ||
+         jobAgent.includes(targetAgent) ||
+         targetAgent.includes(jobAgent))
       );
     }
     const matchesDate = matchesDateFilter(job, selectedDate);
 
-    return matchesStatus && matchesSuburb && matchesAgency && matchesDate;
+    return matchesStatus && matchesSuburb && matchesAgency && matchesAgent && matchesDate;
   }).length;
 
   // Format filter label for mobile pill
@@ -118,6 +159,7 @@ export const MapFilters: React.FC<MapFiltersProps> = ({
     if (selectedSuburb !== 'all') parts.push(selectedSuburb);
     if (selectedStatus !== 'all') {
       const statusLabels: Record<string, string> = {
+        all_total: 'All (Incl. Paid)',
         quote_requested: 'Needs Quote',
         in_progress: 'In Progress',
         quoted: 'Quoted',
@@ -131,6 +173,9 @@ export const MapFilters: React.FC<MapFiltersProps> = ({
     if (selectedAgency !== 'all') {
       parts.push(selectedAgency === 'agency_only' ? 'Agencies' : selectedAgency === 'direct_only' ? 'Direct' : selectedAgency.split(' ')[0]);
     }
+    if (selectedAgent && selectedAgent !== 'all') {
+      parts.push(`PM: ${selectedAgent.split(' ')[0]}`);
+    }
     return parts.length > 0 ? parts.join(' • ') : `All Open Jobs (${activeJobsCount})`;
   };
 
@@ -138,6 +183,7 @@ export const MapFilters: React.FC<MapFiltersProps> = ({
     onSelectStatus('all');
     if (onSelectSuburb) onSelectSuburb('all');
     if (onSelectAgency) onSelectAgency('all');
+    if (onSelectAgent) onSelectAgent('all');
     if (onSelectDate) onSelectDate('all');
   };
 
@@ -559,6 +605,42 @@ export const MapFilters: React.FC<MapFiltersProps> = ({
                         </button>
                       );
                     })}
+                    {/* Specific Property Manager Filter */}
+                    {availableAgents.length > 0 && onSelectAgent && (
+                      <div className="mt-3 pt-3 border-t border-purple-100">
+                        <label className="text-[10px] font-extrabold uppercase tracking-wider text-purple-600 block mb-2">
+                          Property Manager / Agent
+                        </label>
+                        <div className="flex flex-wrap gap-1.5">
+                          <button
+                            onClick={() => onSelectAgent('all')}
+                            className={`px-2.5 py-1 rounded-xl font-bold text-xs transition border ${
+                              selectedAgent === 'all'
+                                ? 'bg-purple-700 text-white border-purple-700 shadow-sm'
+                                : 'bg-purple-50/50 text-purple-900 border-purple-200 hover:bg-purple-100'
+                            }`}
+                          >
+                            All Agents
+                          </button>
+                          {availableAgents.map(agent => {
+                            const isSelected = selectedAgent.trim().toLowerCase() === agent.toLowerCase();
+                            return (
+                              <button
+                                key={agent}
+                                onClick={() => onSelectAgent(agent)}
+                                className={`px-2.5 py-1 rounded-xl font-bold text-xs transition border ${
+                                  isSelected
+                                    ? 'bg-purple-700 text-white border-purple-700 shadow-sm'
+                                    : 'bg-purple-50/60 text-purple-900 border-purple-200/80 hover:bg-purple-100'
+                                }`}
+                              >
+                                {agent}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -877,6 +959,7 @@ export const MapFilters: React.FC<MapFiltersProps> = ({
                         key={agency}
                         onClick={() => {
                           onSelectAgency(agency);
+                          if (onSelectAgent) onSelectAgent('all');
                           setShowAgencyMenu(false);
                         }}
                         className={`w-full text-left px-3 py-2 flex items-center justify-between hover:bg-purple-50 transition ${
@@ -892,6 +975,32 @@ export const MapFilters: React.FC<MapFiltersProps> = ({
                       </button>
                     );
                   })}
+
+                  {availableAgents.length > 0 && onSelectAgent && (
+                    <>
+                      <div className="border-t border-slate-100 my-1"></div>
+                      <div className="px-3 py-1 font-extrabold text-[10px] uppercase text-purple-600">
+                        Property Managers
+                      </div>
+                      {availableAgents.map(agent => {
+                        const isSelected = selectedAgent.trim().toLowerCase() === agent.toLowerCase();
+                        return (
+                          <button
+                            key={agent}
+                            onClick={() => {
+                              onSelectAgent(agent);
+                              setShowAgencyMenu(false);
+                            }}
+                            className={`w-full text-left px-3 py-1.5 flex items-center justify-between hover:bg-purple-50 transition text-xs ${
+                              isSelected ? 'font-bold text-purple-700 bg-purple-100/70' : 'text-slate-700'
+                            }`}
+                          >
+                            <span className="truncate max-w-[180px]">PM: {agent}</span>
+                          </button>
+                        );
+                      })}
+                    </>
+                  )}
                 </div>
               )}
             </div>
@@ -941,11 +1050,26 @@ export const MapFilters: React.FC<MapFiltersProps> = ({
           {/* Clear Agency Filter Tag (if active) */}
           {selectedAgency !== 'all' && onSelectAgency && (
             <button
-              onClick={() => onSelectAgency('all')}
+              onClick={() => {
+                onSelectAgency('all');
+                if (onSelectAgent) onSelectAgent('all');
+              }}
               className="pointer-events-auto px-2 py-1 rounded-xl bg-purple-100 hover:bg-purple-200 text-purple-800 text-[10px] font-bold flex items-center gap-1 border border-purple-300 shadow-sm shrink-0 transition active:scale-95"
               title="Reset agency filter"
             >
-              <span>Clear Agency</span>
+              <span>Agency: {selectedAgency === 'agency_only' ? 'Agencies' : selectedAgency === 'direct_only' ? 'Direct' : selectedAgency.split(' ')[0]}</span>
+              <X className="w-3 h-3" />
+            </button>
+          )}
+
+          {/* Clear Agent Filter Tag (if active) */}
+          {selectedAgent && selectedAgent !== 'all' && onSelectAgent && (
+            <button
+              onClick={() => onSelectAgent('all')}
+              className="pointer-events-auto px-2 py-1 rounded-xl bg-purple-100 hover:bg-purple-200 text-purple-800 text-[10px] font-bold flex items-center gap-1 border border-purple-300 shadow-sm shrink-0 transition active:scale-95"
+              title="Reset property manager filter"
+            >
+              <span>PM: {selectedAgent}</span>
               <X className="w-3 h-3" />
             </button>
           )}

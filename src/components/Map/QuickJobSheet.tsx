@@ -5,7 +5,8 @@ import {
   formatCurrency,
   calculateDistanceKm,
   buildLiveNavigationUrl,
-  buildSmsLink
+  buildSmsLink,
+  formatDateTime
 } from '../../utils/helpers';
 import { triggerHapticFeedback } from '../../services/nativeMobile';
 import {
@@ -116,6 +117,12 @@ export const QuickJobSheet: React.FC<QuickJobSheetProps> = ({
             <p className="font-black text-slate-900 text-sm">{distanceKm} km</p>
             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">from you</p>
           </div>
+        </div>
+
+        {/* Creation Date & Time */}
+        <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-medium px-1">
+          <Clock className="w-3 h-3 text-slate-400 shrink-0" />
+          <span>Created: {formatDateTime(job.createdAt || job.quoteRequestedDate)}</span>
         </div>
 
         {/* Real Estate Agency Work Order Banner */}

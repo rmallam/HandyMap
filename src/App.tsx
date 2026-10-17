@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Job, JobStatus, OptimizedRoute, HandymanProfile, RouteFilterType } from './types';
-import { calculateDistanceKm } from './utils/helpers';
+import { calculateDistanceKm, DateFilterType } from './utils/helpers';
 import { loadJobs, saveJobs, loadProfile, saveProfile, resetToDemoData } from './services/storage';
 import { INITIAL_JOBS, DEFAULT_PROFILE } from './data/mockJobs';
 import {
@@ -62,7 +62,12 @@ export function App() {
 
   // Navigation & Active View state
   const [activeTab, setActiveTab] = useState<'map' | 'route' | 'jobs' | 'schedule' | 'stats'>('map');
-  const [selectedStatus, setSelectedStatus] = useState<JobStatus | 'all'>('all');
+  // Shared Operational Filter state across Map & Job List
+  const [selectedStatus, setSelectedStatus] = useState<JobStatus | 'all' | 'all_total'>('all');
+  const [selectedDate, setSelectedDate] = useState<DateFilterType>('all');
+  const [selectedAgency, setSelectedAgency] = useState<string>('all');
+  const [selectedAgent, setSelectedAgent] = useState<string>('all');
+  const [selectedSuburb, setSelectedSuburb] = useState<string>('all');
   
   // Selection and Route state
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
@@ -625,9 +630,17 @@ export function App() {
             activeRoute={activeRoute}
             selectedJob={selectedJob}
             selectedStatus={selectedStatus}
+            selectedDate={selectedDate}
+            selectedAgency={selectedAgency}
+            selectedAgent={selectedAgent}
+            selectedSuburb={selectedSuburb}
             isOptimizing={isOptimizing}
             onSelectJob={setSelectedJob}
             onSelectStatus={setSelectedStatus}
+            onSelectDate={setSelectedDate}
+            onSelectAgency={setSelectedAgency}
+            onSelectAgent={setSelectedAgent}
+            onSelectSuburb={setSelectedSuburb}
             onOptimizeQuotesRoute={() => handleGenerateRoute('quotes_only')}
             onOpenFullJob={handleOpenFullJob}
             onCenterMyLocation={handleCenterOnMyLocation}
@@ -659,6 +672,14 @@ export function App() {
             jobs={jobs}
             profile={profile}
             reminders={reminders}
+            statusFilter={selectedStatus}
+            onSelectStatus={setSelectedStatus}
+            dateFilter={selectedDate}
+            onSelectDate={setSelectedDate}
+            agencyFilter={selectedAgency}
+            onSelectAgency={setSelectedAgency}
+            agentFilter={selectedAgent}
+            onSelectAgent={setSelectedAgent}
             onSelectJob={handleOpenFullJob}
             onAddNewJob={() => setIsNewJobOpen(true)}
             onOpenImport={() => setIsImportModalOpen(true)}

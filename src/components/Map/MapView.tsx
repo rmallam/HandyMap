@@ -18,10 +18,18 @@ interface MapViewProps {
   recenterTrigger?: number;
   activeRoute: OptimizedRoute | null;
   selectedJob: Job | null;
-  selectedStatus: JobStatus | 'all';
+  selectedStatus: JobStatus | 'all' | 'all_total';
+  selectedDate?: DateFilterType;
+  selectedAgency?: string;
+  selectedAgent?: string;
+  selectedSuburb?: string;
   isOptimizing: boolean;
   onSelectJob: (job: Job | null) => void;
-  onSelectStatus: (status: JobStatus | 'all') => void;
+  onSelectStatus: (status: JobStatus | 'all' | 'all_total') => void;
+  onSelectDate?: (date: DateFilterType) => void;
+  onSelectAgency?: (agency: string) => void;
+  onSelectAgent?: (agent: string) => void;
+  onSelectSuburb?: (suburb: string) => void;
   onOptimizeQuotesRoute: () => void;
   onOpenFullJob: (job: Job) => void;
   onCenterMyLocation: () => void;
@@ -34,16 +42,19 @@ function MapController({
   activeRoute,
   selectedJob,
   currentLocation,
-  recenterTrigger
+  recenterTrigger,
+  filterKey
 }: {
   jobs: Job[];
   activeRoute: OptimizedRoute | null;
   selectedJob: Job | null;
   currentLocation: [number, number];
   recenterTrigger?: number;
+  filterKey?: string;
 }) {
   const map = useMap();
   const initialFitDone = useRef(false);
+  const prevFilterKey = useRef<string>('');
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -68,7 +79,7 @@ function MapController({
     }
   }, [recenterTrigger, currentLocation, map]);
 
-  // Auto-fit when route changes
+  // Auto-fit when route changes or when user selects a job
   useEffect(() => {
     if (activeRoute && activeRoute.polylineCoordinates.length > 0) {
       const bounds = L.latLngBounds(activeRoute.polylineCoordinates);
@@ -87,8 +98,23 @@ function MapController({
       const bounds = L.latLngBounds(points);
       map.fitBounds(bounds, { padding: [50, 50], maxZoom: 14 });
       initialFitDone.current = true;
+      prevFilterKey.current = filterKey || '';
+      return;
     }
-  }, [activeRoute, selectedJob, jobs, currentLocation, map]);
+
+    // When filter changes, re-fit map to the visible filtered jobs
+    if (filterKey !== undefined && filterKey !== prevFilterKey.current) {
+      prevFilterKey.current = filterKey;
+      if (jobs.length > 0) {
+        if (jobs.length === 1) {
+          map.flyTo(jobs[0].coordinates, 15, { duration: 0.8 });
+        } else {
+          const bounds = L.latLngBounds(jobs.map(j => j.coordinates));
+          map.fitBounds(bounds, { padding: [50, 50], maxZoom: 14 });
+        }
+      }
+    }
+  }, [activeRoute, selectedJob, jobs, currentLocation, map, filterKey]);
 
   return null;
 }
@@ -103,24 +129,46 @@ export const MapView: React.FC<MapViewProps> = ({
   activeRoute,
   selectedJob,
   selectedStatus,
+  selectedDate: propDate,
+  selectedAgency: propAgency,
+  selectedAgent: propAgent,
+  selectedSuburb: propSuburb,
   isOptimizing,
   onSelectJob,
   onSelectStatus,
+  onSelectDate: propOnSelectDate,
+  onSelectAgency: propOnSelectAgency,
+  onSelectAgent: propOnSelectAgent,
+  onSelectSuburb: propOnSelectSuburb,
   onOptimizeQuotesRoute,
   onOpenFullJob,
   onCenterMyLocation,
   onRefreshLocation
 }) => {
-  const [selectedSuburb, setSelectedSuburb] = useState<string>('all');
-  const [selectedAgency, setSelectedAgency] = useState<string>('all');
-  const [selectedDate, setSelectedDate] = useState<DateFilterType>('all');
+  const [internalSuburb, setInternalSuburb] = useState<string>('all');
+  const [internalAgency, setInternalAgency] = useState<string>('all');
+  const [internalAgent, setInternalAgent] = useState<string>('all');
+  const [internalDate, setInternalDate] = useState<DateFilterType>('all');
 
-  // Filter jobs by status, suburb, agency, and date
+  const selectedSuburb = propSuburb !== undefined ? propSuburb : internalSuburb;
+  const setSelectedSuburb = propOnSelectSuburb || setInternalSuburb;
+
+  const selectedAgency = propAgency !== undefined ? propAgency : internalAgency;
+  const setSelectedAgency = propOnSelectAgency || setInternalAgency;
+
+  const selectedAgent = propAgent !== undefined ? propAgent : internalAgent;
+  const setSelectedAgent = propOnSelectAgent || setInternalAgent;
+
+  const selectedDate = propDate !== undefined ? propDate : internalDate;
+  const setSelectedDate = propOnSelectDate || setInternalDate;
+
+  // Filter jobs by status, suburb, agency, agent, and date
   const visibleJobs = jobs.filter(job => {
     // When 'all' is selected, exclude paid & invoiced jobs and cancelled jobs to keep the active map uncluttered
-    const matchesStatus = selectedStatus === 'all' 
-      ? job.status !== 'invoiced' && job.status !== 'cancelled' 
+    const matchesStatus = (selectedStatus === 'all' || selectedStatus === 'all_total')
+      ? (selectedStatus === 'all' ? (job.status !== 'invoiced' && job.status !== 'cancelled') : true)
       : job.status === selectedStatus;
+
     const matchesSuburb = selectedSuburb === 'all' || extractSuburb(job) === selectedSuburb;
     
     let matchesAgency = true;
@@ -129,16 +177,34 @@ export const MapView: React.FC<MapViewProps> = ({
     } else if (selectedAgency === 'direct_only') {
       matchesAgency = !job.isAgencyJob || !job.realEstateAgency || job.realEstateAgency.trim().length === 0;
     } else if (selectedAgency !== 'all') {
+      const targetAgency = selectedAgency.trim().toLowerCase();
+      const jobAgency = (job.realEstateAgency || '').trim().toLowerCase();
       matchesAgency = Boolean(
-        job.realEstateAgency &&
-        job.realEstateAgency.trim().toLowerCase() === selectedAgency.trim().toLowerCase()
+        jobAgency &&
+        (jobAgency === targetAgency ||
+         jobAgency.includes(targetAgency) ||
+         targetAgency.includes(jobAgency))
+      );
+    }
+
+    let matchesAgent = true;
+    if (selectedAgent && selectedAgent !== 'all') {
+      const targetAgent = selectedAgent.trim().toLowerCase();
+      const jobAgent = (job.realEstateAgentName || '').trim().toLowerCase();
+      matchesAgent = Boolean(
+        jobAgent &&
+        (jobAgent === targetAgent ||
+         jobAgent.includes(targetAgent) ||
+         targetAgent.includes(jobAgent))
       );
     }
 
     const matchesDate = matchesDateFilter(job, selectedDate);
 
-    return matchesStatus && matchesSuburb && matchesAgency && matchesDate;
+    return matchesStatus && matchesSuburb && matchesAgency && matchesAgent && matchesDate;
   });
+
+  const filterKey = `${selectedStatus}_${selectedAgency}_${selectedAgent}_${selectedDate}_${selectedSuburb}`;
 
   // Map route stop index by job ID
   const routeStopMap = new Map();
@@ -156,10 +222,12 @@ export const MapView: React.FC<MapViewProps> = ({
         selectedStatus={selectedStatus}
         selectedSuburb={selectedSuburb}
         selectedAgency={selectedAgency}
+        selectedAgent={selectedAgent}
         selectedDate={selectedDate}
         onSelectStatus={onSelectStatus}
         onSelectSuburb={setSelectedSuburb}
         onSelectAgency={setSelectedAgency}
+        onSelectAgent={setSelectedAgent}
         onSelectDate={setSelectedDate}
         onOptimizeQuotesRoute={onOptimizeQuotesRoute}
         isOptimizing={isOptimizing}
@@ -190,6 +258,7 @@ export const MapView: React.FC<MapViewProps> = ({
           selectedJob={selectedJob}
           currentLocation={currentLocation}
           recenterTrigger={recenterTrigger}
+          filterKey={filterKey}
         />
 
         {/* Route Polyline */}

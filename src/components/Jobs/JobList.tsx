@@ -12,7 +12,9 @@ import {
   getRelativeJobDateLabel,
   isJobToday,
   isJobTomorrow,
-  formatJobDisplayId
+  formatJobDisplayId,
+  formatDate,
+  formatTime
 } from '../../utils/helpers';
 import { generateQuotePDF } from '../../services/pdfGenerator';
 import { triggerHapticFeedback } from '../../services/nativeMobile';
@@ -38,7 +40,8 @@ import {
   Download,
   Receipt,
   ChevronDown,
-  User
+  User,
+  Clock
 } from 'lucide-react';
 
 interface JobListProps {
@@ -48,6 +51,15 @@ interface JobListProps {
   onSelectJob: (job: Job) => void;
   onAddNewJob: () => void;
   onOpenImport?: () => void;
+  // Shared Operational Filter Props
+  statusFilter?: JobStatus | 'all' | 'all_total';
+  onSelectStatus?: (status: JobStatus | 'all' | 'all_total') => void;
+  dateFilter?: DateFilterType;
+  onSelectDate?: (date: DateFilterType) => void;
+  agencyFilter?: string;
+  onSelectAgency?: (agency: string) => void;
+  agentFilter?: string;
+  onSelectAgent?: (agent: string) => void;
 }
 
 export const JobList: React.FC<JobListProps> = ({
@@ -56,13 +68,33 @@ export const JobList: React.FC<JobListProps> = ({
   reminders = [],
   onSelectJob,
   onAddNewJob,
-  onOpenImport
+  onOpenImport,
+  statusFilter: propStatusFilter,
+  onSelectStatus: propOnSelectStatus,
+  dateFilter: propDateFilter,
+  onSelectDate: propOnSelectDate,
+  agencyFilter: propAgencyFilter,
+  onSelectAgency: propOnSelectAgency,
+  agentFilter: propAgentFilter,
+  onSelectAgent: propOnSelectAgent
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<JobStatus | 'all' | 'all_total'>('all');
-  const [dateFilter, setDateFilter] = useState<DateFilterType>('all');
-  const [agencyFilter, setAgencyFilter] = useState<string>('all');
-  const [agentFilter, setAgentFilter] = useState<string>('all');
+  const [internalStatusFilter, setInternalStatusFilter] = useState<JobStatus | 'all' | 'all_total'>('all');
+  const [internalDateFilter, setInternalDateFilter] = useState<DateFilterType>('all');
+  const [internalAgencyFilter, setInternalAgencyFilter] = useState<string>('all');
+  const [internalAgentFilter, setInternalAgentFilter] = useState<string>('all');
+
+  const statusFilter = propStatusFilter !== undefined ? propStatusFilter : internalStatusFilter;
+  const setStatusFilter = propOnSelectStatus || setInternalStatusFilter;
+
+  const dateFilter = propDateFilter !== undefined ? propDateFilter : internalDateFilter;
+  const setDateFilter = propOnSelectDate || setInternalDateFilter;
+
+  const agencyFilter = propAgencyFilter !== undefined ? propAgencyFilter : internalAgencyFilter;
+  const setAgencyFilter = propOnSelectAgency || setInternalAgencyFilter;
+
+  const agentFilter = propAgentFilter !== undefined ? propAgentFilter : internalAgentFilter;
+  const setAgentFilter = propOnSelectAgent || setInternalAgentFilter;
   const agencyCount = jobs.filter(j => j.isAgencyJob && j.realEstateAgency && j.realEstateAgency.trim().length > 0).length;
 
   const activeJobsCount = jobs.filter(j => j.status !== 'invoiced' && j.status !== 'cancelled').length;
@@ -94,8 +126,10 @@ export const JobList: React.FC<JobListProps> = ({
             return Boolean(j.isAgencyJob && j.realEstateAgentName?.trim());
           }
           if (agencyFilter === 'direct_only') return false;
+          const targetAgency = agencyFilter.trim().toLowerCase();
+          const jobAgency = (j.realEstateAgency || '').trim().toLowerCase();
           return Boolean(
-            j.realEstateAgency?.trim().toLowerCase() === agencyFilter.trim().toLowerCase() &&
+            (jobAgency === targetAgency || jobAgency.includes(targetAgency) || targetAgency.includes(jobAgency)) &&
             j.realEstateAgentName?.trim()
           );
         })
@@ -120,17 +154,25 @@ export const JobList: React.FC<JobListProps> = ({
     } else if (agencyFilter === 'direct_only') {
       matchesAgency = !job.isAgencyJob || !job.realEstateAgency || job.realEstateAgency.trim().length === 0;
     } else if (agencyFilter !== 'all') {
+      const targetAgency = agencyFilter.trim().toLowerCase();
+      const jobAgency = (job.realEstateAgency || '').trim().toLowerCase();
       matchesAgency = Boolean(
-        job.realEstateAgency &&
-        job.realEstateAgency.trim().toLowerCase() === agencyFilter.trim().toLowerCase()
+        jobAgency &&
+        (jobAgency === targetAgency ||
+         jobAgency.includes(targetAgency) ||
+         targetAgency.includes(jobAgency))
       );
     }
 
     let matchesAgent = true;
     if (agentFilter !== 'all') {
+      const targetAgent = agentFilter.trim().toLowerCase();
+      const jobAgent = (job.realEstateAgentName || '').trim().toLowerCase();
       matchesAgent = Boolean(
-        job.realEstateAgentName &&
-        job.realEstateAgentName.trim().toLowerCase() === agentFilter.trim().toLowerCase()
+        jobAgent &&
+        (jobAgent === targetAgent ||
+         jobAgent.includes(targetAgent) ||
+         targetAgent.includes(jobAgent))
       );
     }
 
@@ -992,6 +1034,14 @@ export const JobList: React.FC<JobListProps> = ({
                       <span className="truncate font-medium">{job.address}</span>
                     </div>
                     <span className="font-extrabold text-slate-800 shrink-0 truncate max-w-[120px]">{job.clientName}</span>
+                  </div>
+
+                  {/* Creation Date & Time for future reference */}
+                  <div className="flex items-center justify-between text-[10px] text-slate-400 font-medium">
+                    <span className="flex items-center gap-1 min-w-0 truncate">
+                      <Clock className="w-3 h-3 text-slate-400 shrink-0" />
+                      <span className="truncate">Created: {formatDateTime(job.createdAt || job.quoteRequestedDate)}</span>
+                    </span>
                   </div>
 
                   {/* Bottom Actions & Price/Date on a single unified line */}

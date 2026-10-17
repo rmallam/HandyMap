@@ -11,7 +11,9 @@ import {
   ensurePrefix,
   buildCompositeJobId,
   parseJobIdParts,
-  formatJobDisplayId
+  formatJobDisplayId,
+  formatDate,
+  formatTime
 } from '../../utils/helpers';
 import { buildGoogleCalendarUrl, downloadIcsCalendarFile } from '../../utils/calendarExport';
 import { stitchBeforeAndAfterPhotos, processImageFile } from '../../utils/photoStitcher';
@@ -807,6 +809,12 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                     <span className="text-[10px] font-bold text-emerald-600 shrink-0 animate-in fade-in">Copied!</span>
                   )}
                 </div>
+              </div>
+
+              {/* Row 4: Created Date & Time for future reference */}
+              <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-medium">
+                <Clock className="w-3 h-3 text-slate-400 shrink-0" />
+                <span>Logged {formatDate(job.createdAt || job.quoteRequestedDate)} at {formatTime(job.createdAt || job.quoteRequestedDate)}</span>
               </div>
             </div>
           )}
@@ -1977,6 +1985,28 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                       </div>
                     </div>
                   </div>
+                )}
+              </div>
+
+              {/* Record Creation Timestamp Card */}
+              <div className="bg-slate-50/90 border border-slate-200/80 rounded-2xl p-3.5 flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-blue-50 text-blue-600 border border-blue-100">
+                    <Clock className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
+                      Lead Entry Timestamp
+                    </span>
+                    <span className="font-bold text-slate-800 text-xs">
+                      Logged {formatDate(job.createdAt || job.quoteRequestedDate)} at {formatTime(job.createdAt || job.quoteRequestedDate)}
+                    </span>
+                  </div>
+                </div>
+                {job.updatedAt && (
+                  <span className="text-[10px] text-slate-400 font-medium hidden sm:inline">
+                    Updated {formatDateTime(job.updatedAt)}
+                  </span>
                 )}
               </div>
 
