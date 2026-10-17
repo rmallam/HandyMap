@@ -21,10 +21,21 @@ import {
   Briefcase,
   Users,
   ChevronDown,
-  ArrowRight
+  ArrowRight,
+  UploadCloud,
+  Loader2,
+  Clipboard,
+  RefreshCw,
+  FileUp
 } from 'lucide-react';
 import { AddressAutocomplete, AddressResult } from '../Common/AddressAutocomplete';
 import { triggerHapticFeedback } from '../../services/nativeMobile';
+import {
+  extractTextFromPdfFile,
+  parseWorkOrderText,
+  geocodeAustralianAddress,
+  ParsedWorkOrder
+} from '../../services/workOrderParser';
 import { ensurePrefix, buildCompositeJobId } from '../../utils/helpers';
 import {
   formatPhoneNumber,
@@ -124,8 +135,108 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
   const [matchedCustomerByPhone, setMatchedCustomerByPhone] = useState<SavedCustomer | null>(null);
   const [showSavedCustomersList, setShowSavedCustomersList] = useState(false);
 
+  // Work Order Importer State (100% Free, zero AI cost)
+  const [isImportingPdf, setIsImportingPdf] = useState(false);
+  const [importSuccessMsg, setImportSuccessMsg] = useState<string | null>(null);
+  const [importErrorMsg, setImportErrorMsg] = useState<string | null>(null);
+  const [showPasteBox, setShowPasteBox] = useState(false);
+  const [pastedText, setPastedText] = useState('');
+  const [isDraggingPdf, setIsDraggingPdf] = useState(false);
+  const pdfInputRef = useRef<HTMLInputElement>(null);
+
   const customerInputRef = useRef<HTMLInputElement>(null);
   const agencyInputRef = useRef<HTMLInputElement>(null);
+
+  // Apply parsed work order fields to form state
+  const handleApplyParsedWorkOrder = async (parsed: ParsedWorkOrder, sourceName: string) => {
+    triggerHapticFeedback('success');
+    if (parsed.title) setTitle(parsed.title);
+    if (parsed.description) setDescription(parsed.description);
+    if (parsed.workOrderNumber) {
+      setWorkOrderNumber(parsed.workOrderNumber);
+      setJobNumberInput(`J-${parsed.workOrderNumber}`);
+    }
+    if (parsed.realEstateAgency) {
+      setIsAgencyJob(true);
+      setRealEstateAgency(parsed.realEstateAgency);
+    }
+    if (parsed.propertyManager) setRealEstateAgentName(parsed.propertyManager);
+    if (parsed.realEstatePhone) setRealEstateAgentPhone(parsed.realEstatePhone);
+    if (parsed.realEstateEmail) setRealEstateAgentEmail(parsed.realEstateEmail);
+    if (parsed.address) setAddress(parsed.address);
+    if (parsed.suburb) setSuburb(parsed.suburb);
+    if (parsed.clientName) setClientName(parsed.clientName);
+    if (parsed.clientPhone) setClientPhone(parsed.clientPhone);
+    if (parsed.clientEmail) setClientEmail(parsed.clientEmail);
+    if (parsed.tenant1Name) setTenant1Name(parsed.tenant1Name);
+    if (parsed.tenant1Phone) setTenant1Phone(parsed.tenant1Phone);
+    if (parsed.tenant1Email) setTenant1Email(parsed.tenant1Email);
+    if (parsed.hasTenant2 && parsed.tenant2Name) {
+      setShowTenant2(true);
+      setTenant2Name(parsed.tenant2Name);
+      setTenant2Phone(parsed.tenant2Phone);
+      setTenant2Email(parsed.tenant2Email);
+    }
+    if (parsed.tasks && parsed.tasks.length > 0) {
+      setTasks(parsed.tasks);
+    }
+    if (parsed.category) {
+      setCategory(parsed.category);
+    }
+    setStatus('quote_requested');
+
+    // Attempt geocoding in background to pin marker on map
+    if (parsed.address) {
+      geocodeAustralianAddress(parsed.address).then(coords => {
+        if (coords) setSelectedCoordinates(coords);
+      });
+    }
+
+    setImportSuccessMsg(
+      `✓ Parsed from ${sourceName} (${parsed.realEstateAgency || 'Real Estate'} #${parsed.workOrderNumber || 'WO'})`
+    );
+    setImportErrorMsg(null);
+    setShowPasteBox(false);
+  };
+
+  const handlePdfFileSelect = async (file: File) => {
+    if (!file) return;
+    setIsImportingPdf(true);
+    setImportErrorMsg(null);
+    try {
+      triggerHapticFeedback('light');
+      const text = await extractTextFromPdfFile(file);
+      if (!text || text.trim().length < 15) {
+        setImportErrorMsg('Could not read digital text from this PDF. (Scanned image PDFs require digital text).');
+        triggerHapticFeedback('error');
+        return;
+      }
+      const parsed = parseWorkOrderText(text);
+      await handleApplyParsedWorkOrder(parsed, file.name);
+    } catch (err: any) {
+      console.error('Failed to parse PDF:', err);
+      setImportErrorMsg('Failed to process PDF. You can also paste the email text below.');
+      triggerHapticFeedback('error');
+    } finally {
+      setIsImportingPdf(false);
+      if (pdfInputRef.current) pdfInputRef.current.value = '';
+    }
+  };
+
+  const handlePastedTextSubmit = async () => {
+    if (!pastedText.trim()) return;
+    setIsImportingPdf(true);
+    setImportErrorMsg(null);
+    try {
+      const parsed = parseWorkOrderText(pastedText);
+      await handleApplyParsedWorkOrder(parsed, 'Pasted Work Order');
+      setPastedText('');
+    } catch (err) {
+      setImportErrorMsg('Could not extract fields from pasted text.');
+    } finally {
+      setIsImportingPdf(false);
+    }
+  };
 
   // Load directory on open
   useEffect(() => {
@@ -141,6 +252,10 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
       setMatchedCustomerByPhone(null);
       setShowSavedCustomersList(false);
       setPhoneValidationError(null);
+      setImportSuccessMsg(null);
+      setImportErrorMsg(null);
+      setShowPasteBox(false);
+      setPastedText('');
       setTenant1Name('');
       setTenant1Phone('');
       setTenant1Email('');
@@ -470,6 +585,181 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
 
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="p-4 sm:p-6 overflow-y-auto flex flex-col gap-4 text-xs">
+          
+          {/* ----------------------------------------------------------------- */}
+          {/* WORK ORDER PDF / EMAIL AUTO-FILL BANNER (100% Free, Zero AI Cost) */}
+          {/* ----------------------------------------------------------------- */}
+          <div
+            onDragOver={e => {
+              e.preventDefault();
+              setIsDraggingPdf(true);
+            }}
+            onDragLeave={() => setIsDraggingPdf(false)}
+            onDrop={e => {
+              e.preventDefault();
+              setIsDraggingPdf(false);
+              const file = e.dataTransfer.files?.[0];
+              if (file && (file.type === 'application/pdf' || file.name.endsWith('.pdf'))) {
+                handlePdfFileSelect(file);
+              }
+            }}
+            className={`relative rounded-2xl border transition-all duration-200 overflow-hidden ${
+              isDraggingPdf
+                ? 'bg-blue-100/90 border-blue-500 ring-2 ring-blue-400 shadow-md scale-[1.01]'
+                : importSuccessMsg
+                ? 'bg-emerald-50/70 border-emerald-300 shadow-2xs'
+                : 'bg-gradient-to-r from-blue-50/70 via-indigo-50/50 to-slate-50 border-blue-200/80 shadow-2xs'
+            }`}
+          >
+            {/* Hidden file input */}
+            <input
+              type="file"
+              ref={pdfInputRef}
+              accept=".pdf,application/pdf"
+              onChange={e => {
+                const file = e.target.files?.[0];
+                if (file) handlePdfFileSelect(file);
+              }}
+              className="hidden"
+            />
+
+            <div className="p-3.5 sm:p-4">
+              {/* Header row */}
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2.5">
+                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
+                    importSuccessMsg
+                      ? 'bg-emerald-600 text-white shadow-xs'
+                      : 'bg-gradient-to-tr from-blue-600 to-indigo-600 text-white shadow-xs'
+                  }`}>
+                    {isImportingPdf ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : importSuccessMsg ? (
+                      <Check className="w-4 h-4 stroke-[3]" />
+                    ) : (
+                      <FileUp className="w-4 h-4 stroke-[2.2]" />
+                    )}
+                  </div>
+
+                  <div>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="font-black text-slate-900 text-xs sm:text-sm tracking-tight">
+                        Auto-Fill from Work Order
+                      </span>
+                      <span className="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 border border-blue-200">
+                        FREE • Instant
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 font-medium">
+                      Drop Reliance, Ray White or PropertyMe PDF to fill fields instantly
+                    </p>
+                  </div>
+                </div>
+
+                {/* Primary Action Buttons */}
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button
+                    type="button"
+                    disabled={isImportingPdf}
+                    onClick={() => {
+                      triggerHapticFeedback('light');
+                      pdfInputRef.current?.click();
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold text-xs shadow-xs transition disabled:opacity-50"
+                  >
+                    {isImportingPdf ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>Reading...</span>
+                      </>
+                    ) : (
+                      <>
+                        <UploadCloud className="w-3.5 h-3.5" />
+                        <span>Upload PDF</span>
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      triggerHapticFeedback('light');
+                      setShowPasteBox(!showPasteBox);
+                    }}
+                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 font-bold text-xs active:scale-95 transition"
+                    title="Paste email text"
+                  >
+                    <Clipboard className="w-3.5 h-3.5 text-slate-500" />
+                    <span className="hidden sm:inline">Paste</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Success Badge */}
+              {importSuccessMsg && (
+                <div className="mt-2.5 pt-2.5 border-t border-emerald-200/80 flex items-center justify-between text-xs text-emerald-800 font-semibold animate-in fade-in">
+                  <div className="flex items-center gap-1.5 truncate">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span className="truncate">{importSuccessMsg}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setImportSuccessMsg(null);
+                      triggerHapticFeedback('light');
+                    }}
+                    className="text-[10px] text-emerald-700 hover:text-emerald-900 underline font-bold shrink-0 ml-2"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              )}
+
+              {/* Error Notice */}
+              {importErrorMsg && (
+                <div className="mt-2.5 pt-2.5 border-t border-rose-200 flex items-center gap-1.5 text-xs text-rose-700 font-medium animate-in fade-in">
+                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                  <span>{importErrorMsg}</span>
+                </div>
+              )}
+
+              {/* Expandable Quick Paste Box */}
+              {showPasteBox && (
+                <div className="mt-3 pt-3 border-t border-blue-200/60 space-y-2 animate-in fade-in">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">
+                      Paste Work Order Email or Text:
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowPasteBox(false)}
+                      className="text-[10px] text-slate-400 hover:text-slate-600"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                  <textarea
+                    rows={3}
+                    value={pastedText}
+                    onChange={e => setPastedText(e.target.value)}
+                    placeholder="Paste email body or text from Reliance, Ray White, etc. (e.g. Property: 111/38 Clark St, Tenant: Priyanka...)"
+                    className="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs text-slate-800 placeholder:text-slate-400 focus:border-blue-500 outline-none resize-none font-mono"
+                  />
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      disabled={!pastedText.trim() || isImportingPdf}
+                      onClick={handlePastedTextSubmit}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs disabled:opacity-40 transition active:scale-95"
+                    >
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span>Parse & Auto-Fill Form</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
           
           {/* SECTION 1: JOB SCOPE & TITLE */}
           <div className="bg-slate-50/80 rounded-2xl border border-slate-200/80 p-3.5 sm:p-4 space-y-3">
