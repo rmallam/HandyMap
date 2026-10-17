@@ -136,37 +136,12 @@ export const JobList: React.FC<JobListProps> = ({
     return matchesStatus && matchesAgency && matchesAgent;
   });
 
-  // Stable baseline for date counts across open jobs (respecting agency & agent filter)
-  const activeAgencyJobs = jobs.filter(job => {
-    const isStatusScope = (statusFilter === 'invoiced' || statusFilter === 'cancelled')
-      ? job.status === statusFilter
-      : job.status !== 'invoiced' && job.status !== 'cancelled';
+  // Calculate date counts specifically matching current status & agency scope
+  const dateCounts = calculateDateFilterCounts(statusAndAgencyJobs);
 
-    let matchesAgency = true;
-    if (agencyFilter === 'agency_only') {
-      matchesAgency = Boolean(job.isAgencyJob && job.realEstateAgency && job.realEstateAgency.trim().length > 0);
-    } else if (agencyFilter === 'direct_only') {
-      matchesAgency = !job.isAgencyJob || !job.realEstateAgency || job.realEstateAgency.trim().length === 0;
-    } else if (agencyFilter !== 'all') {
-      matchesAgency = Boolean(
-        job.realEstateAgency &&
-        job.realEstateAgency.trim().toLowerCase() === agencyFilter.trim().toLowerCase()
-      );
-    }
-
-    let matchesAgent = true;
-    if (agentFilter !== 'all') {
-      matchesAgent = Boolean(
-        job.realEstateAgentName &&
-        job.realEstateAgentName.trim().toLowerCase() === agentFilter.trim().toLowerCase()
-      );
-    }
-
-    return isStatusScope && matchesAgency && matchesAgent;
-  });
-
-  // Stable date counts across open jobs
-  const dateCounts = calculateDateFilterCounts(activeAgencyJobs);
+  // Baseline date counts across all active open jobs (for empty state context)
+  const allActiveOpenJobs = jobs.filter(job => job.status !== 'invoiced' && job.status !== 'cancelled');
+  const globalDateCounts = calculateDateFilterCounts(allActiveOpenJobs);
 
   // 2. Filter by Date and Search term
   const filteredJobs = statusAndAgencyJobs.filter(job => {
@@ -267,7 +242,20 @@ export const JobList: React.FC<JobListProps> = ({
           <button
             onClick={() => {
               triggerHapticFeedback('light');
-              setStatusFilter(prev => prev === 'quote_requested' ? 'all' : 'quote_requested');
+              setStatusFilter('all');
+            }}
+            className={`shrink-0 min-h-[36px] px-3.5 py-1.5 rounded-2xl text-xs font-black whitespace-nowrap transition-all border ${
+              statusFilter === 'all'
+                ? 'bg-slate-900 text-white border-slate-900 shadow-md shadow-slate-900/20'
+                : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200/80 shadow-xs'
+            }`}
+          >
+            All Open ({activeJobsCount})
+          </button>
+          <button
+            onClick={() => {
+              triggerHapticFeedback('light');
+              setStatusFilter('quote_requested');
             }}
             className={`shrink-0 min-h-[36px] px-3.5 py-1.5 rounded-2xl text-xs font-black whitespace-nowrap transition-all border ${
               statusFilter === 'quote_requested'
@@ -280,7 +268,7 @@ export const JobList: React.FC<JobListProps> = ({
           <button
             onClick={() => {
               triggerHapticFeedback('light');
-              setStatusFilter(prev => prev === 'in_progress' ? 'all' : 'in_progress');
+              setStatusFilter('in_progress');
             }}
             className={`shrink-0 min-h-[36px] px-3.5 py-1.5 rounded-2xl text-xs font-black whitespace-nowrap transition-all border ${
               statusFilter === 'in_progress'
@@ -293,7 +281,7 @@ export const JobList: React.FC<JobListProps> = ({
           <button
             onClick={() => {
               triggerHapticFeedback('light');
-              setStatusFilter(prev => prev === 'quoted' ? 'all' : 'quoted');
+              setStatusFilter('quoted');
             }}
             className={`shrink-0 min-h-[36px] px-3.5 py-1.5 rounded-2xl text-xs font-black whitespace-nowrap transition-all border ${
               statusFilter === 'quoted'
@@ -307,7 +295,7 @@ export const JobList: React.FC<JobListProps> = ({
             <button
               onClick={() => {
                 triggerHapticFeedback('light');
-                setStatusFilter(prev => prev === 'urgent' ? 'all' : 'urgent');
+                setStatusFilter('urgent');
               }}
               className={`shrink-0 min-h-[36px] px-3.5 py-1.5 rounded-2xl text-xs font-black whitespace-nowrap transition-all border ${
                 statusFilter === 'urgent'
@@ -321,7 +309,7 @@ export const JobList: React.FC<JobListProps> = ({
           <button
             onClick={() => {
               triggerHapticFeedback('light');
-              setStatusFilter(prev => prev === 'completed' ? 'all' : 'completed');
+              setStatusFilter('completed');
             }}
             className={`shrink-0 min-h-[36px] px-3.5 py-1.5 rounded-2xl text-xs font-bold whitespace-nowrap transition-all border ${
               statusFilter === 'completed'
@@ -334,7 +322,7 @@ export const JobList: React.FC<JobListProps> = ({
           <button
             onClick={() => {
               triggerHapticFeedback('light');
-              setStatusFilter(prev => prev === 'invoiced' ? 'all' : 'invoiced');
+              setStatusFilter('invoiced');
             }}
             className={`shrink-0 min-h-[36px] px-3.5 py-1.5 rounded-2xl text-xs font-bold whitespace-nowrap transition-all border ${
               statusFilter === 'invoiced'
@@ -348,7 +336,7 @@ export const JobList: React.FC<JobListProps> = ({
             <button
               onClick={() => {
                 triggerHapticFeedback('light');
-                setStatusFilter(prev => prev === 'cancelled' ? 'all' : 'cancelled');
+                setStatusFilter('cancelled');
               }}
               className={`shrink-0 min-h-[36px] px-3.5 py-1.5 rounded-2xl text-xs font-bold whitespace-nowrap transition-all border ${
                 statusFilter === 'cancelled'
@@ -391,7 +379,7 @@ export const JobList: React.FC<JobListProps> = ({
           <button
             onClick={() => {
               triggerHapticFeedback('light');
-              setDateFilter(prev => prev === 'today' ? 'all' : 'today');
+              setDateFilter('today');
             }}
             className={`shrink-0 min-h-[34px] px-3 py-1.5 rounded-xl text-xs font-black transition active:scale-95 flex items-center gap-1.5 whitespace-nowrap ${
               dateFilter === 'today'
@@ -410,7 +398,7 @@ export const JobList: React.FC<JobListProps> = ({
           <button
             onClick={() => {
               triggerHapticFeedback('light');
-              setDateFilter(prev => prev === 'tomorrow' ? 'all' : 'tomorrow');
+              setDateFilter('tomorrow');
             }}
             className={`shrink-0 min-h-[34px] px-3 py-1.5 rounded-xl text-xs font-black transition active:scale-95 flex items-center gap-1.5 whitespace-nowrap ${
               dateFilter === 'tomorrow'
@@ -429,7 +417,7 @@ export const JobList: React.FC<JobListProps> = ({
           <button
             onClick={() => {
               triggerHapticFeedback('light');
-              setDateFilter(prev => prev === 'this_week' ? 'all' : 'this_week');
+              setDateFilter('this_week');
             }}
             className={`shrink-0 min-h-[34px] px-3 py-1.5 rounded-xl text-xs font-black transition active:scale-95 flex items-center gap-1.5 whitespace-nowrap ${
               dateFilter === 'this_week'
@@ -754,7 +742,7 @@ export const JobList: React.FC<JobListProps> = ({
             </p>
             <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto font-medium">
               {statusFilter !== 'all' && dateFilter !== 'all'
-                ? `You have ${statusAndAgencyJobs.length} ${STATUS_CONFIG[statusFilter as JobStatus]?.shortLabel || ''} job(s) in total, and ${dateCounts[dateFilter]} visit(s) scheduled for ${dateFilter.replace('_', ' ')}.`
+                ? `You have ${statusAndAgencyJobs.length} ${STATUS_CONFIG[statusFilter as JobStatus]?.shortLabel || ''} job(s) in total, and ${globalDateCounts[dateFilter]} visit(s) scheduled for ${dateFilter.replace('_', ' ')} across all categories.`
                 : dateFilter !== 'all'
                 ? `You have 0 jobs scheduled for ${dateFilter.replace('_', ' ')} under the current filters.`
                 : statusFilter !== 'all'
@@ -789,7 +777,7 @@ export const JobList: React.FC<JobListProps> = ({
                   }}
                   className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-black text-xs flex items-center gap-2 shadow-sm transition active:scale-95"
                 >
-                  <span>View All {STATUS_CONFIG[statusFilter as JobStatus]?.shortLabel || 'Status'} ({statusAndAgencyJobs.length})</span>
+                  <span>Show All Dates for {STATUS_CONFIG[statusFilter as JobStatus]?.shortLabel || 'Status'} ({statusAndAgencyJobs.length})</span>
                 </button>
                 <button
                   type="button"
@@ -799,7 +787,7 @@ export const JobList: React.FC<JobListProps> = ({
                   }}
                   className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black text-xs flex items-center gap-2 shadow-sm transition active:scale-95"
                 >
-                  <span>View All {dateFilter === 'today' ? "Today's" : dateFilter === 'tomorrow' ? "Tomorrow's" : "This Week's"} ({dateCounts[dateFilter]})</span>
+                  <span>Show All {dateFilter === 'today' ? "Today's" : dateFilter === 'tomorrow' ? "Tomorrow's" : "This Week's"} Visits ({globalDateCounts[dateFilter]})</span>
                 </button>
               </>
             ) : (
