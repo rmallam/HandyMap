@@ -11,7 +11,8 @@ import {
   calculateDateFilterCounts,
   getRelativeJobDateLabel,
   isJobToday,
-  isJobTomorrow
+  isJobTomorrow,
+  formatJobDisplayId
 } from '../../utils/helpers';
 import { generateQuotePDF } from '../../services/pdfGenerator';
 import { triggerHapticFeedback } from '../../services/nativeMobile';
@@ -153,6 +154,8 @@ export const JobList: React.FC<JobListProps> = ({
       job.clientName.toLowerCase().includes(searchLower) ||
       job.address.toLowerCase().includes(searchLower) ||
       job.jobNumber.toLowerCase().includes(searchLower) ||
+      (job.quoteNumber && job.quoteNumber.toLowerCase().includes(searchLower)) ||
+      (job.invoiceNumber && job.invoiceNumber.toLowerCase().includes(searchLower)) ||
       job.category.toLowerCase().includes(searchLower) ||
       (job.realEstateAgency && job.realEstateAgency.toLowerCase().includes(searchLower)) ||
       (job.realEstateAgentName && job.realEstateAgentName.toLowerCase().includes(searchLower)) ||
@@ -226,19 +229,6 @@ export const JobList: React.FC<JobListProps> = ({
 
       {/* Status Filter Pills */}
       <div className="shrink-0 flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1 mb-3 min-h-[46px]">
-          <button
-            onClick={() => {
-              triggerHapticFeedback('light');
-              setStatusFilter('all');
-            }}
-            className={`shrink-0 min-h-[36px] px-3.5 py-1.5 rounded-2xl text-xs font-black whitespace-nowrap transition-all border ${
-              statusFilter === 'all'
-                ? 'bg-slate-900 text-white border-slate-900 shadow-md shadow-slate-900/20'
-                : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200/80 shadow-xs'
-            }`}
-          >
-            All Open ({activeJobsCount})
-          </button>
           <button
             onClick={() => {
               triggerHapticFeedback('light');
@@ -902,7 +892,7 @@ export const JobList: React.FC<JobListProps> = ({
                   <div className="flex items-center justify-between gap-1.5 mb-1 text-[10px]">
                     <div className="flex items-center gap-1.5 min-w-0 truncate">
                       <span className="font-mono font-black text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200/60 shrink-0">
-                        {job.jobNumber}
+                        {formatJobDisplayId(job)}
                       </span>
                       <span
                         className={`font-black uppercase tracking-wider px-2 py-0.5 rounded-full border shadow-2xs shrink-0 ${statusCfg.bgClass} ${statusCfg.textClass} ${statusCfg.borderClass}`}

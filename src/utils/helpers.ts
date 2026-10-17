@@ -307,3 +307,109 @@ export function buildWhatsAppQuoteText(job: Job, profile: HandymanProfile): stri
 
 export * from './dateFilters';
 
+/**
+ * Ensures a reference code has the expected prefix (e.g. "J-", "Q-", "I-").
+ */
+export function ensurePrefix(val: string, prefix: string): string {
+  const trimmed = val.trim();
+  if (!trimmed) return '';
+  const cleanPrefix = prefix.toUpperCase();
+  const upper = trimmed.toUpperCase();
+
+  if (upper.startsWith(cleanPrefix)) {
+    return cleanPrefix + trimmed.slice(cleanPrefix.length).trim();
+  }
+
+  if (prefix === 'J-' && (upper.startsWith('JOB-') || upper.startsWith('REQ-'))) {
+    return trimmed;
+  }
+  if (prefix === 'Q-' && upper.startsWith('QTE-')) {
+    return trimmed;
+  }
+  if (prefix === 'I-' && upper.startsWith('INV-')) {
+    return trimmed;
+  }
+
+  const letter = cleanPrefix.replace('-', '');
+  if (upper.startsWith(letter) && trimmed.length > 1 && trimmed[1] !== '-') {
+    return `${letter}-${trimmed.slice(1).trim()}`;
+  }
+
+  return `${cleanPrefix}${trimmed}`;
+}
+
+/**
+ * Builds a composite Job / Quote / Invoice ID string formatted as:
+ * "job# / quote# / Invoice #"
+ * e.g. "J-4821 / Q-4821 / I-4821"
+ */
+export function buildCompositeJobId(
+  jobPart?: string,
+  quotePart?: string,
+  invoicePart?: string
+): string {
+  const parts: string[] = [];
+  if (jobPart && jobPart.trim()) {
+    parts.push(ensurePrefix(jobPart, 'J-'));
+  }
+  if (quotePart && quotePart.trim()) {
+    parts.push(ensurePrefix(quotePart, 'Q-'));
+  }
+  if (invoicePart && invoicePart.trim()) {
+    parts.push(ensurePrefix(invoicePart, 'I-'));
+  }
+  return parts.join(' / ');
+}
+
+/**
+ * Parses individual job#, quote#, and invoice# parts from a composite ID or single ID.
+ */
+export function parseJobIdParts(compositeOrJobNumber?: string): {
+  jobNumber: string;
+  quoteNumber: string;
+  invoiceNumber: string;
+} {
+  if (!compositeOrJobNumber) {
+    return { jobNumber: '', quoteNumber: '', invoiceNumber: '' };
+  }
+  const tokens = compositeOrJobNumber.split('/').map(t => t.trim()).filter(Boolean);
+  let j = '';
+  let q = '';
+  let i = '';
+
+  for (const token of tokens) {
+    const upper = token.toUpperCase();
+    if (upper.startsWith('J-') || upper.startsWith('JOB-') || upper.startsWith('REQ-')) {
+      j = token;
+    } else if (upper.startsWith('Q-') || upper.startsWith('QTE-')) {
+      q = token;
+    } else if (upper.startsWith('I-') || upper.startsWith('INV-')) {
+      i = token;
+    } else {
+      if (!j) j = token;
+      else if (!q) q = token;
+      else if (!i) i = token;
+    }
+  }
+
+  return { jobNumber: j, quoteNumber: q, invoiceNumber: i };
+}
+
+/**
+ * Formats a job's display ID badge: "job# / quote# / Invoice #"
+ */
+export function formatJobDisplayId(job: {
+  jobNumber: string;
+  quoteNumber?: string;
+  invoiceNumber?: string;
+}): string {
+  if (!job) return '';
+  if (job.jobNumber && job.jobNumber.includes('/')) {
+    return job.jobNumber;
+  }
+  if (job.quoteNumber || job.invoiceNumber) {
+    return buildCompositeJobId(job.jobNumber, job.quoteNumber, job.invoiceNumber);
+  }
+  return job.jobNumber || '';
+}
+

@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { AddressAutocomplete, AddressResult } from '../Common/AddressAutocomplete';
 import { triggerHapticFeedback } from '../../services/nativeMobile';
+import { ensurePrefix, buildCompositeJobId } from '../../utils/helpers';
 import {
   formatPhoneNumber,
   cleanPhoneNumber,
@@ -88,7 +89,12 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
   const [appointmentTime, setAppointmentTime] = useState('');
   const [tasks, setTasks] = useState<string[]>([]);
   const [taskInput, setTaskInput] = useState('');
-  const [customJobNumber, setCustomJobNumber] = useState('');
+  
+  // Structured Job / Quote / Invoice Reference IDs
+  const [defaultRefNum] = useState(() => Math.floor(1000 + Math.random() * 9000));
+  const [jobNumberInput, setJobNumberInput] = useState(`J-${defaultRefNum}`);
+  const [quoteNumberInput, setQuoteNumberInput] = useState(`Q-${defaultRefNum}`);
+  const [invoiceNumberInput, setInvoiceNumberInput] = useState(`I-${defaultRefNum}`);
 
   // Real Estate Agency Fields
   const [isAgencyJob, setIsAgencyJob] = useState(false);
@@ -320,8 +326,10 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
       ];
     }
 
-    const randomNum = Math.floor(1000 + Math.random() * 9000);
-    const jobNumber = customJobNumber.trim() || (status === 'quote_requested' ? `REQ-${randomNum}` : `JOB-${randomNum}`);
+    const finalJobNum = ensurePrefix(jobNumberInput.trim(), 'J-');
+    const finalQuoteNum = ensurePrefix(quoteNumberInput.trim(), 'Q-');
+    const finalInvoiceNum = ensurePrefix(invoiceNumberInput.trim(), 'I-');
+    const jobNumber = buildCompositeJobId(finalJobNum, finalQuoteNum, finalInvoiceNum) || `J-${defaultRefNum} / Q-${defaultRefNum} / I-${defaultRefNum}`;
 
     let initialTasks: JobTask[] = tasks.map((t, i) => ({
       id: `task-${Date.now()}-${i}`,
@@ -373,6 +381,8 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
     const newJob: Job = {
       id: `job-${Date.now()}`,
       jobNumber,
+      quoteNumber: finalQuoteNum || undefined,
+      invoiceNumber: finalInvoiceNum || undefined,
       title: title.trim(),
       clientName: effectiveClientName,
       clientPhone: finalClientPhone,
@@ -482,33 +492,56 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
               />
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-              <div>
-                <label className="text-[10px] font-bold text-slate-600 block mb-1">
-                  Trade Category
-                </label>
-                <select
-                  value={category}
-                  onChange={e => setCategory(e.target.value as JobCategory)}
-                  className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-900 font-semibold focus:border-blue-500 outline-none"
-                >
-                  {CATEGORIES.map(cat => (
-                    <option key={cat} value={cat}>{cat}</option>
-                  ))}
-                </select>
-              </div>
+            {/* Structured Job / Quote / Invoice IDs (Trade Category hidden for now) */}
+            <div className="pt-1">
+              <label className="text-[10px] font-bold text-slate-600 block mb-1.5">
+                Job / Quote / Invoice Ref Numbers
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <label className="text-[9px] font-bold text-slate-500 block mb-1">
+                    Job #
+                  </label>
+                  <input
+                    type="text"
+                    value={jobNumberInput}
+                    onChange={e => setJobNumberInput(e.target.value)}
+                    placeholder="J-1001"
+                    className="w-full bg-white border border-slate-200 rounded-xl px-2.5 py-2 text-slate-900 font-mono text-xs font-semibold placeholder:text-slate-400 focus:border-blue-500 outline-none"
+                  />
+                </div>
 
-              <div>
-                <label className="text-[10px] font-bold text-slate-600 block mb-1">
-                  Job / Invoice ID <span className="text-slate-400 font-normal">(Optional)</span>
-                </label>
-                <input
-                  type="text"
-                  value={customJobNumber}
-                  onChange={e => setCustomJobNumber(e.target.value)}
-                  placeholder="e.g., BK-1042 / INV-99"
-                  className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-900 font-mono text-xs placeholder:text-slate-400 focus:border-blue-500 outline-none"
-                />
+                <div>
+                  <label className="text-[9px] font-bold text-slate-500 block mb-1">
+                    Quote #
+                  </label>
+                  <input
+                    type="text"
+                    value={quoteNumberInput}
+                    onChange={e => setQuoteNumberInput(e.target.value)}
+                    placeholder="Q-1001"
+                    className="w-full bg-white border border-slate-200 rounded-xl px-2.5 py-2 text-slate-900 font-mono text-xs font-semibold placeholder:text-slate-400 focus:border-blue-500 outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[9px] font-bold text-slate-500 block mb-1">
+                    Invoice #
+                  </label>
+                  <input
+                    type="text"
+                    value={invoiceNumberInput}
+                    onChange={e => setInvoiceNumberInput(e.target.value)}
+                    placeholder="I-1001"
+                    className="w-full bg-white border border-slate-200 rounded-xl px-2.5 py-2 text-slate-900 font-mono text-xs font-semibold placeholder:text-slate-400 focus:border-blue-500 outline-none"
+                  />
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5 mt-1.5 text-[10px] text-slate-400">
+                <span>Display:</span>
+                <span className="font-mono font-bold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200/60 truncate">
+                  {buildCompositeJobId(jobNumberInput, quoteNumberInput, invoiceNumberInput) || 'J-... / Q-... / I-...'}
+                </span>
               </div>
             </div>
 

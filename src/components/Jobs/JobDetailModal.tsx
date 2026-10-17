@@ -1,7 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
 import confetti from 'canvas-confetti';
 import { Job, JobStatus, HandymanProfile, JobPhoto, JobCategory, JobPriority, JobTask, CustomerSignature } from '../../types';
-import { STATUS_CONFIG, formatDateTime, formatCurrency, buildLiveNavigationUrl, buildSmsLink, buildWhatsAppLink } from '../../utils/helpers';
+import {
+  STATUS_CONFIG,
+  formatDateTime,
+  formatCurrency,
+  buildLiveNavigationUrl,
+  buildSmsLink,
+  buildWhatsAppLink,
+  ensurePrefix,
+  buildCompositeJobId,
+  parseJobIdParts,
+  formatJobDisplayId
+} from '../../utils/helpers';
 import { buildGoogleCalendarUrl, downloadIcsCalendarFile } from '../../utils/calendarExport';
 import { stitchBeforeAndAfterPhotos, processImageFile } from '../../utils/photoStitcher';
 import { generateQuotePDF } from '../../services/pdfGenerator';
@@ -190,7 +201,10 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
 
   // Full Scope / Job Edit Mode
   const [isEditing, setIsEditing] = useState(false);
-  const [editJobNumber, setEditJobNumber] = useState(job.jobNumber);
+  const initialJobIds = parseJobIdParts(job.jobNumber);
+  const [editJobNumber, setEditJobNumber] = useState(job.jobNumber.includes('/') ? initialJobIds.jobNumber : job.jobNumber);
+  const [editQuoteNumber, setEditQuoteNumber] = useState(job.quoteNumber || initialJobIds.quoteNumber || '');
+  const [editInvoiceNumber, setEditInvoiceNumber] = useState(job.invoiceNumber || initialJobIds.invoiceNumber || '');
   const [editTitle, setEditTitle] = useState(job.title);
   const [editDescription, setEditDescription] = useState(job.description);
   const [editCategory, setEditCategory] = useState<JobCategory>(job.category);
@@ -355,7 +369,10 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
 
   // Sync edit form and photo stitcher when job prop changes
   useEffect(() => {
-    setEditJobNumber(job.jobNumber);
+    const parsed = parseJobIdParts(job.jobNumber);
+    setEditJobNumber(job.jobNumber.includes('/') ? parsed.jobNumber : job.jobNumber);
+    setEditQuoteNumber(job.quoteNumber || parsed.quoteNumber || '');
+    setEditInvoiceNumber(job.invoiceNumber || parsed.invoiceNumber || '');
     setEditTitle(job.title);
     setEditDescription(job.description);
     setEditCategory(job.category);
@@ -547,9 +564,16 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
       return;
     }
     triggerHapticFeedback('success');
+    const finalJobNum = editJobNumber ? ensurePrefix(editJobNumber, 'J-') : '';
+    const finalQuoteNum = editQuoteNumber ? ensurePrefix(editQuoteNumber, 'Q-') : '';
+    const finalInvoiceNum = editInvoiceNumber ? ensurePrefix(editInvoiceNumber, 'I-') : '';
+    const compositeJobNumber = buildCompositeJobId(finalJobNum, finalQuoteNum, finalInvoiceNum) || job.jobNumber;
+
     const updatedJob: Job = {
       ...job,
-      jobNumber: editJobNumber.trim() || job.jobNumber,
+      jobNumber: compositeJobNumber,
+      quoteNumber: finalQuoteNum || undefined,
+      invoiceNumber: finalInvoiceNum || undefined,
       title: editTitle.trim() || job.title,
       description: editDescription.trim() || job.description,
       category: editCategory,
@@ -724,7 +748,7 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
               {/* Row 1: ID, Status, Category, Agency Tag */}
               <div className="flex items-center gap-1.5 flex-wrap">
                 <span className="font-mono text-[11px] font-black text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200/60 shrink-0">
-                  {job.jobNumber}
+                  {formatJobDisplayId(job)}
                 </span>
 
                 {/* Status Picker Dropdown */}
@@ -1034,15 +1058,46 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
 
                   <div>
                     <label className="text-[10px] font-black uppercase tracking-wider text-slate-500 block mb-1">
-                      Job / Bookkeep ID
+                      Job / Quote / Invoice Ref Numbers
                     </label>
-                    <input
-                      type="text"
-                      value={editJobNumber}
-                      onChange={e => setEditJobNumber(e.target.value)}
-                      placeholder="e.g., BK-1042 / INV-99"
-                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-900 font-mono text-xs font-bold focus:border-blue-500 outline-none"
-                    />
+                    <div className="grid grid-cols-3 gap-2">
+                      <div>
+                        <div className="text-[9px] font-bold text-slate-400 mb-0.5">Job #</div>
+                        <input
+                          type="text"
+                          value={editJobNumber}
+                          onChange={e => setEditJobNumber(e.target.value)}
+                          placeholder="J-1001"
+                          className="w-full bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 text-slate-900 font-mono text-xs font-bold focus:border-blue-500 outline-none"
+                        />
+                      </div>
+                      <div>
+                        <div className="text-[9px] font-bold text-slate-400 mb-0.5">Quote #</div>
+                        <input
+                          type="text"
+                          value={editQuoteNumber}
+                          onChange={e => setEditQuoteNumber(e.target.value)}
+                          placeholder="Q-1001"
+                          className="w-full bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 text-slate-900 font-mono text-xs font-bold focus:border-blue-500 outline-none"
+                        />
+                      </div>
+                      <div>
+                        <div className="text-[9px] font-bold text-slate-400 mb-0.5">Invoice #</div>
+                        <input
+                          type="text"
+                          value={editInvoiceNumber}
+                          onChange={e => setEditInvoiceNumber(e.target.value)}
+                          placeholder="I-1001"
+                          className="w-full bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 text-slate-900 font-mono text-xs font-bold focus:border-blue-500 outline-none"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5 mt-1 text-[10px] text-slate-400 font-mono">
+                      <span>Display:</span>
+                      <span className="font-bold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200/60 truncate">
+                        {buildCompositeJobId(editJobNumber, editQuoteNumber, editInvoiceNumber) || 'J-... / Q-... / I-...'}
+                      </span>
+                    </div>
                   </div>
                 </div>
 

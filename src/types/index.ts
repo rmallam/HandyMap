@@ -82,6 +82,8 @@ export interface CustomerSignature {
 export interface Job {
   id: string;
   jobNumber: string;
+  quoteNumber?: string;
+  invoiceNumber?: string;
   title: string;
   clientName: string;
   clientPhone: string;
