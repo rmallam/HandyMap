@@ -31,11 +31,10 @@ import {
 } from './services/nativeMobile';
 import { Plus, X, RefreshCw } from 'lucide-react';
 import { Header } from './components/Navigation/Header';
-import { BottomNav } from './components/Navigation/BottomNav';
+import { BottomNav, AppNavTab } from './components/Navigation/BottomNav';
 import { MapView } from './components/Map/MapView';
-import { RoutePlannerView } from './components/RoutePlanner/RoutePlannerView';
+import { DayPlanView } from './components/DayPlan/DayPlanView';
 import { JobList } from './components/Jobs/JobList';
-import { DayScheduleView } from './components/Schedule/DayScheduleView';
 import { StatsOverview } from './components/Dashboard/StatsOverview';
 import { JobDetailModal } from './components/Jobs/JobDetailModal';
 import { JobFormModal } from './components/Jobs/JobFormModal';
@@ -61,7 +60,7 @@ export function App() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
   // Navigation & Active View state
-  const [activeTab, setActiveTab] = useState<'map' | 'route' | 'jobs' | 'schedule' | 'stats'>('map');
+  const [activeTab, setActiveTab] = useState<AppNavTab>('map');
   // Shared Operational Filter state across Map & Job List
   const [selectedStatus, setSelectedStatus] = useState<JobStatus | 'all' | 'all_total'>('all');
   const [selectedDate, setSelectedDate] = useState<DateFilterType>('all');
@@ -648,8 +647,8 @@ export function App() {
           />
         )}
 
-        {activeTab === 'route' && (
-          <RoutePlannerView
+        {(activeTab === 'day_plan' || activeTab === 'route' || activeTab === 'schedule') && (
+          <DayPlanView
             jobs={jobs}
             profile={profile}
             currentLocation={currentLocation}
@@ -683,18 +682,6 @@ export function App() {
             onSelectJob={handleOpenFullJob}
             onAddNewJob={() => setIsNewJobOpen(true)}
             onOpenImport={() => setIsImportModalOpen(true)}
-          />
-        )}
-
-        {activeTab === 'schedule' && (
-          <DayScheduleView
-            jobs={jobs}
-            profile={profile}
-            onSelectJob={handleOpenFullJob}
-            onPlanRoute={() => {
-              handleGenerateRoute('quotes_only');
-              setActiveTab('route');
-            }}
           />
         )}
 
@@ -764,7 +751,7 @@ export function App() {
       />
 
       {/* Mobile Thumb-Zone Floating Action Button (FAB) */}
-      {(activeTab === 'map' || activeTab === 'jobs' || activeTab === 'route') && (
+      {(activeTab === 'map' || activeTab === 'jobs' || activeTab === 'day_plan' || activeTab === 'route') && (
         <button
           onClick={() => setIsNewJobOpen(true)}
           className="fixed bottom-[calc(4.6rem+env(safe-area-inset-bottom,0px))] right-3.5 z-30 sm:hidden bg-gradient-to-tr from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-xl shadow-blue-600/40 w-13 h-13 rounded-full flex items-center justify-center active:scale-95 transition-all duration-150 border-2 border-white/80"

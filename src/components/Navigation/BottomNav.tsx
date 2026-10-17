@@ -1,13 +1,15 @@
 import React from 'react';
-import { Map, Navigation, ClipboardList, Calendar, BarChart3 } from 'lucide-react';
+import { Map, ClipboardList, CalendarDays, BarChart3 } from 'lucide-react';
 import { triggerHapticFeedback } from '../../services/nativeMobile';
 
+export type AppNavTab = 'map' | 'jobs' | 'day_plan' | 'stats' | 'route' | 'schedule';
+
 interface BottomNavProps {
-  activeTab: 'map' | 'route' | 'jobs' | 'schedule' | 'stats';
+  activeTab: AppNavTab;
   quoteRequestsCount: number;
   remindersCount?: number;
   hasActiveRoute: boolean;
-  onSelectTab: (tab: 'map' | 'route' | 'jobs' | 'schedule' | 'stats') => void;
+  onSelectTab: (tab: AppNavTab) => void;
 }
 
 export const BottomNav: React.FC<BottomNavProps> = ({
@@ -26,13 +28,6 @@ export const BottomNav: React.FC<BottomNavProps> = ({
       badgeColor: 'bg-amber-500 text-white'
     },
     {
-      id: 'route' as const,
-      label: 'Route',
-      icon: Navigation,
-      badge: hasActiveRoute ? '⚡' : null,
-      badgeColor: 'bg-blue-600 text-white'
-    },
-    {
       id: 'jobs' as const,
       label: 'Jobs',
       icon: ClipboardList,
@@ -40,11 +35,11 @@ export const BottomNav: React.FC<BottomNavProps> = ({
       badgeColor: 'bg-red-500 text-white'
     },
     {
-      id: 'schedule' as const,
-      label: 'Schedule',
-      icon: Calendar,
-      badge: null,
-      badgeColor: ''
+      id: 'day_plan' as const,
+      label: 'Day Plan',
+      icon: CalendarDays,
+      badge: hasActiveRoute ? '⚡' : null,
+      badgeColor: 'bg-blue-600 text-white'
     },
     {
       id: 'stats' as const,
@@ -55,7 +50,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
     }
   ];
 
-  const handleTabClick = (tabId: 'map' | 'route' | 'jobs' | 'schedule' | 'stats') => {
+  const handleTabClick = (tabId: AppNavTab) => {
     triggerHapticFeedback('light');
     onSelectTab(tabId);
   };
@@ -65,7 +60,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
       <nav className="pointer-events-auto w-full max-w-lg bg-white/92 backdrop-blur-2xl border border-slate-200/90 rounded-[28px] p-1.5 shadow-[0_16px_40px_-10px_rgba(15,23,42,0.18)] flex items-center justify-between select-none ring-1 ring-black/5">
         {navItems.map(item => {
           const Icon = item.icon;
-          const isActive = activeTab === item.id;
+          const isActive = activeTab === item.id || (item.id === 'day_plan' && (activeTab === 'route' || activeTab === 'schedule'));
 
           return (
             <button
