@@ -42,6 +42,7 @@ import { ImportJobsModal } from './components/Jobs/ImportJobsModal';
 import { RemindersDrawer } from './components/Reminders/RemindersDrawer';
 import { ProfileModal } from './components/Profile/ProfileModal';
 import { AuthModal } from './components/Auth/AuthModal';
+import { ParsedWorkOrder } from './services/workOrderParser';
 
 export function App() {
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -80,8 +81,14 @@ export function App() {
   // Modals
   const [isJobDetailOpen, setIsJobDetailOpen] = useState(false);
   const [isNewJobOpen, setIsNewJobOpen] = useState(false);
+  const [initialWorkOrder, setInitialWorkOrder] = useState<{ parsed: ParsedWorkOrder; filename: string } | null>(null);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+
+  const handleImportWorkOrderFromPdf = (parsed: ParsedWorkOrder, filename: string) => {
+    setInitialWorkOrder({ parsed, filename });
+    setIsNewJobOpen(true);
+  };
 
   // Load user-specific jobs and profile from Supabase
   const loadUserData = async (userId: string, userEmail?: string | null) => {
@@ -681,8 +688,12 @@ export function App() {
             agentFilter={selectedAgent}
             onSelectAgent={setSelectedAgent}
             onSelectJob={handleOpenFullJob}
-            onAddNewJob={() => setIsNewJobOpen(true)}
+            onAddNewJob={() => {
+              setInitialWorkOrder(null);
+              setIsNewJobOpen(true);
+            }}
             onOpenImport={() => setIsImportModalOpen(true)}
+            onImportWorkOrder={handleImportWorkOrderFromPdf}
           />
         )}
 
@@ -710,9 +721,13 @@ export function App() {
       {/* Create Job / Quote Request Modal */}
       <JobFormModal
         isOpen={isNewJobOpen}
-        onClose={() => setIsNewJobOpen(false)}
+        onClose={() => {
+          setIsNewJobOpen(false);
+          setInitialWorkOrder(null);
+        }}
         onSave={handleCreateNewJob}
         currentLocation={currentLocation}
+        initialWorkOrder={initialWorkOrder}
       />
 
       {/* Bulk Excel / CSV Import Modal */}

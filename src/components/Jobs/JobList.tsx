@@ -41,8 +41,16 @@ import {
   Receipt,
   ChevronDown,
   User,
-  Clock
+  Clock,
+  UploadCloud,
+  Loader2,
+  FileUp
 } from 'lucide-react';
+import {
+  extractTextFromPdfFile,
+  parseWorkOrderText,
+  ParsedWorkOrder
+} from '../../services/workOrderParser';
 
 interface JobListProps {
   jobs: Job[];
@@ -51,6 +59,7 @@ interface JobListProps {
   onSelectJob: (job: Job) => void;
   onAddNewJob: () => void;
   onOpenImport?: () => void;
+  onImportWorkOrder?: (parsed: ParsedWorkOrder, filename: string) => void;
   // Shared Operational Filter Props
   statusFilter?: JobStatus | 'all' | 'all_total';
   onSelectStatus?: (status: JobStatus | 'all' | 'all_total') => void;
@@ -69,6 +78,7 @@ export const JobList: React.FC<JobListProps> = ({
   onSelectJob,
   onAddNewJob,
   onOpenImport,
+  onImportWorkOrder,
   statusFilter: propStatusFilter,
   onSelectStatus: propOnSelectStatus,
   dateFilter: propDateFilter,
@@ -79,6 +89,35 @@ export const JobList: React.FC<JobListProps> = ({
   onSelectAgent: propOnSelectAgent
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [isQuickImporting, setIsQuickImporting] = useState(false);
+  const quickPdfInputRef = React.useRef<HTMLInputElement>(null);
+
+  const handleQuickPdfFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsQuickImporting(true);
+    try {
+      triggerHapticFeedback('light');
+      const text = await extractTextFromPdfFile(file);
+      if (!text || text.trim().length < 15) {
+        alert('Could not extract digital text from this PDF.');
+        return;
+      }
+      const parsed = parseWorkOrderText(text);
+      if (onImportWorkOrder) {
+        onImportWorkOrder(parsed, file.name);
+      } else {
+        onAddNewJob();
+      }
+    } catch (err) {
+      console.error('Failed to parse PDF:', err);
+      alert('Failed to read PDF. Opening manual form instead.');
+      onAddNewJob();
+    } finally {
+      setIsQuickImporting(false);
+      if (quickPdfInputRef.current) quickPdfInputRef.current.value = '';
+    }
+  };
   const [internalStatusFilter, setInternalStatusFilter] = useState<JobStatus | 'all' | 'all_total'>('all');
   const [internalDateFilter, setInternalDateFilter] = useState<DateFilterType>('all');
   const [internalAgencyFilter, setInternalAgencyFilter] = useState<string>('all');
@@ -262,16 +301,35 @@ export const JobList: React.FC<JobListProps> = ({
           </div>
         </div>
 
+        {/* Hidden file input for 1-tap PDF selection from Jobs screen */}
+        <input
+          type="file"
+          ref={quickPdfInputRef}
+          accept=".pdf,application/pdf"
+          onChange={handleQuickPdfFileSelect}
+          className="hidden"
+        />
+
         <button
           type="button"
+          disabled={isQuickImporting}
           onClick={() => {
             triggerHapticFeedback('light');
-            onAddNewJob();
+            quickPdfInputRef.current?.click();
           }}
-          className="shrink-0 inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold text-xs shadow-xs transition"
+          className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold text-xs shadow-xs transition disabled:opacity-50"
         >
-          <span>Import PDF</span>
-          <ArrowRight className="w-3.5 h-3.5" />
+          {isQuickImporting ? (
+            <>
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              <span>Reading...</span>
+            </>
+          ) : (
+            <>
+              <UploadCloud className="w-3.5 h-3.5" />
+              <span>Select PDF</span>
+            </>
+          )}
         </button>
       </div>
 

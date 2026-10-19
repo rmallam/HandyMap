@@ -60,6 +60,7 @@ interface JobFormModalProps {
   onClose: () => void;
   onSave: (newJob: Job) => void;
   currentLocation: [number, number];
+  initialWorkOrder?: { parsed: ParsedWorkOrder; filename: string } | null;
 }
 
 const CATEGORIES: JobCategory[] = [
@@ -81,7 +82,8 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
   isOpen,
   onClose,
   onSave,
-  currentLocation
+  currentLocation,
+  initialWorkOrder
 }) => {
   if (!isOpen) return null;
 
@@ -262,18 +264,43 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
       setImportErrorMsg(null);
       setShowPasteBox(false);
       setPastedText('');
-      setNteLimitInput('');
-      setTenant1Name('');
-      setTenant1Phone('');
-      setTenant1Email('');
-      setTenant2Name('');
-      setTenant2Phone('');
-      setTenant2Email('');
-      setRealEstateAgentEmail('');
-      setShowTenant2(false);
-      setShowDirectTenants(false);
+      if (initialWorkOrder) {
+        handleApplyParsedWorkOrder(initialWorkOrder.parsed, initialWorkOrder.filename);
+      } else {
+        setTitle('');
+        setClientName('');
+        setClientPhone('');
+        setClientEmail('');
+        setAddress('');
+        setSuburb('Point Cook');
+        setSelectedCoordinates(null);
+        setCategory('General Repair');
+        setPriority('medium');
+        setStatus('quote_requested');
+        setDescription('');
+        setTasks([]);
+        setJobNumberInput('J-');
+        setQuoteNumberInput('Q-');
+        setInvoiceNumberInput('I-');
+        setNteLimitInput('');
+        setIsAgencyJob(false);
+        setRealEstateAgency('');
+        setRealEstateAgentName('');
+        setRealEstateAgentPhone('');
+        setRealEstateAgentEmail('');
+        setWorkOrderNumber('');
+        setTenant1Name('');
+        setTenant1Phone('');
+        setTenant1Email('');
+        setTenant2Name('');
+        setTenant2Phone('');
+        setTenant2Email('');
+        setRealEstateAgentEmail('');
+        setShowTenant2(false);
+        setShowDirectTenants(false);
+      }
     }
-  }, [isOpen]);
+  }, [isOpen, initialWorkOrder]);
 
   // Visual helper badge for 10-digit phone inputs
   const renderPhoneBadge = (phoneStr: string) => {
@@ -620,7 +647,8 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
         <form onSubmit={handleSubmit} className="p-4 sm:p-6 overflow-y-auto flex flex-col gap-4 text-xs">
           
           {/* ----------------------------------------------------------------- */}
-          {/* WORK ORDER PDF / EMAIL AUTO-FILL BANNER (100% Free, Zero AI Cost) */}
+          {/* ----------------------------------------------------------------- */}
+          {/* WORK ORDER PDF / EMAIL AUTO-FILL HERO CARD                        */}
           {/* ----------------------------------------------------------------- */}
           <div
             onDragOver={e => {
@@ -638,10 +666,10 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
             }}
             className={`relative rounded-2xl border transition-all duration-200 overflow-hidden ${
               isDraggingPdf
-                ? 'bg-blue-100/90 border-blue-500 ring-2 ring-blue-400 shadow-md scale-[1.01]'
+                ? 'bg-blue-100 border-blue-500 ring-4 ring-blue-400/30 shadow-lg scale-[1.01]'
                 : importSuccessMsg
-                ? 'bg-emerald-50/70 border-emerald-300 shadow-2xs'
-                : 'bg-gradient-to-r from-blue-50/70 via-indigo-50/50 to-slate-50 border-blue-200/80 shadow-2xs'
+                ? 'bg-emerald-50 border-emerald-300 shadow-xs'
+                : 'bg-gradient-to-br from-slate-900 via-indigo-950 to-blue-950 text-white border-slate-800 shadow-md'
             }`}
           >
             {/* Hidden file input */}
@@ -657,116 +685,116 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
             />
 
             <div className="p-3.5 sm:p-4">
-              {/* Header row */}
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2.5">
-                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
-                    importSuccessMsg
-                      ? 'bg-emerald-600 text-white shadow-xs'
-                      : 'bg-gradient-to-tr from-blue-600 to-indigo-600 text-white shadow-xs'
-                  }`}>
-                    {isImportingPdf ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : importSuccessMsg ? (
-                      <Check className="w-4 h-4 stroke-[3]" />
-                    ) : (
-                      <FileUp className="w-4 h-4 stroke-[2.2]" />
-                    )}
-                  </div>
-
-                  <div>
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="font-black text-slate-900 text-xs sm:text-sm tracking-tight">
-                        Auto-Fill from Work Order
-                      </span>
-                      <span className="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 border border-blue-200">
-                        FREE • Instant
-                      </span>
+              {importSuccessMsg ? (
+                /* Success State Banner */
+                <div className="flex items-center justify-between gap-3 text-emerald-900">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                      <Check className="w-5 h-5 stroke-[3]" />
                     </div>
-                    <p className="text-[11px] text-slate-500 font-medium">
-                      Drop Reliance, Ray White or PropertyMe PDF to fill fields instantly
-                    </p>
+                    <div className="min-w-0">
+                      <div className="font-black text-xs sm:text-sm text-emerald-950 truncate">
+                        {importSuccessMsg}
+                      </div>
+                      <p className="text-[11px] text-emerald-700 truncate">
+                        Form auto-filled with address, tenants, property manager & scope!
+                      </p>
+                    </div>
                   </div>
-                </div>
 
-                {/* Primary Action Buttons */}
-                <div className="flex items-center gap-1.5 shrink-0">
                   <button
                     type="button"
-                    disabled={isImportingPdf}
                     onClick={() => {
                       triggerHapticFeedback('light');
                       pdfInputRef.current?.click();
                     }}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold text-xs shadow-xs transition disabled:opacity-50"
+                    className="shrink-0 px-3 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs shadow-xs active:scale-95 transition"
                   >
-                    {isImportingPdf ? (
-                      <>
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        <span>Reading...</span>
-                      </>
-                    ) : (
-                      <>
-                        <UploadCloud className="w-3.5 h-3.5" />
-                        <span>Upload PDF</span>
-                      </>
-                    )}
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      triggerHapticFeedback('light');
-                      setShowPasteBox(!showPasteBox);
-                    }}
-                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 font-bold text-xs active:scale-95 transition"
-                    title="Paste email text"
-                  >
-                    <Clipboard className="w-3.5 h-3.5 text-slate-500" />
-                    <span className="hidden sm:inline">Paste</span>
+                    Change PDF
                   </button>
                 </div>
-              </div>
-
-              {/* Success Badge */}
-              {importSuccessMsg && (
-                <div className="mt-2.5 pt-2.5 border-t border-emerald-200/80 flex items-center justify-between text-xs text-emerald-800 font-semibold animate-in fade-in">
-                  <div className="flex items-center gap-1.5 truncate">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <span className="truncate">{importSuccessMsg}</span>
+              ) : (
+                /* High-Visibility Upload Banner */
+                <div className="space-y-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-9 h-9 rounded-xl bg-blue-500/20 text-blue-400 border border-blue-400/30 flex items-center justify-center shrink-0">
+                        <FileUp className="w-5 h-5 stroke-[2.2]" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="font-black text-sm text-white tracking-tight">
+                            Auto-Fill from Work Order PDF
+                          </span>
+                          <span className="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-blue-500/30 text-blue-200 border border-blue-400/30">
+                            100% Free
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-300">
+                          Drop Reliance, Ray White or PropertyMe PDF to fill fields instantly
+                        </p>
+                      </div>
+                    </div>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setImportSuccessMsg(null);
-                      triggerHapticFeedback('light');
-                    }}
-                    className="text-[10px] text-emerald-700 hover:text-emerald-900 underline font-bold shrink-0 ml-2"
-                  >
-                    Dismiss
-                  </button>
+
+                  {/* Big Action Buttons */}
+                  <div className="grid grid-cols-2 gap-2 pt-1">
+                    <button
+                      type="button"
+                      disabled={isImportingPdf}
+                      onClick={() => {
+                        triggerHapticFeedback('light');
+                        pdfInputRef.current?.click();
+                      }}
+                      className="w-full py-2.5 px-3 rounded-xl bg-blue-500 hover:bg-blue-600 active:scale-95 text-white font-black text-xs shadow-md shadow-blue-500/30 transition flex items-center justify-center gap-2 disabled:opacity-50"
+                    >
+                      {isImportingPdf ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span>Reading PDF...</span>
+                        </>
+                      ) : (
+                        <>
+                          <UploadCloud className="w-4 h-4" />
+                          <span>Select PDF File</span>
+                        </>
+                      )}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        triggerHapticFeedback('light');
+                        setShowPasteBox(!showPasteBox);
+                      }}
+                      className="w-full py-2.5 px-3 rounded-xl bg-white/10 hover:bg-white/20 active:scale-95 text-white font-bold text-xs border border-white/20 transition flex items-center justify-center gap-1.5"
+                    >
+                      <Clipboard className="w-4 h-4 text-blue-300" />
+                      <span>{showPasteBox ? 'Close Paste' : 'Paste Email'}</span>
+                    </button>
+                  </div>
                 </div>
               )}
 
               {/* Error Notice */}
               {importErrorMsg && (
-                <div className="mt-2.5 pt-2.5 border-t border-rose-200 flex items-center gap-1.5 text-xs text-rose-700 font-medium animate-in fade-in">
-                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                <div className="mt-3 p-2.5 rounded-xl bg-rose-500/20 border border-rose-500/40 text-rose-200 text-xs flex items-center gap-2 animate-in fade-in">
+                  <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
                   <span>{importErrorMsg}</span>
                 </div>
               )}
 
               {/* Expandable Quick Paste Box */}
               {showPasteBox && (
-                <div className="mt-3 pt-3 border-t border-blue-200/60 space-y-2 animate-in fade-in">
+                <div className="mt-3 pt-3 border-t border-white/15 space-y-2 animate-in fade-in">
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">
+                    <span className="text-[10px] font-bold text-slate-300 uppercase tracking-wider">
                       Paste Work Order Email or Text:
                     </span>
                     <button
                       type="button"
                       onClick={() => setShowPasteBox(false)}
-                      className="text-[10px] text-slate-400 hover:text-slate-600"
+                      className="text-[10px] text-slate-400 hover:text-white"
                     >
                       Cancel
                     </button>
@@ -775,15 +803,15 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
                     rows={3}
                     value={pastedText}
                     onChange={e => setPastedText(e.target.value)}
-                    placeholder="Paste email body or text from Reliance, Ray White, etc. (e.g. Property: 111/38 Clark St, Tenant: Priyanka...)"
-                    className="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs text-slate-800 placeholder:text-slate-400 focus:border-blue-500 outline-none resize-none font-mono"
+                    placeholder="Paste email body or text (e.g. Property: 111/38 Clark St, Tenant: Priyanka 0434...)"
+                    className="w-full bg-slate-900/90 border border-slate-700 text-white rounded-xl p-2.5 text-xs placeholder:text-slate-500 focus:border-blue-400 outline-none resize-none font-mono"
                   />
                   <div className="flex justify-end">
                     <button
                       type="button"
                       disabled={!pastedText.trim() || isImportingPdf}
                       onClick={handlePastedTextSubmit}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs disabled:opacity-40 transition active:scale-95"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-500 hover:bg-blue-600 text-white font-bold text-xs disabled:opacity-40 transition active:scale-95"
                     >
                       <Sparkles className="w-3.5 h-3.5" />
                       <span>Parse & Auto-Fill Form</span>
