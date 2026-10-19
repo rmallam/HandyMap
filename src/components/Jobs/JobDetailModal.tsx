@@ -36,7 +36,12 @@ import {
   findCustomerByPhone,
   saveOrUpdateCustomer,
   saveOrUpdateAgent,
-  SavedCustomer
+  loadSavedAgents,
+  searchSavedAgents,
+  findAgentByPhone,
+  findAgentsByAgency,
+  SavedCustomer,
+  SavedAgent
 } from '../../services/contactDirectory';
 import {
   X,
@@ -238,22 +243,8 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
   const [isAddressCopied, setIsAddressCopied] = useState(false);
   const [isCalendarMenuOpen, setIsCalendarMenuOpen] = useState(false);
   const calendarMenuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent | TouchEvent) => {
-      if (calendarMenuRef.current && !calendarMenuRef.current.contains(e.target as Node)) {
-        setIsCalendarMenuOpen(false);
-      }
-    };
-    if (isCalendarMenuOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-      document.addEventListener('touchstart', handleClickOutside);
-    }
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('touchstart', handleClickOutside);
-    };
-  }, [isCalendarMenuOpen]);
+  const editAgentSectionRef = useRef<HTMLDivElement>(null);
+  const editCustomerSectionRef = useRef<HTMLDivElement>(null);
 
   const handleCopyAddress = (e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
@@ -368,6 +359,110 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
     setShowEditCustomerDropdown(false);
     setEditPhoneMatchedCustomer(null);
   };
+
+  // Contact Directory: Saved Agents for Real Estate
+  const [savedAgents, setSavedAgents] = useState<SavedAgent[]>([]);
+  const [editAgentSuggestions, setEditAgentSuggestions] = useState<SavedAgent[]>([]);
+  const [showEditAgentDropdown, setShowEditAgentDropdown] = useState(false);
+  const [editActiveAgentField, setEditActiveAgentField] = useState<'agency' | 'agentName' | null>(null);
+  const [editPhoneMatchedAgent, setEditPhoneMatchedAgent] = useState<SavedAgent | null>(null);
+
+  // Load saved agents on mount and whenever entering edit mode
+  useEffect(() => {
+    setSavedAgents(loadSavedAgents());
+  }, [isEditing]);
+
+  const handleSelectEditAgent = (agent: SavedAgent) => {
+    triggerHapticFeedback('success');
+    setEditRealEstateAgency(agent.agencyName);
+    setEditRealEstateAgentName(agent.agentName);
+    setEditRealEstateAgentPhone(formatPhoneNumber(agent.agentPhone));
+    setEditRealEstateAgentEmail(agent.agentEmail || '');
+    setShowEditAgentDropdown(false);
+    setEditPhoneMatchedAgent(null);
+  };
+
+  const handleEditAgencyChange = (val: string) => {
+    setEditRealEstateAgency(val);
+    setEditActiveAgentField('agency');
+    if (val.trim().length >= 2) {
+      const matches = searchSavedAgents(val, 5);
+      setEditAgentSuggestions(matches);
+      setShowEditAgentDropdown(matches.length > 0);
+
+      // Auto-populate if exact match and single agent saved and PM name is not yet custom
+      const exactMatchAgents = matches.filter(a => a.agencyName.toLowerCase() === val.trim().toLowerCase());
+      if (exactMatchAgents.length === 1 && (!editRealEstateAgentName || editRealEstateAgentName === 'Property Manager')) {
+        const ag = exactMatchAgents[0];
+        setEditRealEstateAgentName(ag.agentName);
+        setEditRealEstateAgentPhone(formatPhoneNumber(ag.agentPhone));
+        if (ag.agentEmail) setEditRealEstateAgentEmail(ag.agentEmail);
+      }
+    } else {
+      setEditAgentSuggestions([]);
+      setShowEditAgentDropdown(false);
+    }
+  };
+
+  const handleEditAgentNameChange = (val: string) => {
+    setEditRealEstateAgentName(val);
+    setEditActiveAgentField('agentName');
+    if (val.trim().length >= 2) {
+      const matches = searchSavedAgents(val, 5);
+      setEditAgentSuggestions(matches);
+      setShowEditAgentDropdown(matches.length > 0);
+
+      // If exact agent name match and agency is empty, auto-populate agency, phone, email
+      const exactMatches = matches.filter(a => a.agentName.toLowerCase() === val.trim().toLowerCase());
+      if (exactMatches.length === 1 && !editRealEstateAgency) {
+        const ag = exactMatches[0];
+        setEditRealEstateAgency(ag.agencyName);
+        setEditRealEstateAgentPhone(formatPhoneNumber(ag.agentPhone));
+        if (ag.agentEmail) setEditRealEstateAgentEmail(ag.agentEmail);
+      }
+    } else {
+      setEditAgentSuggestions([]);
+      setShowEditAgentDropdown(false);
+    }
+  };
+
+  const handleEditAgentPhoneChange = (val: string) => {
+    const formatted = formatPhoneNumber(val);
+    setEditRealEstateAgentPhone(formatted);
+    const digits = cleanPhoneNumber(formatted);
+    if (digits.length >= 8) {
+      const found = findAgentByPhone(digits);
+      if (found && (found.agentName.toLowerCase() !== editRealEstateAgentName.trim().toLowerCase() || found.agencyName.toLowerCase() !== editRealEstateAgency.trim().toLowerCase())) {
+        setEditPhoneMatchedAgent(found);
+      } else {
+        setEditPhoneMatchedAgent(null);
+      }
+    } else {
+      setEditPhoneMatchedAgent(null);
+    }
+  };
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent | TouchEvent) => {
+      if (calendarMenuRef.current && !calendarMenuRef.current.contains(e.target as Node)) {
+        setIsCalendarMenuOpen(false);
+      }
+      if (editAgentSectionRef.current && !editAgentSectionRef.current.contains(e.target as Node)) {
+        setShowEditAgentDropdown(false);
+      }
+      if (editCustomerSectionRef.current && !editCustomerSectionRef.current.contains(e.target as Node)) {
+        setShowEditCustomerDropdown(false);
+      }
+    };
+    if (isCalendarMenuOpen || showEditAgentDropdown || showEditCustomerDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('touchstart', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, [isCalendarMenuOpen, showEditAgentDropdown, showEditCustomerDropdown]);
 
   // Sync edit form and photo stitcher when job prop changes
   useEffect(() => {
@@ -1255,7 +1350,7 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
               </div>
 
               {/* Group 2: Client & Address */}
-              <div className="bg-slate-50/80 rounded-2xl border border-slate-200/80 p-3.5 space-y-3">
+              <div ref={editCustomerSectionRef} className="bg-slate-50/80 rounded-2xl border border-slate-200/80 p-3.5 space-y-3">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 relative">
                   <div className="relative">
                     <label className="text-[10px] font-black uppercase tracking-wider text-slate-500 block mb-1">
@@ -1425,34 +1520,154 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                   </div>
 
                   {editIsAgencyJob && (
-                    <div className="bg-purple-50/60 rounded-xl p-3 border border-purple-200 space-y-2.5 animate-in fade-in">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <div ref={editAgentSectionRef} className="bg-purple-50/60 rounded-xl p-3 border border-purple-200 space-y-2.5 animate-in fade-in">
+                      {/* Quick Select Saved Agents */}
+                      {savedAgents.length > 0 && (
                         <div>
+                          <div className="text-[10px] font-bold text-purple-800 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                            <Sparkles className="w-3 h-3 text-purple-600" />
+                            <span>Quick Select Saved Agency Contact:</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+                            {savedAgents.slice(0, 6).map(ag => (
+                              <button
+                                key={ag.id}
+                                type="button"
+                                onClick={() => handleSelectEditAgent(ag)}
+                                className="px-2.5 py-1.5 rounded-xl bg-white border border-purple-200 hover:border-purple-400 text-purple-900 font-bold text-[11px] whitespace-nowrap shadow-xs transition active:scale-95 flex items-center gap-1.5 cursor-pointer"
+                              >
+                                <Building2 className="w-3 h-3 text-purple-600" />
+                                <span>{ag.agencyName}</span>
+                                <span className="text-purple-400">•</span>
+                                <span className="text-purple-700">{ag.agentName}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Known agents for selected agency */}
+                      {editRealEstateAgency.trim() && (() => {
+                        const agencyAgents = savedAgents.filter(a =>
+                          a.agencyName.toLowerCase() === editRealEstateAgency.trim().toLowerCase() ||
+                          editRealEstateAgency.trim().toLowerCase().includes(a.agencyName.toLowerCase())
+                        );
+                        if (agencyAgents.length === 0) return null;
+                        return (
+                          <div className="flex items-center gap-1.5 flex-wrap p-2 rounded-xl bg-purple-100/60 border border-purple-200">
+                            <span className="text-[10px] font-bold text-purple-900 flex items-center gap-1">
+                              <Sparkles className="w-3 h-3 text-purple-600" />
+                              Saved contacts for this agency:
+                            </span>
+                            {agencyAgents.map(ag => (
+                              <button
+                                key={ag.id}
+                                type="button"
+                                onClick={() => handleSelectEditAgent(ag)}
+                                className="px-2 py-0.5 rounded-lg bg-white hover:bg-purple-50 text-purple-900 font-bold text-[10px] border border-purple-200 transition active:scale-95 cursor-pointer flex items-center gap-1"
+                              >
+                                <span>{ag.agentName}</span>
+                                <span className="text-purple-600 font-mono text-[9px]">({ag.agentPhone})</span>
+                              </button>
+                            ))}
+                          </div>
+                        );
+                      })()}
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        {/* Agency Partner */}
+                        <div className="relative">
                           <label className="text-[10px] font-bold text-purple-950 block mb-1">Agency Partner</label>
                           <input
                             type="text"
                             list="agency-options"
                             value={editRealEstateAgency}
-                            onChange={e => setEditRealEstateAgency(e.target.value)}
+                            onChange={e => handleEditAgencyChange(e.target.value)}
+                            onFocus={() => {
+                              if (editRealEstateAgency.trim().length >= 2) {
+                                const matches = searchSavedAgents(editRealEstateAgency, 5);
+                                setEditAgentSuggestions(matches);
+                                setEditActiveAgentField('agency');
+                                setShowEditAgentDropdown(matches.length > 0);
+                              }
+                            }}
                             placeholder="e.g. Ray White Point Cook"
-                            className="w-full bg-white border border-purple-200 rounded-xl px-2.5 py-1.5 text-xs text-slate-900 outline-none"
+                            className="w-full bg-white border border-purple-200 rounded-xl px-2.5 py-1.5 text-xs text-slate-900 outline-none focus:border-purple-600"
                           />
                           <datalist id="agency-options">
                             {REAL_ESTATE_AGENCIES.map(agency => (
                               <option key={agency} value={agency} />
                             ))}
                           </datalist>
+
+                          {/* Agent Suggestions Dropdown under Agency */}
+                          {showEditAgentDropdown && editActiveAgentField === 'agency' && editAgentSuggestions.length > 0 && (
+                            <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-purple-200 rounded-2xl shadow-xl z-50 overflow-hidden divide-y divide-purple-100 animate-in fade-in">
+                              {editAgentSuggestions.map(ag => (
+                                <div
+                                  key={ag.id}
+                                  onClick={() => handleSelectEditAgent(ag)}
+                                  className="p-2.5 hover:bg-purple-50 cursor-pointer transition flex items-center justify-between"
+                                >
+                                  <div>
+                                    <div className="font-bold text-purple-950 text-xs">{ag.agencyName}</div>
+                                    <div className="text-[11px] text-purple-700">
+                                      {ag.agentName} • {ag.agentPhone}{ag.agentEmail ? ` • ${ag.agentEmail}` : ''}
+                                    </div>
+                                  </div>
+                                  <span className="text-[10px] font-black text-purple-600 bg-purple-100 px-2 py-0.5 rounded-full border border-purple-200">
+                                    Auto-fill
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
-                        <div>
+
+                        {/* Property Manager Name */}
+                        <div className="relative">
                           <label className="text-[10px] font-bold text-purple-950 block mb-1">Property Manager Name</label>
                           <input
                             type="text"
                             value={editRealEstateAgentName}
-                            onChange={e => setEditRealEstateAgentName(e.target.value)}
+                            onChange={e => handleEditAgentNameChange(e.target.value)}
+                            onFocus={() => {
+                              if (editRealEstateAgentName.trim().length >= 2) {
+                                const matches = searchSavedAgents(editRealEstateAgentName, 5);
+                                setEditAgentSuggestions(matches);
+                                setEditActiveAgentField('agentName');
+                                setShowEditAgentDropdown(matches.length > 0);
+                              }
+                            }}
                             placeholder="e.g. Sarah Jenkins"
-                            className="w-full bg-white border border-purple-200 rounded-xl px-2.5 py-1.5 text-xs text-slate-900 outline-none"
+                            className="w-full bg-white border border-purple-200 rounded-xl px-2.5 py-1.5 text-xs text-slate-900 outline-none focus:border-purple-600"
                           />
+
+                          {/* Agent Suggestions Dropdown under Property Manager Name */}
+                          {showEditAgentDropdown && editActiveAgentField === 'agentName' && editAgentSuggestions.length > 0 && (
+                            <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-purple-200 rounded-2xl shadow-xl z-50 overflow-hidden divide-y divide-purple-100 animate-in fade-in">
+                              {editAgentSuggestions.map(ag => (
+                                <div
+                                  key={ag.id}
+                                  onClick={() => handleSelectEditAgent(ag)}
+                                  className="p-2.5 hover:bg-purple-50 cursor-pointer transition flex items-center justify-between"
+                                >
+                                  <div>
+                                    <div className="font-bold text-purple-950 text-xs">{ag.agentName}</div>
+                                    <div className="text-[11px] text-purple-700">
+                                      {ag.agencyName} • {ag.agentPhone}{ag.agentEmail ? ` • ${ag.agentEmail}` : ''}
+                                    </div>
+                                  </div>
+                                  <span className="text-[10px] font-black text-purple-600 bg-purple-100 px-2 py-0.5 rounded-full border border-purple-200">
+                                    Auto-fill
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
+
+                        {/* Property Manager Phone */}
                         <div>
                           <div className="flex items-center justify-between mb-1">
                             <label className="text-[10px] font-bold text-purple-950">Property Manager Phone</label>
@@ -1461,11 +1676,13 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                           <input
                             type="tel"
                             value={editRealEstateAgentPhone}
-                            onChange={e => setEditRealEstateAgentPhone(formatPhoneNumber(e.target.value))}
+                            onChange={e => handleEditAgentPhoneChange(e.target.value)}
                             placeholder="0412 888 901"
-                            className="w-full bg-white border border-purple-200 rounded-xl px-2.5 py-1.5 text-xs text-slate-900 font-mono outline-none"
+                            className="w-full bg-white border border-purple-200 rounded-xl px-2.5 py-1.5 text-xs text-slate-900 font-mono outline-none focus:border-purple-600"
                           />
                         </div>
+
+                        {/* Property Manager / Agent Email */}
                         <div>
                           <label className="text-[10px] font-bold text-purple-950 block mb-1">Property Manager / Agent Email</label>
                           <input
@@ -1473,9 +1690,32 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                             value={editRealEstateAgentEmail}
                             onChange={e => setEditRealEstateAgentEmail(e.target.value)}
                             placeholder="sarah.j@raywhite.com"
-                            className="w-full bg-white border border-purple-200 rounded-xl px-2.5 py-1.5 text-xs text-slate-900 outline-none"
+                            className="w-full bg-white border border-purple-200 rounded-xl px-2.5 py-1.5 text-xs text-slate-900 outline-none focus:border-purple-600"
                           />
                         </div>
+
+                        {/* Smart Phone Match Banner for Agent Phone */}
+                        {editPhoneMatchedAgent && (
+                          <div className="sm:col-span-2 p-2.5 rounded-xl bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 flex items-center justify-between gap-2 animate-in fade-in">
+                            <div className="min-w-0">
+                              <div className="font-bold text-purple-950 text-xs flex items-center gap-1">
+                                <Sparkles className="w-3.5 h-3.5 text-purple-600 shrink-0" />
+                                <span className="truncate">Saved Agent: {editPhoneMatchedAgent.agentName} ({editPhoneMatchedAgent.agencyName})</span>
+                              </div>
+                              <div className="text-[10px] text-purple-700 truncate mt-0.5">
+                                {editPhoneMatchedAgent.agentPhone} {editPhoneMatchedAgent.agentEmail && `• ${editPhoneMatchedAgent.agentEmail}`}
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleSelectEditAgent(editPhoneMatchedAgent)}
+                              className="px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-bold text-xs shrink-0 shadow-xs cursor-pointer active:scale-95"
+                            >
+                              Auto-fill
+                            </button>
+                          </div>
+                        )}
+
                         <div className="sm:col-span-2">
                           <label className="text-[10px] font-bold text-purple-950 block mb-1">Agency Work Order / Reference # (Optional)</label>
                           <input

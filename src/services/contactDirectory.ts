@@ -268,7 +268,7 @@ export function harvestContactsFromJobs(jobs: Job[]): { customersCount: number; 
     }
 
     // 2. Real Estate Agent
-    if (job.isAgencyJob && job.realEstateAgency && job.realEstateAgency.trim().length > 1) {
+    if ((job.isAgencyJob || job.realEstateAgency) && job.realEstateAgency && job.realEstateAgency.trim().length > 1) {
       const aAgency = job.realEstateAgency.trim();
       const aName = job.realEstateAgentName?.trim() || 'General PM';
       const aPhone = job.realEstateAgentPhone?.trim() || '';
@@ -290,6 +290,7 @@ export function harvestContactsFromJobs(jobs: Job[]): { customersCount: number; 
         const existing = agentMap.get(aKey)!;
         existing.useCount = (existing.useCount || 1) + 1;
         if (!existing.agentPhone && aPhone) existing.agentPhone = aPhone;
+        if (!existing.agentEmail && aEmail) existing.agentEmail = aEmail;
       }
     }
   });
@@ -358,3 +359,24 @@ export function searchSavedAgents(query: string, limit = 5): SavedAgent[] {
     })
     .slice(0, limit);
 }
+
+/**
+ * Match a phone number directly to see if this agent already exists
+ */
+export function findAgentByPhone(phone: string): SavedAgent | null {
+  const cleanPhone = normalizePhone(phone);
+  if (!cleanPhone || cleanPhone.length < 8) return null;
+  const list = loadSavedAgents();
+  return list.find(a => normalizePhone(a.agentPhone) === cleanPhone) || null;
+}
+
+/**
+ * Find saved agents matching an agency name
+ */
+export function findAgentsByAgency(agencyName: string): SavedAgent[] {
+  const clean = agencyName.trim().toLowerCase();
+  if (!clean) return [];
+  const list = loadSavedAgents();
+  return list.filter(a => a.agencyName.toLowerCase() === clean || a.agencyName.toLowerCase().includes(clean));
+}
+

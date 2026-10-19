@@ -49,6 +49,8 @@ import {
   searchSavedCustomers,
   searchSavedAgents,
   findCustomerByPhone,
+  findAgentByPhone,
+  findAgentsByAgency,
   saveOrUpdateCustomer,
   saveOrUpdateAgent,
   SavedCustomer,
@@ -135,8 +137,12 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
   const [agentSuggestions, setAgentSuggestions] = useState<SavedAgent[]>([]);
   const [showAgentDropdown, setShowAgentDropdown] = useState(false);
+  const [activeAgentField, setActiveAgentField] = useState<'agency' | 'agentName' | null>(null);
+  const [matchedAgentByPhone, setMatchedAgentByPhone] = useState<SavedAgent | null>(null);
   const [matchedCustomerByPhone, setMatchedCustomerByPhone] = useState<SavedCustomer | null>(null);
   const [showSavedCustomersList, setShowSavedCustomersList] = useState(false);
+  const agentSectionRef = useRef<HTMLDivElement>(null);
+  const customerSectionRef = useRef<HTMLDivElement>(null);
 
   // Work Order Importer State (100% Free, zero AI cost)
   const [isImportingPdf, setIsImportingPdf] = useState(false);
@@ -374,10 +380,20 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
   // Agency change with autocomplete search
   const handleAgencyChange = (val: string) => {
     setRealEstateAgency(val);
+    setActiveAgentField('agency');
     if (val.trim().length >= 2) {
-      const matches = searchSavedAgents(val, 4);
+      const matches = searchSavedAgents(val, 5);
       setAgentSuggestions(matches);
       setShowAgentDropdown(matches.length > 0);
+
+      // Auto-populate if exact match and single agent saved and PM name is not yet custom
+      const exactMatchAgents = matches.filter(a => a.agencyName.toLowerCase() === val.trim().toLowerCase());
+      if (exactMatchAgents.length === 1 && (!realEstateAgentName || realEstateAgentName === 'Property Manager')) {
+        const ag = exactMatchAgents[0];
+        setRealEstateAgentName(ag.agentName);
+        setRealEstateAgentPhone(formatPhoneNumber(ag.agentPhone));
+        if (ag.agentEmail) setRealEstateAgentEmail(ag.agentEmail);
+      }
     } else {
       setAgentSuggestions([]);
       setShowAgentDropdown(false);
@@ -387,13 +403,40 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
   // Agent Name change with autocomplete search
   const handleAgentNameChange = (val: string) => {
     setRealEstateAgentName(val);
+    setActiveAgentField('agentName');
     if (val.trim().length >= 2) {
-      const matches = searchSavedAgents(val, 4);
+      const matches = searchSavedAgents(val, 5);
       setAgentSuggestions(matches);
       setShowAgentDropdown(matches.length > 0);
+
+      // If exact agent name match and agency is empty, auto-populate agency, phone, email
+      const exactMatches = matches.filter(a => a.agentName.toLowerCase() === val.trim().toLowerCase());
+      if (exactMatches.length === 1 && !realEstateAgency) {
+        const ag = exactMatches[0];
+        setRealEstateAgency(ag.agencyName);
+        setRealEstateAgentPhone(formatPhoneNumber(ag.agentPhone));
+        if (ag.agentEmail) setRealEstateAgentEmail(ag.agentEmail);
+      }
     } else {
       setAgentSuggestions([]);
       setShowAgentDropdown(false);
+    }
+  };
+
+  // Agent Phone change with smart directory match
+  const handleRealEstateAgentPhoneChange = (val: string) => {
+    const formatted = formatPhoneNumber(val);
+    setRealEstateAgentPhone(formatted);
+    const digits = cleanPhoneNumber(formatted);
+    if (digits.length >= 8) {
+      const found = findAgentByPhone(digits);
+      if (found && (found.agentName.toLowerCase() !== realEstateAgentName.trim().toLowerCase() || found.agencyName.toLowerCase() !== realEstateAgency.trim().toLowerCase())) {
+        setMatchedAgentByPhone(found);
+      } else {
+        setMatchedAgentByPhone(null);
+      }
+    } else {
+      setMatchedAgentByPhone(null);
     }
   };
 
@@ -402,10 +445,31 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
     triggerHapticFeedback('success');
     setRealEstateAgency(agent.agencyName);
     setRealEstateAgentName(agent.agentName);
-    setRealEstateAgentPhone(agent.agentPhone);
+    setRealEstateAgentPhone(formatPhoneNumber(agent.agentPhone));
     setRealEstateAgentEmail(agent.agentEmail || '');
     setShowAgentDropdown(false);
+    setMatchedAgentByPhone(null);
   };
+
+  // Click outside to dismiss suggestions dropdowns
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent | TouchEvent) => {
+      if (agentSectionRef.current && !agentSectionRef.current.contains(e.target as Node)) {
+        setShowAgentDropdown(false);
+      }
+      if (customerSectionRef.current && !customerSectionRef.current.contains(e.target as Node)) {
+        setShowCustomerDropdown(false);
+      }
+    };
+    if (showAgentDropdown || showCustomerDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('touchstart', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, [showAgentDropdown, showCustomerDropdown]);
 
   const handleAddressSelect = (result: AddressResult) => {
     setAddress(result.address);
@@ -967,7 +1031,7 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
             </label>
 
             {isAgencyJob && (
-              <div className="space-y-3 pt-3 mt-3 border-t border-purple-200/80 animate-in fade-in">
+              <div ref={agentSectionRef} className="space-y-3 pt-3 mt-3 border-t border-purple-200/80 animate-in fade-in">
                 {/* Saved Agents Quick-Select Chips */}
                 {savedAgents.length > 0 && (
                   <div className="space-y-1.5">
@@ -975,12 +1039,12 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
                       Saved Property Managers ({savedAgents.length})
                     </span>
                     <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1">
-                      {savedAgents.slice(0, 5).map(ag => (
+                      {savedAgents.slice(0, 6).map(ag => (
                         <button
                           key={ag.id}
                           type="button"
                           onClick={() => handleSelectAgent(ag)}
-                          className="px-2.5 py-1.5 rounded-xl bg-white border border-purple-200 hover:border-purple-400 text-purple-900 font-bold text-[11px] whitespace-nowrap shadow-xs transition active:scale-95 flex items-center gap-1.5"
+                          className="px-2.5 py-1.5 rounded-xl bg-white border border-purple-200 hover:border-purple-400 text-purple-900 font-bold text-[11px] whitespace-nowrap shadow-xs transition active:scale-95 flex items-center gap-1.5 cursor-pointer"
                         >
                           <Building2 className="w-3 h-3 text-purple-600" />
                           <span>{ag.agencyName}</span>
@@ -992,7 +1056,36 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
                   </div>
                 )}
 
+                {/* Known agents for selected agency */}
+                {realEstateAgency.trim() && (() => {
+                  const agencyAgents = savedAgents.filter(a =>
+                    a.agencyName.toLowerCase() === realEstateAgency.trim().toLowerCase() ||
+                    realEstateAgency.trim().toLowerCase().includes(a.agencyName.toLowerCase())
+                  );
+                  if (agencyAgents.length === 0) return null;
+                  return (
+                    <div className="flex items-center gap-1.5 flex-wrap p-2 rounded-xl bg-purple-100/60 border border-purple-200">
+                      <span className="text-[10px] font-bold text-purple-900 flex items-center gap-1">
+                        <Sparkles className="w-3 h-3 text-purple-600" />
+                        Saved contacts for this agency:
+                      </span>
+                      {agencyAgents.map(ag => (
+                        <button
+                          key={ag.id}
+                          type="button"
+                          onClick={() => handleSelectAgent(ag)}
+                          className="px-2 py-0.5 rounded-lg bg-white hover:bg-purple-50 text-purple-900 font-bold text-[10px] border border-purple-200 transition active:scale-95 cursor-pointer flex items-center gap-1"
+                        >
+                          <span>{ag.agentName}</span>
+                          <span className="text-purple-600 font-mono text-[9px]">({ag.agentPhone})</span>
+                        </button>
+                      ))}
+                    </div>
+                  );
+                })()}
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 relative">
+                  {/* Agency Partner */}
                   <div className="relative">
                     <label className="text-[10px] font-bold text-purple-950 block mb-1">
                       Agency Partner *
@@ -1003,6 +1096,14 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
                       list="agency-suggestions"
                       value={realEstateAgency}
                       onChange={e => handleAgencyChange(e.target.value)}
+                      onFocus={() => {
+                        if (realEstateAgency.trim().length >= 2) {
+                          const matches = searchSavedAgents(realEstateAgency, 5);
+                          setAgentSuggestions(matches);
+                          setActiveAgentField('agency');
+                          setShowAgentDropdown(matches.length > 0);
+                        }
+                      }}
                       placeholder="e.g., Ray White Point Cook"
                       className="w-full bg-white border border-purple-200 rounded-xl px-3 py-2 text-slate-900 font-semibold outline-none focus:border-purple-600"
                     />
@@ -1012,8 +1113,8 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
                       ))}
                     </datalist>
 
-                    {/* Agent Suggestions Dropdown */}
-                    {showAgentDropdown && agentSuggestions.length > 0 && (
+                    {/* Agent Suggestions Dropdown under Agency Partner */}
+                    {showAgentDropdown && activeAgentField === 'agency' && agentSuggestions.length > 0 && (
                       <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-purple-200 rounded-2xl shadow-xl z-50 overflow-hidden divide-y divide-purple-100 animate-in fade-in">
                         {agentSuggestions.map(ag => (
                           <div
@@ -1027,8 +1128,8 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
                                 {ag.agentName} • {ag.agentPhone}{ag.agentEmail ? ` • ${ag.agentEmail}` : ''}
                               </div>
                             </div>
-                            <span className="text-[10px] font-black text-purple-600 bg-purple-100 px-2 py-0.5 rounded-full">
-                              Use Agent
+                            <span className="text-[10px] font-black text-purple-600 bg-purple-100 px-2 py-0.5 rounded-full border border-purple-200">
+                              Auto-fill
                             </span>
                           </div>
                         ))}
@@ -1036,7 +1137,8 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
                     )}
                   </div>
 
-                  <div>
+                  {/* Property Manager Name */}
+                  <div className="relative">
                     <label className="text-[10px] font-bold text-purple-950 block mb-1">
                       Property Manager Name
                     </label>
@@ -1044,11 +1146,43 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
                       type="text"
                       value={realEstateAgentName}
                       onChange={e => handleAgentNameChange(e.target.value)}
+                      onFocus={() => {
+                        if (realEstateAgentName.trim().length >= 2) {
+                          const matches = searchSavedAgents(realEstateAgentName, 5);
+                          setAgentSuggestions(matches);
+                          setActiveAgentField('agentName');
+                          setShowAgentDropdown(matches.length > 0);
+                        }
+                      }}
                       placeholder="e.g., Sarah Jenkins"
-                      className="w-full bg-white border border-purple-200 rounded-xl px-3 py-2 text-slate-900 outline-none"
+                      className="w-full bg-white border border-purple-200 rounded-xl px-3 py-2 text-slate-900 outline-none focus:border-purple-600"
                     />
+
+                    {/* Agent Suggestions Dropdown under Property Manager Name */}
+                    {showAgentDropdown && activeAgentField === 'agentName' && agentSuggestions.length > 0 && (
+                      <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-purple-200 rounded-2xl shadow-xl z-50 overflow-hidden divide-y divide-purple-100 animate-in fade-in">
+                        {agentSuggestions.map(ag => (
+                          <div
+                            key={ag.id}
+                            onClick={() => handleSelectAgent(ag)}
+                            className="p-2.5 hover:bg-purple-50 cursor-pointer transition flex items-center justify-between"
+                          >
+                            <div>
+                              <div className="font-bold text-purple-950 text-xs">{ag.agentName}</div>
+                              <div className="text-[11px] text-purple-700">
+                                {ag.agencyName} • {ag.agentPhone}{ag.agentEmail ? ` • ${ag.agentEmail}` : ''}
+                              </div>
+                            </div>
+                            <span className="text-[10px] font-black text-purple-600 bg-purple-100 px-2 py-0.5 rounded-full border border-purple-200">
+                              Auto-fill
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
+                  {/* Property Manager Phone */}
                   <div>
                     <div className="flex items-center justify-between mb-1">
                       <label className="text-[10px] font-bold text-purple-950">
@@ -1059,12 +1193,13 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
                     <input
                       type="tel"
                       value={realEstateAgentPhone}
-                      onChange={e => setRealEstateAgentPhone(formatPhoneNumber(e.target.value))}
+                      onChange={e => handleRealEstateAgentPhoneChange(e.target.value)}
                       placeholder="e.g., 0412 888 901"
                       className="w-full bg-white border border-purple-200 rounded-xl px-3 py-2 text-slate-900 font-mono text-xs outline-none focus:border-purple-600"
                     />
                   </div>
 
+                  {/* Property Manager / Agent Email */}
                   <div>
                     <label className="text-[10px] font-bold text-purple-950 block mb-1">
                       Property Manager / Agent Email
@@ -1077,6 +1212,28 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
                       className="w-full bg-white border border-purple-200 rounded-xl px-3 py-2 text-slate-900 text-xs outline-none focus:border-purple-600"
                     />
                   </div>
+
+                  {/* Smart Phone Match Banner for Agent Phone */}
+                  {matchedAgentByPhone && (
+                    <div className="sm:col-span-2 p-2.5 rounded-xl bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 flex items-center justify-between gap-2 animate-in fade-in">
+                      <div className="min-w-0">
+                        <div className="font-bold text-purple-950 text-xs flex items-center gap-1">
+                          <Sparkles className="w-3.5 h-3.5 text-purple-600 shrink-0" />
+                          <span className="truncate">Saved Agent: {matchedAgentByPhone.agentName} ({matchedAgentByPhone.agencyName})</span>
+                        </div>
+                        <div className="text-[10px] text-purple-700 truncate mt-0.5">
+                          {matchedAgentByPhone.agentPhone} {matchedAgentByPhone.agentEmail && `• ${matchedAgentByPhone.agentEmail}`}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleSelectAgent(matchedAgentByPhone)}
+                        className="px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-bold text-xs shrink-0 shadow-xs cursor-pointer active:scale-95"
+                      >
+                        Auto-fill
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {/* On-Site Tenant Details (Tenant 1 & Tenant 2) */}
@@ -1276,7 +1433,7 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
             {/* Client Information Fields (When NOT agency job) */}
             {!isAgencyJob && (
               <>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 relative">
+                <div ref={customerSectionRef} className="grid grid-cols-1 sm:grid-cols-2 gap-3 relative">
                   <div className="relative">
                     <label className="text-[10px] font-bold text-slate-600 block mb-1">
                       Client Full Name *
