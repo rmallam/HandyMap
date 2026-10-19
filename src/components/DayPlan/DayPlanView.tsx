@@ -14,7 +14,8 @@ import {
   calculateDateFilterCounts,
   buildGoogleMapsRouteUrl,
   buildLiveNavigationUrl,
-  calculateDistanceKm
+  calculateDistanceKm,
+  formatJobDisplayId
 } from '../../utils/helpers';
 import {
   Navigation,
@@ -838,6 +839,12 @@ export const DayPlanView: React.FC<DayPlanViewProps> = ({
                         {stop.isCompleted ? '✓' : stop.stopOrder}
                       </button>
 
+                      {formatJobDisplayId(job) && (
+                        <span className="font-mono text-[10px] font-black text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200/90 shadow-2xs">
+                          {formatJobDisplayId(job)}
+                        </span>
+                      )}
+
                       {job.appointmentTime && (
                         <span className="font-mono text-xs font-black text-blue-700 bg-blue-50 px-2 py-0.2 rounded-md border border-blue-200/80">
                           {formatTime(job.appointmentTime)}
@@ -1097,6 +1104,11 @@ export const DayPlanView: React.FC<DayPlanViewProps> = ({
                     >
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-1.5 flex-wrap mb-1">
+                          {formatJobDisplayId(j) && (
+                            <span className="font-mono text-[9px] font-black text-slate-700 bg-slate-100 px-1.5 py-0.2 rounded border border-slate-200/80">
+                              {formatJobDisplayId(j)}
+                            </span>
+                          )}
                           <span className={`text-[9px] font-black uppercase px-2 py-0.2 rounded-full border ${statusCfg.bgClass} ${statusCfg.textClass} ${statusCfg.borderClass}`}>
                             {statusCfg.shortLabel}
                           </span>

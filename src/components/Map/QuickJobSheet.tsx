@@ -6,7 +6,8 @@ import {
   calculateDistanceKm,
   buildLiveNavigationUrl,
   buildSmsLink,
-  formatDateTime
+  formatDateTime,
+  formatJobDisplayId
 } from '../../utils/helpers';
 import { triggerHapticFeedback } from '../../services/nativeMobile';
 import {
@@ -57,6 +58,7 @@ export const QuickJobSheet: React.FC<QuickJobSheetProps> = ({
   const handymanName = profile?.name?.trim() || 'Alex';
   const businessName = profile?.businessName?.trim() || 'Apex Handyman';
   const defaultSmsMsg = `Hi ${job.clientName}, this is ${handymanName} from ${businessName}. I'm reviewing your request for ${job.title}. When is a good time for me to stop by for the quote?`;
+  const displayId = formatJobDisplayId(job);
 
   const handleActionTap = (action: () => void) => {
     triggerHapticFeedback('light');
@@ -73,6 +75,12 @@ export const QuickJobSheet: React.FC<QuickJobSheetProps> = ({
         {/* Header row */}
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-2 flex-wrap">
+            {displayId && (
+              <span className="font-mono text-xs font-black text-slate-800 bg-slate-100 px-2.5 py-1 rounded-xl border border-slate-200/90 shadow-2xs flex items-center gap-1.5 shrink-0">
+                <FileText className="w-3.5 h-3.5 text-slate-500" />
+                <span>{displayId}</span>
+              </span>
+            )}
             <span
               className={`text-[11px] font-black uppercase tracking-wider px-3 py-1 rounded-full border flex items-center gap-1.5 shadow-xs ${statusCfg.bgClass} ${statusCfg.textClass} ${statusCfg.borderClass}`}
             >
@@ -88,7 +96,7 @@ export const QuickJobSheet: React.FC<QuickJobSheetProps> = ({
 
           <button
             onClick={() => handleActionTap(onClose)}
-            className="p-1.5 rounded-full text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition active:scale-95"
+            className="p-1.5 rounded-full text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition active:scale-95 shrink-0"
           >
             <X className="w-5 h-5" />
           </button>

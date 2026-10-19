@@ -2,7 +2,7 @@ import React from 'react';
 import { Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import { Job, RouteStop } from '../../types';
-import { STATUS_CONFIG, formatCurrency } from '../../utils/helpers';
+import { STATUS_CONFIG, formatCurrency, formatJobDisplayId } from '../../utils/helpers';
 import { Phone, ArrowRight, Clock, MapPin, Building2 } from 'lucide-react';
 import { triggerHapticFeedback } from '../../services/nativeMobile';
 
@@ -24,6 +24,7 @@ export const JobMarker: React.FC<JobMarkerProps> = ({
   const statusCfg = STATUS_CONFIG[job.status];
   const isUrgent = job.status === 'urgent' || job.priority === 'urgent';
   const isQuoteReq = job.status === 'quote_requested';
+  const displayId = formatJobDisplayId(job);
 
   // Create Apple Maps / Uber style luxury 3D pin icon
   const createCustomIcon = () => {
@@ -88,14 +89,21 @@ export const JobMarker: React.FC<JobMarkerProps> = ({
     >
       <Popup className="custom-leaflet-popup">
         <div className="p-4 min-w-[260px] text-slate-900 bg-white/95 backdrop-blur-xl rounded-[24px] shadow-2xl border border-slate-200/90 ring-1 ring-black/5">
-          <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
-            <span
-              className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full border shadow-xs ${statusCfg.bgClass} ${statusCfg.textClass} ${statusCfg.borderClass}`}
-            >
-              {statusCfg.shortLabel}
-            </span>
+          <div className="flex items-center justify-between gap-1.5 mb-2 flex-wrap">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {displayId && (
+                <span className="font-mono text-[10px] font-black text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200/90 shadow-2xs shrink-0">
+                  {displayId}
+                </span>
+              )}
+              <span
+                className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full border shadow-xs ${statusCfg.bgClass} ${statusCfg.textClass} ${statusCfg.borderClass}`}
+              >
+                {statusCfg.shortLabel}
+              </span>
+            </div>
             {job.isAgencyJob && job.realEstateAgency && (
-              <span className="text-[10px] font-extrabold text-purple-900 bg-purple-100/80 border border-purple-200 px-2.5 py-0.5 rounded-full flex items-center gap-1 shadow-xs">
+              <span className="text-[10px] font-extrabold text-purple-900 bg-purple-100/80 border border-purple-200 px-2.5 py-0.5 rounded-full flex items-center gap-1 shadow-xs ml-auto">
                 🏢 {job.realEstateAgency.split(' ')[0]}
               </span>
             )}

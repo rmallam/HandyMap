@@ -417,13 +417,15 @@ export function formatJobDisplayId(job: {
   jobNumber: string;
   quoteNumber?: string;
   invoiceNumber?: string;
+  quote?: { quoteNumber?: string };
 }): string {
   if (!job) return '';
   if (job.jobNumber && job.jobNumber.includes('/')) {
     return job.jobNumber;
   }
-  if (job.quoteNumber || job.invoiceNumber) {
-    return buildCompositeJobId(job.jobNumber, job.quoteNumber, job.invoiceNumber);
+  const qNum = job.quoteNumber || job.quote?.quoteNumber;
+  if (qNum || job.invoiceNumber) {
+    return buildCompositeJobId(job.jobNumber, qNum, job.invoiceNumber);
   }
   return job.jobNumber || '';
 }
