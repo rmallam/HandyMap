@@ -65,9 +65,17 @@ export function App() {
   // Shared Operational Filter state across Map & Job List
   const [selectedStatus, setSelectedStatus] = useState<JobStatus | 'all' | 'all_total'>('all');
   const [selectedDate, setSelectedDate] = useState<DateFilterType>('all');
+  const [customDateStart, setCustomDateStart] = useState<string>('');
+  const [customDateEnd, setCustomDateEnd] = useState<string>('');
   const [selectedAgency, setSelectedAgency] = useState<string>('all');
   const [selectedAgent, setSelectedAgent] = useState<string>('all');
   const [selectedSuburb, setSelectedSuburb] = useState<string>('all');
+
+  const handleSelectDateRange = (startDate: string, endDate: string) => {
+    setCustomDateStart(startDate);
+    setCustomDateEnd(endDate);
+    setSelectedDate('date_range');
+  };
   
   // Selection and Route state
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
@@ -637,6 +645,8 @@ export function App() {
             selectedJob={selectedJob}
             selectedStatus={selectedStatus}
             selectedDate={selectedDate}
+            customDateStart={customDateStart}
+            customDateEnd={customDateEnd}
             selectedAgency={selectedAgency}
             selectedAgent={selectedAgent}
             selectedSuburb={selectedSuburb}
@@ -644,6 +654,7 @@ export function App() {
             onSelectJob={setSelectedJob}
             onSelectStatus={setSelectedStatus}
             onSelectDate={setSelectedDate}
+            onSelectDateRange={handleSelectDateRange}
             onSelectAgency={setSelectedAgency}
             onSelectAgent={setSelectedAgent}
             onSelectSuburb={setSelectedSuburb}
@@ -683,6 +694,9 @@ export function App() {
             onSelectStatus={setSelectedStatus}
             dateFilter={selectedDate}
             onSelectDate={setSelectedDate}
+            customDateStart={customDateStart}
+            customDateEnd={customDateEnd}
+            onSelectDateRange={handleSelectDateRange}
             agencyFilter={selectedAgency}
             onSelectAgency={setSelectedAgency}
             agentFilter={selectedAgent}

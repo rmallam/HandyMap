@@ -9,6 +9,7 @@ import {
   buildSmsLink,
   buildWhatsAppLink,
   ensurePrefix,
+  stripIdPrefix,
   buildCompositeJobId,
   parseJobIdParts,
   formatJobDisplayId,
@@ -209,9 +210,15 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
   // Full Scope / Job Edit Mode
   const [isEditing, setIsEditing] = useState(false);
   const initialJobIds = parseJobIdParts(job.jobNumber);
-  const [editJobNumber, setEditJobNumber] = useState(job.jobNumber.includes('/') ? initialJobIds.jobNumber : (job.jobNumber || 'J-'));
-  const [editQuoteNumber, setEditQuoteNumber] = useState(job.quoteNumber || initialJobIds.quoteNumber || 'Q-');
-  const [editInvoiceNumber, setEditInvoiceNumber] = useState(job.invoiceNumber || initialJobIds.invoiceNumber || 'I-');
+  const [editJobNumber, setEditJobNumber] = useState(
+    stripIdPrefix(job.jobNumber.includes('/') ? initialJobIds.jobNumber : job.jobNumber, 'J')
+  );
+  const [editQuoteNumber, setEditQuoteNumber] = useState(
+    stripIdPrefix(job.quoteNumber || initialJobIds.quoteNumber, 'Q')
+  );
+  const [editInvoiceNumber, setEditInvoiceNumber] = useState(
+    stripIdPrefix(job.invoiceNumber || initialJobIds.invoiceNumber, 'I')
+  );
   const [editTitle, setEditTitle] = useState(job.title);
   const [editDescription, setEditDescription] = useState(job.description);
   const [editCategory, setEditCategory] = useState<JobCategory>(job.category);
@@ -467,9 +474,9 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
   // Sync edit form and photo stitcher when job prop changes
   useEffect(() => {
     const parsed = parseJobIdParts(job.jobNumber);
-    setEditJobNumber(job.jobNumber.includes('/') ? parsed.jobNumber : (job.jobNumber || 'J-'));
-    setEditQuoteNumber(job.quoteNumber || parsed.quoteNumber || 'Q-');
-    setEditInvoiceNumber(job.invoiceNumber || parsed.invoiceNumber || 'I-');
+    setEditJobNumber(stripIdPrefix(job.jobNumber.includes('/') ? parsed.jobNumber : job.jobNumber, 'J'));
+    setEditQuoteNumber(stripIdPrefix(job.quoteNumber || parsed.quoteNumber, 'Q'));
+    setEditInvoiceNumber(stripIdPrefix(job.invoiceNumber || parsed.invoiceNumber, 'I'));
     setEditTitle(job.title);
     setEditDescription(job.description);
     setEditCategory(job.category);
@@ -804,8 +811,23 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
         <div className="p-3 sm:p-4 border-b border-slate-200/80 flex items-center justify-between gap-2.5 bg-white shrink-0">
           {isEditing ? (
             <div className="flex items-center justify-between w-full">
-              {/* TOP LEFT SAVE & CANCEL BUTTONS */}
+              {/* Top Left: Job Display ID badge */}
+              <span className="font-mono text-[11px] font-black text-slate-700 bg-slate-100 px-2 py-0.5 rounded-lg border border-slate-200/90 shadow-2xs shrink-0">
+                {formatJobDisplayId(job)}
+              </span>
+
+              {/* Top Right: Cancel and Save Changes buttons */}
               <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    triggerHapticFeedback('light');
+                    setIsEditing(false);
+                  }}
+                  className="px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition active:scale-95"
+                >
+                  Cancel
+                </button>
                 <button
                   type="button"
                   onClick={() => handleSaveAllJobEdits()}
@@ -813,30 +835,6 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                 >
                   <Save className="w-3.5 h-3.5 stroke-[2.5]" />
                   <span>Save Changes</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    triggerHapticFeedback('light');
-                    setIsEditing(false);
-                  }}
-                  className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition active:scale-95"
-                >
-                  Cancel
-                </button>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-slate-500 hidden sm:inline">Editing Job Scope</span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    triggerHapticFeedback('light');
-                    setIsEditing(false);
-                  }}
-                  className="p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 transition shrink-0"
-                >
-                  <X className="w-4 h-4" />
                 </button>
               </div>
             </div>
@@ -885,8 +883,8 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                 <span className="font-bold text-slate-900 shrink-0 truncate max-w-[120px]">{job.clientName}</span>
                 <span className="text-slate-300 shrink-0">•</span>
                 <div className="flex items-center gap-1 min-w-0 flex-1">
-                  <MapPin className="w-3 h-3 text-blue-600 shrink-0" />
-                  <span className="truncate text-slate-600 font-medium text-[11px]">{job.address}</span>
+                  <MapPin className="w-3.5 h-3.5 text-blue-600 shrink-0 stroke-[2.5]" />
+                  <span className="truncate text-slate-950 font-black text-xs sm:text-[13px]">{job.address}</span>
                   <button
                     type="button"
                     onClick={handleCopyAddress}
@@ -1166,39 +1164,58 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                     <div className="grid grid-cols-3 gap-2">
                       <div>
                         <div className="text-[9px] font-bold text-slate-400 mb-0.5">Job #</div>
-                        <input
-                          type="text"
-                          value={editJobNumber}
-                          onChange={e => setEditJobNumber(e.target.value)}
-                          placeholder="J-1001"
-                          className="w-full bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 text-slate-900 font-mono text-xs font-bold focus:border-blue-500 outline-none"
-                        />
+                        <div className="flex items-center rounded-xl border border-slate-200 bg-white overflow-hidden focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500">
+                          <span className="px-2 py-1.5 text-xs font-mono font-bold text-slate-400 bg-slate-50 border-r border-slate-200 select-none">
+                            J-
+                          </span>
+                          <input
+                            type="text"
+                            value={stripIdPrefix(editJobNumber, 'J')}
+                            onChange={e => setEditJobNumber(stripIdPrefix(e.target.value, 'J'))}
+                            placeholder="1001"
+                            className="w-full bg-transparent px-2 py-1.5 text-slate-900 font-mono text-xs font-bold outline-none"
+                          />
+                        </div>
                       </div>
                       <div>
                         <div className="text-[9px] font-bold text-slate-400 mb-0.5">Quote #</div>
-                        <input
-                          type="text"
-                          value={editQuoteNumber}
-                          onChange={e => setEditQuoteNumber(e.target.value)}
-                          placeholder="Q-1001"
-                          className="w-full bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 text-slate-900 font-mono text-xs font-bold focus:border-blue-500 outline-none"
-                        />
+                        <div className="flex items-center rounded-xl border border-slate-200 bg-white overflow-hidden focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500">
+                          <span className="px-2 py-1.5 text-xs font-mono font-bold text-slate-400 bg-slate-50 border-r border-slate-200 select-none">
+                            Q-
+                          </span>
+                          <input
+                            type="text"
+                            value={stripIdPrefix(editQuoteNumber, 'Q')}
+                            onChange={e => setEditQuoteNumber(stripIdPrefix(e.target.value, 'Q'))}
+                            placeholder="1001"
+                            className="w-full bg-transparent px-2 py-1.5 text-slate-900 font-mono text-xs font-bold outline-none"
+                          />
+                        </div>
                       </div>
                       <div>
                         <div className="text-[9px] font-bold text-slate-400 mb-0.5">Invoice #</div>
-                        <input
-                          type="text"
-                          value={editInvoiceNumber}
-                          onChange={e => setEditInvoiceNumber(e.target.value)}
-                          placeholder="I-1001"
-                          className="w-full bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 text-slate-900 font-mono text-xs font-bold focus:border-blue-500 outline-none"
-                        />
+                        <div className="flex items-center rounded-xl border border-slate-200 bg-white overflow-hidden focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500">
+                          <span className="px-2 py-1.5 text-xs font-mono font-bold text-slate-400 bg-slate-50 border-r border-slate-200 select-none">
+                            I-
+                          </span>
+                          <input
+                            type="text"
+                            value={stripIdPrefix(editInvoiceNumber, 'I')}
+                            onChange={e => setEditInvoiceNumber(stripIdPrefix(e.target.value, 'I'))}
+                            placeholder="1001"
+                            className="w-full bg-transparent px-2 py-1.5 text-slate-900 font-mono text-xs font-bold outline-none"
+                          />
+                        </div>
                       </div>
                     </div>
                     <div className="flex items-center gap-1.5 mt-1 text-[10px] text-slate-400 font-mono">
                       <span>Display:</span>
                       <span className="font-bold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200/60 truncate">
-                        {buildCompositeJobId(editJobNumber, editQuoteNumber, editInvoiceNumber) || job.jobNumber}
+                        {buildCompositeJobId(
+                          editJobNumber ? ensurePrefix(editJobNumber, 'J-') : '',
+                          editQuoteNumber ? ensurePrefix(editQuoteNumber, 'Q-') : '',
+                          editInvoiceNumber ? ensurePrefix(editInvoiceNumber, 'I-') : ''
+                        ) || job.jobNumber}
                       </span>
                     </div>
                   </div>

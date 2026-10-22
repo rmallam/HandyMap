@@ -13,11 +13,14 @@ interface MapFiltersProps {
   selectedAgency?: string;
   selectedAgent?: string;
   selectedDate?: DateFilterType;
+  customDateStart?: string;
+  customDateEnd?: string;
   onSelectStatus: (status: JobStatus | 'all' | 'all_total') => void;
   onSelectSuburb?: (suburb: string) => void;
   onSelectAgency?: (agency: string) => void;
   onSelectAgent?: (agent: string) => void;
   onSelectDate?: (date: DateFilterType) => void;
+  onSelectDateRange?: (startDate: string, endDate: string) => void;
   onOptimizeQuotesRoute: () => void;
   isOptimizing?: boolean;
   hasActiveRoute?: boolean;
@@ -33,11 +36,14 @@ export const MapFilters: React.FC<MapFiltersProps> = ({
   selectedAgency = 'all',
   selectedAgent = 'all',
   selectedDate = 'all',
+  customDateStart = '',
+  customDateEnd = '',
   onSelectStatus,
   onSelectSuburb,
   onSelectAgency,
   onSelectAgent,
   onSelectDate,
+  onSelectDateRange,
   onOptimizeQuotesRoute,
   isOptimizing,
   hasActiveRoute,
@@ -95,9 +101,9 @@ export const MapFilters: React.FC<MapFiltersProps> = ({
     suburbCounts[sub] = (suburbCounts[sub] || 0) + 1;
   });
 
-  // Calculate live counts for Today, Tomorrow, and This Week for active open jobs
+  // Calculate live counts for Today, Yesterday, Tomorrow, This Week, Last Week, Date Range for active open jobs
   const activeOpenJobs = jobs.filter(j => j.status !== 'invoiced' && j.status !== 'cancelled');
-  const dateCounts = calculateDateFilterCounts(activeOpenJobs);
+  const dateCounts = calculateDateFilterCounts(activeOpenJobs, new Date(), customDateStart, customDateEnd);
 
   // Calculate active filter count for mobile badge
   let activeFiltersCount = 0;
@@ -140,7 +146,7 @@ export const MapFilters: React.FC<MapFiltersProps> = ({
          targetAgent.includes(jobAgent))
       );
     }
-    const matchesDate = matchesDateFilter(job, selectedDate);
+    const matchesDate = matchesDateFilter(job, selectedDate, new Date(), customDateStart, customDateEnd);
 
     return matchesStatus && matchesSuburb && matchesAgency && matchesAgent && matchesDate;
   }).length;
@@ -151,8 +157,11 @@ export const MapFilters: React.FC<MapFiltersProps> = ({
     if (selectedDate !== 'all') {
       const dateLabels: Record<string, string> = {
         today: 'Today',
+        yesterday: 'Yesterday',
         tomorrow: 'Tomorrow',
-        this_week: 'This Week'
+        this_week: 'This Week',
+        last_week: 'Last Week',
+        date_range: customDateStart || customDateEnd ? `${customDateStart || 'Start'} to ${customDateEnd || 'End'}` : 'Date Range'
       };
       parts.push(dateLabels[selectedDate] || selectedDate);
     }
@@ -341,6 +350,21 @@ export const MapFilters: React.FC<MapFiltersProps> = ({
                     </button>
 
                     <button
+                      onClick={() => onSelectDate('yesterday')}
+                      className={`py-2 px-3 rounded-xl font-bold flex items-center justify-between border transition ${
+                        selectedDate === 'yesterday'
+                          ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-blue-600 shadow-sm'
+                          : 'bg-blue-50/70 text-blue-800 border-blue-200 hover:bg-blue-100'
+                      }`}
+                    >
+                      <span className="flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+                        Yesterday
+                      </span>
+                      <span className="text-[10px] font-bold">{dateCounts.yesterday}</span>
+                    </button>
+
+                    <button
                       onClick={() => onSelectDate('tomorrow')}
                       className={`py-2 px-3 rounded-xl font-bold flex items-center justify-between border transition ${
                         selectedDate === 'tomorrow'
@@ -369,7 +393,69 @@ export const MapFilters: React.FC<MapFiltersProps> = ({
                       </span>
                       <span className="text-[10px] font-bold">{dateCounts.this_week}</span>
                     </button>
+
+                    <button
+                      onClick={() => onSelectDate('last_week')}
+                      className={`py-2 px-3 rounded-xl font-bold flex items-center justify-between border transition ${
+                        selectedDate === 'last_week'
+                          ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-blue-600 shadow-sm'
+                          : 'bg-blue-50/70 text-blue-800 border-blue-200 hover:bg-blue-100'
+                      }`}
+                    >
+                      <span className="flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-purple-500"></span>
+                        Last Week
+                      </span>
+                      <span className="text-[10px] font-bold">{dateCounts.last_week}</span>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        onSelectDate('date_range');
+                        if (!customDateStart) {
+                          const past7 = new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0];
+                          const todayStr = new Date().toISOString().split('T')[0];
+                          onSelectDateRange?.(past7, todayStr);
+                        }
+                      }}
+                      className={`col-span-2 py-2 px-3 rounded-xl font-bold flex items-center justify-between border transition ${
+                        selectedDate === 'date_range'
+                          ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-blue-600 shadow-sm'
+                          : 'bg-blue-50/70 text-blue-800 border-blue-200 hover:bg-blue-100'
+                      }`}
+                    >
+                      <span className="flex items-center gap-1.5">
+                        <Calendar className="w-3.5 h-3.5" />
+                        Custom Date Range
+                      </span>
+                      <span className="text-[10px] font-bold">{dateCounts.date_range}</span>
+                    </button>
                   </div>
+
+                  {selectedDate === 'date_range' && (
+                    <div className="mt-2 p-2.5 rounded-xl bg-blue-50/80 border border-blue-200 flex flex-col gap-2">
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div>
+                          <label className="text-[9px] font-bold text-slate-500 block mb-0.5">Start Date</label>
+                          <input
+                            type="date"
+                            value={customDateStart}
+                            onChange={e => onSelectDateRange?.(e.target.value, customDateEnd || '')}
+                            className="w-full bg-white border border-blue-200 rounded-lg px-2 py-1 text-slate-800 font-semibold text-xs outline-none focus:ring-1 focus:ring-blue-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[9px] font-bold text-slate-500 block mb-0.5">End Date</label>
+                          <input
+                            type="date"
+                            value={customDateEnd}
+                            onChange={e => onSelectDateRange?.(customDateStart || '', e.target.value)}
+                            className="w-full bg-white border border-blue-200 rounded-lg px-2 py-1 text-slate-800 font-semibold text-xs outline-none focus:ring-1 focus:ring-blue-500"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -842,6 +928,22 @@ export const MapFilters: React.FC<MapFiltersProps> = ({
               <button
                 onClick={() => {
                   triggerHapticFeedback('light');
+                  onSelectDate('yesterday');
+                }}
+                className={`px-2.5 py-1 rounded-xl text-xs font-black transition active:scale-95 flex items-center gap-1.5 ${
+                  selectedDate === 'yesterday'
+                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                }`}
+              >
+                <span>Yesterday</span>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                  selectedDate === 'yesterday' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'
+                }`}>{dateCounts.yesterday}</span>
+              </button>
+              <button
+                onClick={() => {
+                  triggerHapticFeedback('light');
                   onSelectDate('tomorrow');
                 }}
                 className={`px-2.5 py-1 rounded-xl text-xs font-black transition active:scale-95 flex items-center gap-1.5 ${
@@ -871,6 +973,61 @@ export const MapFilters: React.FC<MapFiltersProps> = ({
                   selectedDate === 'this_week' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'
                 }`}>{dateCounts.this_week}</span>
               </button>
+              <button
+                onClick={() => {
+                  triggerHapticFeedback('light');
+                  onSelectDate('last_week');
+                }}
+                className={`px-2.5 py-1 rounded-xl text-xs font-black transition active:scale-95 flex items-center gap-1.5 ${
+                  selectedDate === 'last_week'
+                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                }`}
+              >
+                <span>Last Week</span>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                  selectedDate === 'last_week' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'
+                }`}>{dateCounts.last_week}</span>
+              </button>
+              <button
+                onClick={() => {
+                  triggerHapticFeedback('light');
+                  onSelectDate('date_range');
+                  if (!customDateStart) {
+                    const past7 = new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0];
+                    const todayStr = new Date().toISOString().split('T')[0];
+                    onSelectDateRange?.(past7, todayStr);
+                  }
+                }}
+                className={`px-2.5 py-1 rounded-xl text-xs font-black transition active:scale-95 flex items-center gap-1.5 ${
+                  selectedDate === 'date_range'
+                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                }`}
+              >
+                <span>Date Range</span>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                  selectedDate === 'date_range' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'
+                }`}>{dateCounts.date_range}</span>
+              </button>
+
+              {selectedDate === 'date_range' && (
+                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-blue-50 border border-blue-200 text-xs shrink-0 animate-in fade-in">
+                  <input
+                    type="date"
+                    value={customDateStart}
+                    onChange={e => onSelectDateRange?.(e.target.value, customDateEnd || '')}
+                    className="bg-white border border-blue-200 rounded px-1.5 py-0.5 text-[11px] font-bold text-slate-800 outline-none"
+                  />
+                  <span className="text-[10px] text-blue-700 font-bold">to</span>
+                  <input
+                    type="date"
+                    value={customDateEnd}
+                    onChange={e => onSelectDateRange?.(customDateStart || '', e.target.value)}
+                    className="bg-white border border-blue-200 rounded px-1.5 py-0.5 text-[11px] font-bold text-slate-800 outline-none"
+                  />
+                </div>
+              )}
             </div>
           )}
 

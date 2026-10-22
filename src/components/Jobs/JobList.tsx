@@ -65,6 +65,9 @@ interface JobListProps {
   onSelectStatus?: (status: JobStatus | 'all' | 'all_total') => void;
   dateFilter?: DateFilterType;
   onSelectDate?: (date: DateFilterType) => void;
+  customDateStart?: string;
+  customDateEnd?: string;
+  onSelectDateRange?: (startDate: string, endDate: string) => void;
   agencyFilter?: string;
   onSelectAgency?: (agency: string) => void;
   agentFilter?: string;
@@ -83,6 +86,9 @@ export const JobList: React.FC<JobListProps> = ({
   onSelectStatus: propOnSelectStatus,
   dateFilter: propDateFilter,
   onSelectDate: propOnSelectDate,
+  customDateStart: propCustomDateStart,
+  customDateEnd: propCustomDateEnd,
+  onSelectDateRange: propOnSelectDateRange,
   agencyFilter: propAgencyFilter,
   onSelectAgency: propOnSelectAgency,
   agentFilter: propAgentFilter,
@@ -120,6 +126,8 @@ export const JobList: React.FC<JobListProps> = ({
   };
   const [internalStatusFilter, setInternalStatusFilter] = useState<JobStatus | 'all' | 'all_total'>('all');
   const [internalDateFilter, setInternalDateFilter] = useState<DateFilterType>('all');
+  const [internalDateStart, setInternalDateStart] = useState<string>('');
+  const [internalDateEnd, setInternalDateEnd] = useState<string>('');
   const [internalAgencyFilter, setInternalAgencyFilter] = useState<string>('all');
   const [internalAgentFilter, setInternalAgentFilter] = useState<string>('all');
 
@@ -128,6 +136,14 @@ export const JobList: React.FC<JobListProps> = ({
 
   const dateFilter = propDateFilter !== undefined ? propDateFilter : internalDateFilter;
   const setDateFilter = propOnSelectDate || setInternalDateFilter;
+
+  const customDateStart = propCustomDateStart !== undefined ? propCustomDateStart : internalDateStart;
+  const customDateEnd = propCustomDateEnd !== undefined ? propCustomDateEnd : internalDateEnd;
+  const handleSelectDateRange = propOnSelectDateRange || ((start: string, end: string) => {
+    setInternalDateStart(start);
+    setInternalDateEnd(end);
+    setDateFilter('date_range');
+  });
 
   const agencyFilter = propAgencyFilter !== undefined ? propAgencyFilter : internalAgencyFilter;
   const setAgencyFilter = propOnSelectAgency || setInternalAgencyFilter;
@@ -219,15 +235,15 @@ export const JobList: React.FC<JobListProps> = ({
   });
 
   // Calculate date counts specifically matching current status & agency scope
-  const dateCounts = calculateDateFilterCounts(statusAndAgencyJobs);
+  const dateCounts = calculateDateFilterCounts(statusAndAgencyJobs, new Date(), customDateStart, customDateEnd);
 
   // Baseline date counts across all active open jobs (for empty state context)
   const allActiveOpenJobs = jobs.filter(job => job.status !== 'invoiced' && job.status !== 'cancelled');
-  const globalDateCounts = calculateDateFilterCounts(allActiveOpenJobs);
+  const globalDateCounts = calculateDateFilterCounts(allActiveOpenJobs, new Date(), customDateStart, customDateEnd);
 
   // 2. Filter by Date and Search term
   const filteredJobs = statusAndAgencyJobs.filter(job => {
-    const matchesDate = matchesDateFilter(job, dateFilter);
+    const matchesDate = matchesDateFilter(job, dateFilter, new Date(), customDateStart, customDateEnd);
 
     const searchLower = searchTerm.toLowerCase().trim();
     const matchesSearch =
@@ -535,6 +551,25 @@ export const JobList: React.FC<JobListProps> = ({
           <button
             onClick={() => {
               triggerHapticFeedback('light');
+              setDateFilter('yesterday');
+            }}
+            className={`shrink-0 min-h-[34px] px-3 py-1.5 rounded-xl text-xs font-black transition active:scale-95 flex items-center gap-1.5 whitespace-nowrap ${
+              dateFilter === 'yesterday'
+                ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/20'
+                : 'text-slate-600 bg-slate-50/90 hover:text-slate-900 hover:bg-slate-100 border border-slate-200/70'
+            }`}
+          >
+            <span>Yesterday</span>
+            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+              dateFilter === 'yesterday' ? 'bg-white/20 text-white' : 'bg-slate-200/80 text-slate-700'
+            }`}>
+              {dateCounts.yesterday}
+            </span>
+          </button>
+
+          <button
+            onClick={() => {
+              triggerHapticFeedback('light');
               setDateFilter('tomorrow');
             }}
             className={`shrink-0 min-h-[34px] px-3 py-1.5 rounded-xl text-xs font-black transition active:scale-95 flex items-center gap-1.5 whitespace-nowrap ${
@@ -569,7 +604,72 @@ export const JobList: React.FC<JobListProps> = ({
               {dateCounts.this_week}
             </span>
           </button>
+
+          <button
+            onClick={() => {
+              triggerHapticFeedback('light');
+              setDateFilter('last_week');
+            }}
+            className={`shrink-0 min-h-[34px] px-3 py-1.5 rounded-xl text-xs font-black transition active:scale-95 flex items-center gap-1.5 whitespace-nowrap ${
+              dateFilter === 'last_week'
+                ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/20'
+                : 'text-slate-600 bg-slate-50/90 hover:text-slate-900 hover:bg-slate-100 border border-slate-200/70'
+            }`}
+          >
+            <span>Last Week</span>
+            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+              dateFilter === 'last_week' ? 'bg-white/20 text-white' : 'bg-slate-200/80 text-slate-700'
+            }`}>
+              {dateCounts.last_week}
+            </span>
+          </button>
+
+          <button
+            onClick={() => {
+              triggerHapticFeedback('light');
+              setDateFilter('date_range');
+              if (!customDateStart) {
+                const past7 = new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0];
+                const todayStr = new Date().toISOString().split('T')[0];
+                handleSelectDateRange(past7, todayStr);
+              }
+            }}
+            className={`shrink-0 min-h-[34px] px-3 py-1.5 rounded-xl text-xs font-black transition active:scale-95 flex items-center gap-1.5 whitespace-nowrap ${
+              dateFilter === 'date_range'
+                ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/20'
+                : 'text-slate-600 bg-slate-50/90 hover:text-slate-900 hover:bg-slate-100 border border-slate-200/70'
+            }`}
+          >
+            <Calendar className="w-3.5 h-3.5" />
+            <span>Date Range</span>
+            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+              dateFilter === 'date_range' ? 'bg-white/20 text-white' : 'bg-slate-200/80 text-slate-700'
+            }`}>
+              {dateCounts.date_range}
+            </span>
+          </button>
         </div>
+
+        {/* Date Range Inputs */}
+        {dateFilter === 'date_range' && (
+          <div className="flex items-center gap-2 bg-blue-50/90 border border-blue-200/90 rounded-2xl px-3 py-1.5 text-xs text-blue-900 animate-in fade-in shrink-0">
+            <Calendar className="w-3.5 h-3.5 text-blue-600 stroke-[2.4]" />
+            <span className="font-bold text-[11px]">From:</span>
+            <input
+              type="date"
+              value={customDateStart}
+              onChange={e => handleSelectDateRange(e.target.value, customDateEnd || '')}
+              className="bg-white border border-blue-200 rounded-lg px-2 py-0.5 text-xs font-bold text-slate-800 outline-none focus:ring-1 focus:ring-blue-500"
+            />
+            <span className="font-bold text-[11px]">To:</span>
+            <input
+              type="date"
+              value={customDateEnd}
+              onChange={e => handleSelectDateRange(customDateStart || '', e.target.value)}
+              className="bg-white border border-blue-200 rounded-lg px-2 py-0.5 text-xs font-bold text-slate-800 outline-none focus:ring-1 focus:ring-blue-500"
+            />
+          </div>
+        )}
       </div>
 
       {/* Active Filter Badges Ribbon (Removable pills for active status, date, agency, agent, or search) */}
@@ -603,7 +703,14 @@ export const JobList: React.FC<JobListProps> = ({
               className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-blue-600 text-white font-bold text-[11px] shadow-xs active:scale-95 transition"
               title="Remove date filter"
             >
-              <span>When: <strong className="font-black capitalize">{dateFilter === 'today' ? 'Today' : dateFilter === 'tomorrow' ? 'Tomorrow' : 'This Week'}</strong></span>
+              <span>When: <strong className="font-black">
+                {dateFilter === 'today' ? 'Today' :
+                 dateFilter === 'yesterday' ? 'Yesterday' :
+                 dateFilter === 'tomorrow' ? 'Tomorrow' :
+                 dateFilter === 'this_week' ? 'This Week' :
+                 dateFilter === 'last_week' ? 'Last Week' :
+                 customDateStart || customDateEnd ? `${customDateStart || 'Start'} to ${customDateEnd || 'End'}` : 'Date Range'}
+              </strong></span>
               <X className="w-3 h-3 stroke-[2.5]" />
             </button>
           )}
@@ -1134,9 +1241,9 @@ export const JobList: React.FC<JobListProps> = ({
                 {/* Client & Address row */}
                 <div className="pt-1.5 border-t border-slate-100 flex flex-col gap-1">
                   <div className="flex items-center justify-between text-[11px] gap-2">
-                    <div className="flex items-center gap-1 text-slate-600 min-w-0 flex-1">
-                      <MapPin className="w-3 h-3 text-blue-500 shrink-0 stroke-[2.2]" />
-                      <span className="truncate font-medium">{job.address}</span>
+                    <div className="flex items-center gap-1.5 text-slate-900 min-w-0 flex-1">
+                      <MapPin className="w-3.5 h-3.5 text-blue-600 shrink-0 stroke-[2.5]" />
+                      <span className="truncate font-black text-xs sm:text-[13px]">{job.address}</span>
                     </div>
                     <span className="font-extrabold text-slate-800 shrink-0 truncate max-w-[120px]">{job.clientName}</span>
                   </div>

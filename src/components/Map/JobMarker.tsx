@@ -116,8 +116,8 @@ export const JobMarker: React.FC<JobMarkerProps> = ({
 
           <h3 className="font-black text-sm text-slate-950 line-clamp-1 leading-snug">{job.title}</h3>
           
-          <div className="text-xs text-slate-500 mt-1 flex items-center gap-1 font-medium">
-            <MapPin className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+          <div className="text-xs sm:text-[13px] font-black text-slate-900 mt-1 flex items-center gap-1.5 leading-snug">
+            <MapPin className="w-3.5 h-3.5 text-blue-600 shrink-0 stroke-[2.5]" />
             <span className="truncate">{job.address}</span>
           </div>
 

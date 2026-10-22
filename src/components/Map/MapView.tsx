@@ -20,6 +20,8 @@ interface MapViewProps {
   selectedJob: Job | null;
   selectedStatus: JobStatus | 'all' | 'all_total';
   selectedDate?: DateFilterType;
+  customDateStart?: string;
+  customDateEnd?: string;
   selectedAgency?: string;
   selectedAgent?: string;
   selectedSuburb?: string;
@@ -27,6 +29,7 @@ interface MapViewProps {
   onSelectJob: (job: Job | null) => void;
   onSelectStatus: (status: JobStatus | 'all' | 'all_total') => void;
   onSelectDate?: (date: DateFilterType) => void;
+  onSelectDateRange?: (startDate: string, endDate: string) => void;
   onSelectAgency?: (agency: string) => void;
   onSelectAgent?: (agent: string) => void;
   onSelectSuburb?: (suburb: string) => void;
@@ -130,6 +133,8 @@ export const MapView: React.FC<MapViewProps> = ({
   selectedJob,
   selectedStatus,
   selectedDate: propDate,
+  customDateStart: propCustomDateStart,
+  customDateEnd: propCustomDateEnd,
   selectedAgency: propAgency,
   selectedAgent: propAgent,
   selectedSuburb: propSuburb,
@@ -137,6 +142,7 @@ export const MapView: React.FC<MapViewProps> = ({
   onSelectJob,
   onSelectStatus,
   onSelectDate: propOnSelectDate,
+  onSelectDateRange: propOnSelectDateRange,
   onSelectAgency: propOnSelectAgency,
   onSelectAgent: propOnSelectAgent,
   onSelectSuburb: propOnSelectSuburb,
@@ -161,6 +167,16 @@ export const MapView: React.FC<MapViewProps> = ({
 
   const selectedDate = propDate !== undefined ? propDate : internalDate;
   const setSelectedDate = propOnSelectDate || setInternalDate;
+
+  const [internalDateStart, setInternalDateStart] = useState<string>('');
+  const [internalDateEnd, setInternalDateEnd] = useState<string>('');
+  const customDateStart = propCustomDateStart !== undefined ? propCustomDateStart : internalDateStart;
+  const customDateEnd = propCustomDateEnd !== undefined ? propCustomDateEnd : internalDateEnd;
+  const handleSelectDateRange = propOnSelectDateRange || ((start: string, end: string) => {
+    setInternalDateStart(start);
+    setInternalDateEnd(end);
+    setSelectedDate('date_range');
+  });
 
   // Filter jobs by status, suburb, agency, agent, and date
   const visibleJobs = jobs.filter(job => {
@@ -199,7 +215,7 @@ export const MapView: React.FC<MapViewProps> = ({
       );
     }
 
-    const matchesDate = matchesDateFilter(job, selectedDate);
+    const matchesDate = matchesDateFilter(job, selectedDate, new Date(), customDateStart, customDateEnd);
 
     return matchesStatus && matchesSuburb && matchesAgency && matchesAgent && matchesDate;
   });
@@ -224,11 +240,14 @@ export const MapView: React.FC<MapViewProps> = ({
         selectedAgency={selectedAgency}
         selectedAgent={selectedAgent}
         selectedDate={selectedDate}
+        customDateStart={customDateStart}
+        customDateEnd={customDateEnd}
         onSelectStatus={onSelectStatus}
         onSelectSuburb={setSelectedSuburb}
         onSelectAgency={setSelectedAgency}
         onSelectAgent={setSelectedAgent}
         onSelectDate={setSelectedDate}
+        onSelectDateRange={handleSelectDateRange}
         onOptimizeQuotesRoute={onOptimizeQuotesRoute}
         isOptimizing={isOptimizing}
         hasActiveRoute={activeRoute !== null}

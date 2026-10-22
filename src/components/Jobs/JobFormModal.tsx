@@ -36,7 +36,7 @@ import {
   geocodeAustralianAddress,
   ParsedWorkOrder
 } from '../../services/workOrderParser';
-import { ensurePrefix, buildCompositeJobId } from '../../utils/helpers';
+import { ensurePrefix, buildCompositeJobId, stripIdPrefix } from '../../utils/helpers';
 import {
   formatPhoneNumber,
   cleanPhoneNumber,
@@ -105,10 +105,10 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
   const [tasks, setTasks] = useState<string[]>([]);
   const [taskInput, setTaskInput] = useState('');
   
-  // Structured Job / Quote / Invoice Reference IDs (default prefixes without pre-filled numbers)
-  const [jobNumberInput, setJobNumberInput] = useState('J-');
-  const [quoteNumberInput, setQuoteNumberInput] = useState('Q-');
-  const [invoiceNumberInput, setInvoiceNumberInput] = useState('I-');
+  // Structured Job / Quote / Invoice Reference IDs
+  const [jobNumberInput, setJobNumberInput] = useState('');
+  const [quoteNumberInput, setQuoteNumberInput] = useState('');
+  const [invoiceNumberInput, setInvoiceNumberInput] = useState('');
   const [nteLimitInput, setNteLimitInput] = useState<string>('');
 
   // Real Estate Agency Fields
@@ -163,7 +163,7 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
     if (parsed.description) setDescription(parsed.description);
     if (parsed.workOrderNumber) {
       setWorkOrderNumber(parsed.workOrderNumber);
-      setJobNumberInput(`J-${parsed.workOrderNumber}`);
+      setJobNumberInput(stripIdPrefix(parsed.workOrderNumber, 'J'));
     }
     if (parsed.realEstateAgency) {
       setIsAgencyJob(true);
@@ -285,9 +285,9 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
         setStatus('quote_requested');
         setDescription('');
         setTasks([]);
-        setJobNumberInput('J-');
-        setQuoteNumberInput('Q-');
-        setInvoiceNumberInput('I-');
+        setJobNumberInput('');
+        setQuoteNumberInput('');
+        setInvoiceNumberInput('');
         setNteLimitInput('');
         setIsAgencyJob(false);
         setRealEstateAgency('');
@@ -538,9 +538,9 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
       ];
     }
 
-    const finalJobNum = ensurePrefix(jobNumberInput.trim(), 'J-');
-    const finalQuoteNum = ensurePrefix(quoteNumberInput.trim(), 'Q-');
-    const finalInvoiceNum = ensurePrefix(invoiceNumberInput.trim(), 'I-');
+    const finalJobNum = jobNumberInput.trim() ? ensurePrefix(jobNumberInput.trim(), 'J-') : '';
+    const finalQuoteNum = quoteNumberInput.trim() ? ensurePrefix(quoteNumberInput.trim(), 'Q-') : '';
+    const finalInvoiceNum = invoiceNumberInput.trim() ? ensurePrefix(invoiceNumberInput.trim(), 'I-') : '';
     const randomJobNum = Math.floor(1000 + Math.random() * 9000);
     const jobNumber = buildCompositeJobId(finalJobNum, finalQuoteNum, finalInvoiceNum) || `J-${randomJobNum}`;
 
@@ -917,45 +917,64 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
                   <label className="text-[9px] font-bold text-slate-500 block mb-1">
                     Job #
                   </label>
-                  <input
-                    type="text"
-                    value={jobNumberInput}
-                    onChange={e => setJobNumberInput(e.target.value)}
-                    placeholder="J-1001"
-                    className="w-full bg-white border border-slate-200 rounded-xl px-2.5 py-2 text-slate-900 font-mono text-xs font-semibold placeholder:text-slate-400 focus:border-blue-500 outline-none"
-                  />
+                  <div className="flex items-center rounded-xl border border-slate-200 bg-white overflow-hidden focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500">
+                    <span className="px-2 py-2 text-xs font-mono font-bold text-slate-400 bg-slate-50 border-r border-slate-200 select-none">
+                      J-
+                    </span>
+                    <input
+                      type="text"
+                      value={stripIdPrefix(jobNumberInput, 'J')}
+                      onChange={e => setJobNumberInput(stripIdPrefix(e.target.value, 'J'))}
+                      placeholder="1001"
+                      className="w-full bg-transparent px-2.5 py-2 text-slate-900 font-mono text-xs font-semibold placeholder:text-slate-400 outline-none"
+                    />
+                  </div>
                 </div>
 
                 <div>
                   <label className="text-[9px] font-bold text-slate-500 block mb-1">
                     Quote #
                   </label>
-                  <input
-                    type="text"
-                    value={quoteNumberInput}
-                    onChange={e => setQuoteNumberInput(e.target.value)}
-                    placeholder="Q-1001"
-                    className="w-full bg-white border border-slate-200 rounded-xl px-2.5 py-2 text-slate-900 font-mono text-xs font-semibold placeholder:text-slate-400 focus:border-blue-500 outline-none"
-                  />
+                  <div className="flex items-center rounded-xl border border-slate-200 bg-white overflow-hidden focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500">
+                    <span className="px-2 py-2 text-xs font-mono font-bold text-slate-400 bg-slate-50 border-r border-slate-200 select-none">
+                      Q-
+                    </span>
+                    <input
+                      type="text"
+                      value={stripIdPrefix(quoteNumberInput, 'Q')}
+                      onChange={e => setQuoteNumberInput(stripIdPrefix(e.target.value, 'Q'))}
+                      placeholder="1001"
+                      className="w-full bg-transparent px-2.5 py-2 text-slate-900 font-mono text-xs font-semibold placeholder:text-slate-400 outline-none"
+                    />
+                  </div>
                 </div>
 
                 <div>
                   <label className="text-[9px] font-bold text-slate-500 block mb-1">
                     Invoice #
                   </label>
-                  <input
-                    type="text"
-                    value={invoiceNumberInput}
-                    onChange={e => setInvoiceNumberInput(e.target.value)}
-                    placeholder="I-1001"
-                    className="w-full bg-white border border-slate-200 rounded-xl px-2.5 py-2 text-slate-900 font-mono text-xs font-semibold placeholder:text-slate-400 focus:border-blue-500 outline-none"
-                  />
+                  <div className="flex items-center rounded-xl border border-slate-200 bg-white overflow-hidden focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500">
+                    <span className="px-2 py-2 text-xs font-mono font-bold text-slate-400 bg-slate-50 border-r border-slate-200 select-none">
+                      I-
+                    </span>
+                    <input
+                      type="text"
+                      value={stripIdPrefix(invoiceNumberInput, 'I')}
+                      onChange={e => setInvoiceNumberInput(stripIdPrefix(e.target.value, 'I'))}
+                      placeholder="1001"
+                      className="w-full bg-transparent px-2.5 py-2 text-slate-900 font-mono text-xs font-semibold placeholder:text-slate-400 outline-none"
+                    />
+                  </div>
                 </div>
               </div>
               <div className="flex items-center gap-1.5 mt-1.5 text-[10px] text-slate-400">
                 <span>Display:</span>
                 <span className="font-mono font-bold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200/60 truncate">
-                  {buildCompositeJobId(jobNumberInput, quoteNumberInput, invoiceNumberInput) || 'J-... (Auto-assigned if left blank)'}
+                  {buildCompositeJobId(
+                    jobNumberInput ? ensurePrefix(jobNumberInput, 'J-') : '',
+                    quoteNumberInput ? ensurePrefix(quoteNumberInput, 'Q-') : '',
+                    invoiceNumberInput ? ensurePrefix(invoiceNumberInput, 'I-') : ''
+                  ) || 'J-... (Auto-assigned if left blank)'}
                 </span>
               </div>
             </div>

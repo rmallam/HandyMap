@@ -354,6 +354,24 @@ export function ensurePrefix(val: string, prefix: string): string {
 }
 
 /**
+ * Strips prefix like 'J-', 'JOB-', 'Q-', 'QTE-', 'I-', 'INV-' so the text box only displays the raw number/value.
+ */
+export function stripIdPrefix(val?: string, prefixLetter?: 'J' | 'Q' | 'I'): string {
+  if (!val) return '';
+  let trimmed = val.trim();
+  if (prefixLetter === 'J') {
+    trimmed = trimmed.replace(/^(j-|job-|req-|j)/i, '');
+  } else if (prefixLetter === 'Q') {
+    trimmed = trimmed.replace(/^(q-|qte-|q)/i, '');
+  } else if (prefixLetter === 'I') {
+    trimmed = trimmed.replace(/^(i-|inv-|i)/i, '');
+  } else {
+    trimmed = trimmed.replace(/^[jqi]-/i, '');
+  }
+  return trimmed.trim();
+}
+
+/**
  * Builds a composite Job / Quote / Invoice ID string formatted as:
  * "job# / quote# / Invoice #"
  * e.g. "J-4821 / Q-4821 / I-4821"

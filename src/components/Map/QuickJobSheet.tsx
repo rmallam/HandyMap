@@ -118,8 +118,8 @@ export const QuickJobSheet: React.FC<QuickJobSheetProps> = ({
         {/* Address & Distance */}
         <div className="bg-slate-50/90 rounded-2xl p-3 border border-slate-200/80 flex items-center justify-between text-xs">
           <div className="flex items-start gap-2 max-w-[70%]">
-            <MapPin className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
-            <span className="text-slate-700 font-semibold line-clamp-2">{job.address}</span>
+            <MapPin className="w-4 h-4 text-blue-600 shrink-0 mt-0.5 stroke-[2.5]" />
+            <span className="text-slate-950 font-black text-xs sm:text-sm line-clamp-2">{job.address}</span>
           </div>
           <div className="text-right shrink-0">
             <p className="font-black text-slate-900 text-sm">{distanceKm} km</p>

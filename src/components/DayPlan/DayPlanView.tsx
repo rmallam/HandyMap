@@ -343,12 +343,22 @@ export const DayPlanView: React.FC<DayPlanViewProps> = ({
     if (dateFilter === 'today') {
       return now.toLocaleDateString('en-AU', { weekday: 'short', month: 'short', day: 'numeric' });
     }
+    if (dateFilter === 'yesterday') {
+      const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+      return `Yesterday (${yesterday.toLocaleDateString('en-AU', { weekday: 'short', month: 'short', day: 'numeric' })})`;
+    }
     if (dateFilter === 'tomorrow') {
       const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
       return tomorrow.toLocaleDateString('en-AU', { weekday: 'short', month: 'short', day: 'numeric' });
     }
     if (dateFilter === 'this_week') {
       return 'Current Week (Mon - Sun)';
+    }
+    if (dateFilter === 'last_week') {
+      return 'Last Week (Mon - Sun)';
+    }
+    if (dateFilter === 'date_range') {
+      return 'Custom Date Range';
     }
     return 'All Planned Visits';
   };
@@ -434,6 +444,25 @@ export const DayPlanView: React.FC<DayPlanViewProps> = ({
         <button
           onClick={() => {
             triggerHapticFeedback('light');
+            setDateFilter('yesterday');
+          }}
+          className={`flex-1 min-w-[70px] py-1.5 px-2.5 rounded-xl text-xs font-black transition active:scale-95 flex items-center justify-center gap-1 whitespace-nowrap ${
+            dateFilter === 'yesterday'
+              ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-xs'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+          }`}
+        >
+          <span>Yesterday</span>
+          <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+            dateFilter === 'yesterday' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
+          }`}>
+            {dateCounts.yesterday}
+          </span>
+        </button>
+
+        <button
+          onClick={() => {
+            triggerHapticFeedback('light');
             setDateFilter('tomorrow');
           }}
           className={`flex-1 min-w-[70px] py-1.5 px-2.5 rounded-xl text-xs font-black transition active:scale-95 flex items-center justify-center gap-1 whitespace-nowrap ${
@@ -466,6 +495,25 @@ export const DayPlanView: React.FC<DayPlanViewProps> = ({
             dateFilter === 'this_week' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
           }`}>
             {dateCounts.this_week}
+          </span>
+        </button>
+
+        <button
+          onClick={() => {
+            triggerHapticFeedback('light');
+            setDateFilter('last_week');
+          }}
+          className={`flex-1 min-w-[75px] py-1.5 px-2.5 rounded-xl text-xs font-black transition active:scale-95 flex items-center justify-center gap-1 whitespace-nowrap ${
+            dateFilter === 'last_week'
+              ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-xs'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+          }`}
+        >
+          <span>Last Week</span>
+          <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+            dateFilter === 'last_week' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
+          }`}>
+            {dateCounts.last_week}
           </span>
         </button>
 
@@ -916,9 +964,9 @@ export const DayPlanView: React.FC<DayPlanViewProps> = ({
                   </h3>
 
                   {/* Address */}
-                  <div className="flex items-center gap-1 text-xs text-slate-600 mt-1">
-                    <MapPin className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-                    <span className="truncate font-medium">{job.address}</span>
+                  <div className="flex items-center gap-1.5 text-xs text-slate-900 mt-1">
+                    <MapPin className="w-3.5 h-3.5 text-blue-600 shrink-0 stroke-[2.5]" />
+                    <span className="truncate font-black text-slate-900 text-xs sm:text-[13px]">{job.address}</span>
                   </div>
 
                   {/* Client & Price */}
@@ -1034,7 +1082,7 @@ export const DayPlanView: React.FC<DayPlanViewProps> = ({
                 >
                   <div className="min-w-0 flex-1">
                     <p className="font-bold text-slate-900 truncate">{ujob.title}</p>
-                    <p className="text-[10px] text-slate-500 truncate">{ujob.address} • {ujob.clientName}</p>
+                    <p className="text-[11px] font-black text-slate-900 truncate">{ujob.address} • <span className="font-semibold text-slate-600">{ujob.clientName}</span></p>
                   </div>
                   <button
                     onClick={() => handleAddJobToDay(ujob)}
