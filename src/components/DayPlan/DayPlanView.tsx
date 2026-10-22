@@ -15,7 +15,8 @@ import {
   buildGoogleMapsRouteUrl,
   buildLiveNavigationUrl,
   calculateDistanceKm,
-  formatJobDisplayId
+  formatJobDisplayId,
+  getRelativeJobDateLabel
 } from '../../utils/helpers';
 import {
   Navigation,
@@ -894,8 +895,13 @@ export const DayPlanView: React.FC<DayPlanViewProps> = ({
                       )}
 
                       {job.appointmentTime && (
-                        <span className="font-mono text-xs font-black text-blue-700 bg-blue-50 px-2 py-0.2 rounded-md border border-blue-200/80">
-                          {formatTime(job.appointmentTime)}
+                        <span className="font-mono text-xs font-black text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-200/80 flex items-center gap-1 shadow-2xs">
+                          <Calendar className="w-3 h-3 text-blue-600 shrink-0" />
+                          <span>
+                            {dateFilter === 'today'
+                              ? formatTime(job.appointmentTime)
+                              : (getRelativeJobDateLabel(job.appointmentTime) || formatTime(job.appointmentTime))}
+                          </span>
                         </span>
                       )}
 

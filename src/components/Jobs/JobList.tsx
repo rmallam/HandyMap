@@ -14,7 +14,11 @@ import {
   isJobTomorrow,
   formatJobDisplayId,
   formatDate,
-  formatTime
+  formatTime,
+  sortJobsByScheduledAscending,
+  formatScheduledDateTime,
+  getJobDayGroupKey,
+  formatDayGroupHeader
 } from '../../utils/helpers';
 import { generateQuotePDF } from '../../services/pdfGenerator';
 import { triggerHapticFeedback } from '../../services/nativeMobile';
@@ -241,30 +245,44 @@ export const JobList: React.FC<JobListProps> = ({
   const allActiveOpenJobs = jobs.filter(job => job.status !== 'invoiced' && job.status !== 'cancelled');
   const globalDateCounts = calculateDateFilterCounts(allActiveOpenJobs, new Date(), customDateStart, customDateEnd);
 
-  // 2. Filter by Date and Search term
-  const filteredJobs = statusAndAgencyJobs.filter(job => {
-    const matchesDate = matchesDateFilter(job, dateFilter, new Date(), customDateStart, customDateEnd);
+  // 2. Filter by Date and Search term, then SORT IN ASCENDING ORDER by scheduled day and time
+  const filteredJobs = React.useMemo(() => {
+    const matching = statusAndAgencyJobs.filter(job => {
+      const matchesDate = matchesDateFilter(job, dateFilter, new Date(), customDateStart, customDateEnd);
 
-    const searchLower = searchTerm.toLowerCase().trim();
-    const matchesSearch =
-      job.title.toLowerCase().includes(searchLower) ||
-      job.clientName.toLowerCase().includes(searchLower) ||
-      job.address.toLowerCase().includes(searchLower) ||
-      job.jobNumber.toLowerCase().includes(searchLower) ||
-      (job.quoteNumber && job.quoteNumber.toLowerCase().includes(searchLower)) ||
-      (job.invoiceNumber && job.invoiceNumber.toLowerCase().includes(searchLower)) ||
-      job.category.toLowerCase().includes(searchLower) ||
-      (job.realEstateAgency && job.realEstateAgency.toLowerCase().includes(searchLower)) ||
-      (job.realEstateAgentName && job.realEstateAgentName.toLowerCase().includes(searchLower)) ||
-      (job.realEstateAgentEmail && job.realEstateAgentEmail.toLowerCase().includes(searchLower)) ||
-      (job.realEstateAgentPhone && job.realEstateAgentPhone.toLowerCase().includes(searchLower)) ||
-      (job.workOrderNumber && job.workOrderNumber.toLowerCase().includes(searchLower)) ||
-      (job.tenant1Name && job.tenant1Name.toLowerCase().includes(searchLower)) ||
-      (job.tenant2Name && job.tenant2Name.toLowerCase().includes(searchLower)) ||
-      (job.tenantName && job.tenantName.toLowerCase().includes(searchLower));
+      const searchLower = searchTerm.toLowerCase().trim();
+      const matchesSearch =
+        job.title.toLowerCase().includes(searchLower) ||
+        job.clientName.toLowerCase().includes(searchLower) ||
+        job.address.toLowerCase().includes(searchLower) ||
+        job.jobNumber.toLowerCase().includes(searchLower) ||
+        (job.quoteNumber && job.quoteNumber.toLowerCase().includes(searchLower)) ||
+        (job.invoiceNumber && job.invoiceNumber.toLowerCase().includes(searchLower)) ||
+        job.category.toLowerCase().includes(searchLower) ||
+        (job.realEstateAgency && job.realEstateAgency.toLowerCase().includes(searchLower)) ||
+        (job.realEstateAgentName && job.realEstateAgentName.toLowerCase().includes(searchLower)) ||
+        (job.realEstateAgentEmail && job.realEstateAgentEmail.toLowerCase().includes(searchLower)) ||
+        (job.realEstateAgentPhone && job.realEstateAgentPhone.toLowerCase().includes(searchLower)) ||
+        (job.workOrderNumber && job.workOrderNumber.toLowerCase().includes(searchLower)) ||
+        (job.tenant1Name && job.tenant1Name.toLowerCase().includes(searchLower)) ||
+        (job.tenant2Name && job.tenant2Name.toLowerCase().includes(searchLower)) ||
+        (job.tenantName && job.tenantName.toLowerCase().includes(searchLower));
 
-    return matchesDate && matchesSearch;
-  });
+      return matchesDate && matchesSearch;
+    });
+
+    return sortJobsByScheduledAscending(matching);
+  }, [statusAndAgencyJobs, dateFilter, customDateStart, customDateEnd, searchTerm]);
+
+  // Compute count of jobs in each day group
+  const dayGroupCounts = React.useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const job of filteredJobs) {
+      const key = getJobDayGroupKey(job);
+      counts[key] = (counts[key] || 0) + 1;
+    }
+    return counts;
+  }, [filteredJobs]);
 
   return (
     <div className="flex flex-col h-full bg-slate-50 overflow-y-auto overflow-x-hidden pb-[calc(6.5rem+env(safe-area-inset-bottom,0px))] text-slate-900 p-3 sm:p-6 max-w-5xl mx-auto w-full">
@@ -1105,9 +1123,15 @@ export const JobList: React.FC<JobListProps> = ({
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2 sm:gap-3">
-          {filteredJobs.map(job => {
+          {filteredJobs.map((job, idx) => {
             const statusCfg = STATUS_CONFIG[job.status];
             const activeReminder = reminders.find(r => r.jobId === job.id && !r.isSnoozed);
+            const currentDayKey = getJobDayGroupKey(job);
+            const prevDayKey = idx > 0 ? getJobDayGroupKey(filteredJobs[idx - 1]) : null;
+            const isNewDayGroup = currentDayKey !== prevDayKey;
+            const groupCount = dayGroupCounts[currentDayKey] || 0;
+            const groupHeader = formatDayGroupHeader(currentDayKey);
+            const schedInfo = formatScheduledDateTime(job.appointmentTime);
 
             // Left accent border color mapping
             const statusBorderAccent =
@@ -1127,12 +1151,28 @@ export const JobList: React.FC<JobListProps> = ({
             const totalTasksCount = job.tasks?.length || 0;
 
             return (
-              <div
-                key={job.id}
-                onClick={() => {
-                  triggerHapticFeedback('light');
-                  onSelectJob(job);
-                }}
+              <React.Fragment key={job.id}>
+                {isNewDayGroup && (
+                  <div className="col-span-1 md:col-span-2 pt-2.5 pb-1">
+                    <div className="flex items-center gap-2">
+                      <div className="h-px bg-slate-200/90 flex-1" />
+                      <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-900 text-white text-xs font-black shadow-xs">
+                        <Calendar className="w-3.5 h-3.5 text-blue-400 stroke-[2.4]" />
+                        <span>{groupHeader}</span>
+                        <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-white/20 text-white font-bold ml-0.5">
+                          {groupCount} {groupCount === 1 ? 'job' : 'jobs'}
+                        </span>
+                      </div>
+                      <div className="h-px bg-slate-200/90 flex-1" />
+                    </div>
+                  </div>
+                )}
+
+                <div
+                  onClick={() => {
+                    triggerHapticFeedback('light');
+                    onSelectJob(job);
+                  }}
                 className={`bg-white hover:bg-slate-50/80 border border-slate-200/90 border-l-4 ${statusBorderAccent} rounded-2xl p-2.5 sm:p-3.5 shadow-2xs hover:shadow-md transition-all duration-150 flex flex-col justify-between gap-1.5 sm:gap-2 cursor-pointer group active:scale-[0.99] ${
                   activeReminder?.urgency === 'urgent'
                     ? 'ring-2 ring-red-400/40'
@@ -1154,17 +1194,25 @@ export const JobList: React.FC<JobListProps> = ({
                         {statusCfg.shortLabel}
                       </span>
 
-                      {/* Scheduled Timing Badge (Today / Tomorrow) */}
-                      {isJobToday(job) && (
-                        <span className="font-black uppercase tracking-wider px-1.5 py-0.5 rounded border bg-emerald-50 text-emerald-800 border-emerald-300 flex items-center gap-1 shrink-0">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                          Today
+                      {/* Scheduled Timing Badge (Always visible with Day, Date & Time) */}
+                      {schedInfo ? (
+                        <span
+                          className={`font-black uppercase tracking-wider px-2 py-0.5 rounded-full border shadow-2xs flex items-center gap-1 shrink-0 ${
+                            schedInfo.isToday
+                              ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                              : schedInfo.isTomorrow
+                              ? 'bg-sky-50 text-sky-800 border-sky-300'
+                              : schedInfo.isYesterday
+                              ? 'bg-amber-50 text-amber-800 border-amber-300'
+                              : 'bg-blue-50 text-blue-800 border-blue-200'
+                          }`}
+                        >
+                          <Calendar className="w-2.5 h-2.5 shrink-0" />
+                          <span>{schedInfo.relativeDay} • {schedInfo.time}</span>
                         </span>
-                      )}
-                      {isJobTomorrow(job) && (
-                        <span className="font-black uppercase tracking-wider px-1.5 py-0.5 rounded border bg-sky-50 text-sky-800 border-sky-300 flex items-center gap-1 shrink-0">
-                          <Calendar className="w-2.5 h-2.5 text-sky-600" />
-                          Tomorrow
+                      ) : (
+                        <span className="font-extrabold text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded border bg-slate-100 text-slate-500 border-slate-200/80 shrink-0">
+                          Unscheduled
                         </span>
                       )}
 
@@ -1248,15 +1296,30 @@ export const JobList: React.FC<JobListProps> = ({
                     <span className="font-extrabold text-slate-800 shrink-0 truncate max-w-[120px]">{job.clientName}</span>
                   </div>
 
-                  {/* Creation Date & Time for future reference */}
-                  <div className="flex items-center justify-between text-[10px] text-slate-400 font-medium">
-                    <span className="flex items-center gap-1 min-w-0 truncate">
-                      <Clock className="w-3 h-3 text-slate-400 shrink-0" />
-                      <span className="truncate">Created: {formatDateTime(job.createdAt || job.quoteRequestedDate)}</span>
-                    </span>
-                  </div>
+                  {/* Scheduled Timing Banner - Prominent on every card */}
+                  {schedInfo ? (
+                    <div className="flex items-center justify-between text-xs px-2.5 py-1.5 rounded-xl bg-blue-50/90 border border-blue-200/90 font-bold text-blue-950">
+                      <div className="flex items-center gap-1.5 min-w-0 truncate">
+                        <Calendar className="w-3.5 h-3.5 text-blue-600 shrink-0 stroke-[2.5]" />
+                        <span className="truncate font-black text-xs sm:text-[13px]">
+                          {schedInfo.fullLabel}
+                        </span>
+                      </div>
+                      <span className="text-[10px] font-black uppercase tracking-wider text-blue-700 bg-white/95 border border-blue-200 px-2 py-0.5 rounded-md shrink-0 shadow-2xs">
+                        {schedInfo.isToday ? 'Today' : schedInfo.isTomorrow ? 'Tomorrow' : schedInfo.dayOfWeekLong}
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-between text-xs px-2.5 py-1 rounded-xl bg-slate-50 border border-slate-200/70 text-slate-500 font-medium">
+                      <div className="flex items-center gap-1.5 min-w-0 truncate">
+                        <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        <span className="text-[11px] font-semibold text-slate-600">Unscheduled Lead</span>
+                      </div>
+                      <span className="text-[10px] text-slate-400 shrink-0">Created: {formatDate(job.createdAt || job.quoteRequestedDate)}</span>
+                    </div>
+                  )}
 
-                  {/* Bottom Actions & Price/Date on a single unified line */}
+                  {/* Bottom Actions & Price on a single unified line */}
                   <div className="flex items-center justify-between text-xs gap-1 pt-0.5">
                     <div className="min-w-0">
                       {job.quote ? (
@@ -1265,24 +1328,11 @@ export const JobList: React.FC<JobListProps> = ({
                             <Sparkles className="w-3 h-3 text-purple-600 shrink-0" />
                             {formatCurrency(job.quote.totalAmount, profile.currencySymbol)}
                           </span>
-                          {job.appointmentTime && (
-                            <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200/60 hidden xs:inline-flex items-center gap-1 truncate">
-                              {getRelativeJobDateLabel(job.appointmentTime)}
-                            </span>
-                          )}
                         </div>
                       ) : (
-                        job.appointmentTime ? (
-                          <span className="text-[10px] text-amber-800 font-extrabold flex items-center gap-1 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200/80 truncate">
-                            <Calendar className="w-2.5 h-2.5 text-amber-600 shrink-0" />
-                            <span className="truncate">{getRelativeJobDateLabel(job.appointmentTime)}</span>
-                          </span>
-                        ) : (
-                          <span className="text-[10px] text-slate-500 font-semibold flex items-center gap-1 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200/80 truncate">
-                            <Calendar className="w-2.5 h-2.5 text-slate-400 shrink-0" />
-                            <span className="truncate">Unscheduled</span>
-                          </span>
-                        )
+                        <span className="text-[11px] font-bold text-slate-500">
+                          {job.status === 'quote_requested' ? 'Quote Needed' : 'No Quote Yet'}
+                        </span>
                       )}
                     </div>
 
@@ -1364,6 +1414,7 @@ export const JobList: React.FC<JobListProps> = ({
                   </div>
                 </div>
               </div>
+            </React.Fragment>
             );
           })}
         </div>

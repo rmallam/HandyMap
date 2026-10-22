@@ -7,7 +7,8 @@ import {
   buildLiveNavigationUrl,
   buildSmsLink,
   formatDateTime,
-  formatJobDisplayId
+  formatJobDisplayId,
+  getRelativeJobDateLabel
 } from '../../utils/helpers';
 import { triggerHapticFeedback } from '../../services/nativeMobile';
 import {
@@ -127,11 +128,25 @@ export const QuickJobSheet: React.FC<QuickJobSheetProps> = ({
           </div>
         </div>
 
-        {/* Creation Date & Time */}
-        <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-medium px-1">
-          <Clock className="w-3 h-3 text-slate-400 shrink-0" />
-          <span>Created: {formatDateTime(job.createdAt || job.quoteRequestedDate)}</span>
-        </div>
+        {/* Scheduled Site Visit Timing Banner */}
+        {job.appointmentTime ? (
+          <div className="flex items-center justify-between text-xs px-3 py-2 rounded-2xl bg-blue-50/90 border border-blue-200/90 font-bold text-blue-950">
+            <div className="flex items-center gap-2 min-w-0 truncate">
+              <Calendar className="w-4 h-4 text-blue-600 shrink-0 stroke-[2.5]" />
+              <span className="truncate font-black text-xs sm:text-[13px]">
+                {getRelativeJobDateLabel(job.appointmentTime)}
+              </span>
+            </div>
+            <span className="text-[10px] font-black uppercase tracking-wider text-blue-700 bg-white/90 border border-blue-200 px-2 py-0.5 rounded-md shadow-2xs shrink-0">
+              Scheduled
+            </span>
+          </div>
+        ) : (
+          <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-medium px-1">
+            <Clock className="w-3 h-3 text-slate-400 shrink-0" />
+            <span>Created: {formatDateTime(job.createdAt || job.quoteRequestedDate)}</span>
+          </div>
+        )}
 
         {/* Real Estate Agency Work Order Banner */}
         {job.isAgencyJob && job.realEstateAgency && (
@@ -163,7 +178,7 @@ export const QuickJobSheet: React.FC<QuickJobSheetProps> = ({
         )}
 
         {/* Quote / Cost Preview */}
-        {job.quote ? (
+        {job.quote && (
           <div className="flex items-center justify-between px-4 py-2.5 bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200/90 rounded-2xl text-xs shadow-xs">
             <span className="text-purple-950 font-bold flex items-center gap-1.5">
               <Sparkles className="w-3.5 h-3.5 text-purple-600" />
@@ -173,12 +188,7 @@ export const QuickJobSheet: React.FC<QuickJobSheetProps> = ({
               {formatCurrency(job.quote.totalAmount)}
             </span>
           </div>
-        ) : job.appointmentTime ? (
-          <div className="flex items-center gap-2 text-xs text-slate-700 px-1 font-semibold">
-            <Calendar className="w-3.5 h-3.5 text-blue-600" />
-            <span>Site Visit: <strong className="text-slate-900 font-black">{new Date(job.appointmentTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</strong></span>
-          </div>
-        ) : null}
+        )}
 
         {/* Action Buttons Grid (48px Touch Targets) */}
         <div className="grid grid-cols-4 gap-2 pt-0.5">

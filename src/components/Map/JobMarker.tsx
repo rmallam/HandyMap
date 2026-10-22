@@ -2,8 +2,8 @@ import React from 'react';
 import { Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import { Job, RouteStop } from '../../types';
-import { STATUS_CONFIG, formatCurrency, formatJobDisplayId } from '../../utils/helpers';
-import { Phone, ArrowRight, Clock, MapPin, Building2 } from 'lucide-react';
+import { STATUS_CONFIG, formatCurrency, formatJobDisplayId, getRelativeJobDateLabel } from '../../utils/helpers';
+import { Phone, ArrowRight, Clock, MapPin, Building2, Calendar } from 'lucide-react';
 import { triggerHapticFeedback } from '../../services/nativeMobile';
 
 interface JobMarkerProps {
@@ -120,6 +120,18 @@ export const JobMarker: React.FC<JobMarkerProps> = ({
             <MapPin className="w-3.5 h-3.5 text-blue-600 shrink-0 stroke-[2.5]" />
             <span className="truncate">{job.address}</span>
           </div>
+
+          {job.appointmentTime && (
+            <div className="mt-2 px-2.5 py-1 rounded-xl bg-blue-50/90 border border-blue-200/90 text-[11px] font-bold text-blue-950 flex items-center justify-between gap-1 shadow-2xs">
+              <div className="flex items-center gap-1.5 min-w-0 truncate">
+                <Calendar className="w-3 h-3 text-blue-600 shrink-0 stroke-[2.4]" />
+                <span className="truncate font-black">{getRelativeJobDateLabel(job.appointmentTime)}</span>
+              </div>
+              <span className="text-[9px] font-black uppercase tracking-wider text-blue-700 bg-white px-1.5 py-0.2 rounded border border-blue-200 shrink-0">
+                Scheduled
+              </span>
+            </div>
+          )}
 
           <div className="mt-3.5 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
             <div>

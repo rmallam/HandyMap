@@ -234,3 +234,115 @@ export function getRelativeJobDateLabel(dateStr?: string, now: Date = new Date()
 
   return `${d.toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })} at ${timeStr}`;
 }
+
+/**
+ * Formats a scheduled appointment timestamp into a rich, human-readable date & time object:
+ * e.g. "Wed, 22 Oct • 2:30 PM", "Today • 9:00 AM", "Tomorrow • 11:15 AM", "Yesterday • 4:00 PM"
+ */
+export function formatScheduledDateTime(dateStr?: string, now: Date = new Date()): {
+  relativeDay: string; // e.g. "Today", "Tomorrow", "Yesterday", "Wed, 22 Oct"
+  dayOfWeek: string;   // e.g. "Wed", "Thu"
+  dayOfWeekLong: string; // e.g. "Wednesday"
+  dateShort: string;   // e.g. "22 Oct"
+  time: string;        // e.g. "2:30 PM"
+  fullLabel: string;   // e.g. "Wed, 22 Oct at 2:30 PM"
+  isToday: boolean;
+  isTomorrow: boolean;
+  isYesterday: boolean;
+} | null {
+  if (!dateStr) return null;
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return null;
+
+  const time = d.toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit', hour12: true });
+  const dayOfWeek = d.toLocaleDateString('en-AU', { weekday: 'short' });
+  const dayOfWeekLong = d.toLocaleDateString('en-AU', { weekday: 'long' });
+  const dateShort = d.toLocaleDateString('en-AU', { day: 'numeric', month: 'short' });
+
+  const isToday = isSameDay(d, now);
+  const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+  const isTomorrow = isSameDay(d, tomorrow);
+  const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+  const isYesterday = isSameDay(d, yesterday);
+
+  let relativeDay = `${dayOfWeek}, ${dateShort}`;
+  if (isToday) relativeDay = 'Today';
+  else if (isTomorrow) relativeDay = 'Tomorrow';
+  else if (isYesterday) relativeDay = 'Yesterday';
+
+  const fullLabel = `${relativeDay} at ${time}`;
+
+  return {
+    relativeDay,
+    dayOfWeek,
+    dayOfWeekLong,
+    dateShort,
+    time,
+    fullLabel,
+    isToday,
+    isTomorrow,
+    isYesterday
+  };
+}
+
+/**
+ * Sorts jobs in ascending order of scheduled date & time:
+ * - Jobs with an appointmentTime are sorted chronologically from earliest to latest.
+ * - Jobs without appointmentTime follow after, sorted by their creation/quote requested date.
+ */
+export function sortJobsByScheduledAscending(jobs: Job[]): Job[] {
+  return [...jobs].sort((a, b) => {
+    const timeA = a.appointmentTime ? new Date(a.appointmentTime).getTime() : null;
+    const timeB = b.appointmentTime ? new Date(b.appointmentTime).getTime() : null;
+
+    // Both have appointment times: sort earliest first (ascending)
+    if (timeA && timeB) {
+      return timeA - timeB;
+    }
+    // A has an appointment time, B does not: A comes first
+    if (timeA && !timeB) return -1;
+    // B has an appointment time, A does not: B comes first
+    if (!timeA && timeB) return 1;
+
+    // Neither has an appointment time: sort by quoteRequestedDate or createdAt (earliest first)
+    const fallbackA = new Date(a.quoteRequestedDate || a.createdAt || 0).getTime();
+    const fallbackB = new Date(b.quoteRequestedDate || b.createdAt || 0).getTime();
+    return fallbackA - fallbackB;
+  });
+}
+
+/**
+ * Extracts a calendar day grouping key (YYYY-MM-DD) for a job.
+ * Jobs without appointmentTime return 'unscheduled'.
+ */
+export function getJobDayGroupKey(job: Job): string {
+  if (!job.appointmentTime) return 'unscheduled';
+  const d = new Date(job.appointmentTime);
+  if (isNaN(d.getTime())) return 'unscheduled';
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/**
+ * Formats a day group key into a human-friendly header title.
+ * e.g. "Today (Wed, 22 Oct)", "Tomorrow (Thu, 23 Oct)", "Friday, 24 Oct"
+ */
+export function formatDayGroupHeader(groupKey: string, now: Date = new Date()): string {
+  if (groupKey === 'unscheduled') return 'Unscheduled Quotes & Leads';
+  const parts = groupKey.split('-').map(Number);
+  if (parts.length !== 3 || parts.some(isNaN)) return groupKey;
+  const d = new Date(parts[0], parts[1] - 1, parts[2]);
+
+  if (isSameDay(d, now)) {
+    return `Today (${d.toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })})`;
+  }
+  const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+  if (isSameDay(d, tomorrow)) {
+    return `Tomorrow (${d.toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })})`;
+  }
+  const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+  if (isSameDay(d, yesterday)) {
+    return `Yesterday (${d.toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })})`;
+  }
+
+  return d.toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'short' });
+}
