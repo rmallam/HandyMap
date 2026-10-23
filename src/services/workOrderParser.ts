@@ -315,21 +315,73 @@ export function parseWorkOrderText(text: string): ParsedWorkOrder {
   return result;
 }
 
+export interface GeocodeAddressResult {
+  coordinates: [number, number];
+  formattedAddress: string;
+  suburb?: string;
+  postcode?: string;
+  state?: string;
+}
+
 /**
- * Fast zero-cost geocode for Australian addresses via Photon (OpenStreetMap)
+ * Fast, reliable zero-cost geocoding for Australian addresses using Photon
+ * with Melbourne location bias and OpenStreetMap Nominatim fallback.
  */
-export async function geocodeAustralianAddress(rawAddress: string): Promise<[number, number] | null> {
+export async function geocodeAustralianAddress(
+  rawAddress: string,
+  centerCoords: [number, number] = [-37.9175, 144.7492]
+): Promise<GeocodeAddressResult | null> {
   try {
     if (!rawAddress || rawAddress.trim().length < 5) return null;
-    // Strip unit/flat number e.g. "111/38 Clark St" -> "38 Clark St" for highest geocoder hit-rate
-    const cleaned = rawAddress.replace(/^\s*\d+[\/\-]\s*/, '').replace(/\s+/g, ' ').trim();
-    const url = `https://photon.komoot.io/api/?q=${encodeURIComponent(cleaned)}&limit=1`;
-    const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
-    if (!res.ok) return null;
-    const data = await res.json();
-    if (data.features && data.features.length > 0) {
-      const coords = data.features[0].geometry.coordinates; // [lng, lat]
-      return [coords[1], coords[0]]; // return [lat, lng]
+    // Strip unit/flat number e.g. "111/38 Clark St" -> "38 Clark St", "Unit 2/88 Sneydes Rd" -> "88 Sneydes Rd"
+    const cleaned = rawAddress
+      .replace(/^\s*(?:unit|apt|apartment|flat|lot)?\s*#?\s*\d+\s*[\/\-]?\s*/i, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    // 1. Try Photon with local coordinate bias
+    const photonUrl = `https://photon.komoot.io/api/?q=${encodeURIComponent(cleaned)}&lat=${centerCoords[0]}&lon=${centerCoords[1]}&limit=6`;
+    const res = await fetch(photonUrl, { headers: { 'Accept': 'application/json' } });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.features && data.features.length > 0) {
+        const auFeat = data.features.find((f: any) => {
+          const country = (f.properties?.country || '').toLowerCase();
+          const code = (f.properties?.countrycode || '').toLowerCase();
+          return country.includes('australia') || code === 'au' || !f.properties?.country;
+        }) || data.features[0];
+
+        const coords = auFeat.geometry.coordinates; // [lng, lat]
+        const p = auFeat.properties || {};
+        const suburb = p.district || p.locality || p.city || p.town || '';
+        const street = [p.housenumber, p.street || p.name].filter(Boolean).join(' ');
+        const state = p.state || 'VIC';
+        const postcode = p.postcode || '';
+
+        return {
+          coordinates: [coords[1], coords[0]], // [lat, lng]
+          formattedAddress: street ? `${street}, ${suburb} ${state} ${postcode}`.trim() : rawAddress,
+          suburb,
+          postcode,
+          state
+        };
+      }
+    }
+
+    // 2. Fallback to OpenStreetMap Nominatim with Australia bias
+    const cleanSearch = cleaned.replace(/[,;]/g, ' ').replace(/\s+/g, ' ').trim();
+    const nomUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(cleanSearch)}&countrycodes=au&format=json&limit=1`;
+    const nomRes = await fetch(nomUrl, { headers: { 'User-Agent': 'HandyMapPro/1.0' } });
+    if (nomRes.ok) {
+      const nomData = await nomRes.json();
+      if (nomData && nomData.length > 0) {
+        const item = nomData[0];
+        return {
+          coordinates: [parseFloat(item.lat), parseFloat(item.lon)],
+          formattedAddress: item.display_name,
+          suburb: ''
+        };
+      }
     }
   } catch (err) {
     console.warn('Geocoding error:', err);

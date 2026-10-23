@@ -45,6 +45,7 @@ import {
   Receipt,
   ChevronDown,
   User,
+  Users,
   Clock,
   UploadCloud,
   Loader2,
@@ -76,6 +77,7 @@ interface JobListProps {
   onSelectAgency?: (agency: string) => void;
   agentFilter?: string;
   onSelectAgent?: (agent: string) => void;
+  onOpenContacts?: () => void;
 }
 
 export const JobList: React.FC<JobListProps> = ({
@@ -96,7 +98,8 @@ export const JobList: React.FC<JobListProps> = ({
   agencyFilter: propAgencyFilter,
   onSelectAgency: propOnSelectAgency,
   agentFilter: propAgentFilter,
-  onSelectAgent: propOnSelectAgent
+  onSelectAgent: propOnSelectAgent,
+  onOpenContacts
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isQuickImporting, setIsQuickImporting] = useState(false);
@@ -919,6 +922,22 @@ export const JobList: React.FC<JobListProps> = ({
                 <X className="w-3.5 h-3.5 stroke-[2.5]" />
               </button>
             )}
+
+            {/* Quick Directory Button */}
+            {onOpenContacts && (
+              <button
+                type="button"
+                onClick={() => {
+                  triggerHapticFeedback('light');
+                  onOpenContacts();
+                }}
+                className="h-8 px-2.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-900 border border-purple-200/80 text-xs font-black flex items-center gap-1 shadow-2xs transition shrink-0 active:scale-95"
+                title="Manage Contacts, Agents, Tenants & Landlords"
+              >
+                <Users className="w-3.5 h-3.5 text-purple-600" />
+                <span className="hidden sm:inline">Directory</span>
+              </button>
+            )}
           </div>
 
           {/* Micro Active Filter Tag (Ultra compact 1-line indicator when filtered) */}
@@ -1295,29 +1314,6 @@ export const JobList: React.FC<JobListProps> = ({
                     </div>
                     <span className="font-extrabold text-slate-800 shrink-0 truncate max-w-[120px]">{job.clientName}</span>
                   </div>
-
-                  {/* Scheduled Timing Banner - Prominent on every card */}
-                  {schedInfo ? (
-                    <div className="flex items-center justify-between text-xs px-2.5 py-1.5 rounded-xl bg-blue-50/90 border border-blue-200/90 font-bold text-blue-950">
-                      <div className="flex items-center gap-1.5 min-w-0 truncate">
-                        <Calendar className="w-3.5 h-3.5 text-blue-600 shrink-0 stroke-[2.5]" />
-                        <span className="truncate font-black text-xs sm:text-[13px]">
-                          {schedInfo.fullLabel}
-                        </span>
-                      </div>
-                      <span className="text-[10px] font-black uppercase tracking-wider text-blue-700 bg-white/95 border border-blue-200 px-2 py-0.5 rounded-md shrink-0 shadow-2xs">
-                        {schedInfo.isToday ? 'Today' : schedInfo.isTomorrow ? 'Tomorrow' : schedInfo.dayOfWeekLong}
-                      </span>
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-between text-xs px-2.5 py-1 rounded-xl bg-slate-50 border border-slate-200/70 text-slate-500 font-medium">
-                      <div className="flex items-center gap-1.5 min-w-0 truncate">
-                        <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                        <span className="text-[11px] font-semibold text-slate-600">Unscheduled Lead</span>
-                      </div>
-                      <span className="text-[10px] text-slate-400 shrink-0">Created: {formatDate(job.createdAt || job.quoteRequestedDate)}</span>
-                    </div>
-                  )}
 
                   {/* Bottom Actions & Price on a single unified line */}
                   <div className="flex items-center justify-between text-xs gap-1 pt-0.5">

@@ -146,6 +146,7 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
 
   // Work Order Importer State (100% Free, zero AI cost)
   const [isImportingPdf, setIsImportingPdf] = useState(false);
+  const [isGeocodingAddress, setIsGeocodingAddress] = useState(false);
   const [importSuccessMsg, setImportSuccessMsg] = useState<string | null>(null);
   const [importErrorMsg, setImportErrorMsg] = useState<string | null>(null);
   const [showPasteBox, setShowPasteBox] = useState(false);
@@ -199,11 +200,25 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
     }
     setStatus('quote_requested');
 
-    // Attempt geocoding in background to pin marker on map
+    // Attempt high-accuracy geocoding with user's current GPS location bias
     if (parsed.address) {
-      geocodeAustralianAddress(parsed.address).then(coords => {
-        if (coords) setSelectedCoordinates(coords);
-      });
+      setIsGeocodingAddress(true);
+      geocodeAustralianAddress(parsed.address, currentLocation)
+        .then(result => {
+          setIsGeocodingAddress(false);
+          if (result && result.coordinates) {
+            setSelectedCoordinates(result.coordinates);
+            if (result.suburb) {
+              const matchedSub = SUBURBS_LIST.find(s => s.toLowerCase() === result.suburb!.toLowerCase());
+              if (matchedSub) setSuburb(matchedSub);
+              else setSuburb(result.suburb);
+            }
+          }
+        })
+        .catch(err => {
+          console.warn('Geocoding notice:', err);
+          setIsGeocodingAddress(false);
+        });
     }
 
     setImportSuccessMsg(
@@ -583,7 +598,7 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
         saveOrUpdateAgent({
           agencyName: realEstateAgency.trim(),
           agentName: realEstateAgentName.trim() || 'Property Manager',
-          agentPhone: realEstateAgentPhone.trim() || '0412 888 901',
+          agentPhone: realEstateAgentPhone.trim(),
           agentEmail: realEstateAgentEmail.trim() || undefined
         });
       }
@@ -1665,11 +1680,15 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
             <div>
               <label className="text-[10px] font-bold text-slate-600 block mb-1 flex items-center justify-between">
                 <span>Street Address *</span>
-                {selectedCoordinates && (
+                {selectedCoordinates ? (
                   <span className="text-[10px] text-emerald-600 font-black flex items-center gap-1">
                     <Check className="w-3 h-3 stroke-[3]" /> Exact GPS Pin Linked
                   </span>
-                )}
+                ) : isGeocodingAddress ? (
+                  <span className="text-[10px] text-blue-600 font-bold flex items-center gap-1">
+                    <Loader2 className="w-3 h-3 animate-spin" /> Resolving GPS location...
+                  </span>
+                ) : null}
               </label>
               <AddressAutocomplete
                 value={address}
@@ -1677,7 +1696,20 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
                 onAddressSelect={handleAddressSelect}
                 placeholder="Start typing street address (e.g. 20 Banjo Paterson)..."
                 currentLocation={currentLocation}
+                isLinked={Boolean(selectedCoordinates)}
+                coordinates={selectedCoordinates}
               />
+              {selectedCoordinates && (
+                <div className="mt-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200/80 flex items-center justify-between text-xs text-emerald-950 font-bold shadow-2xs">
+                  <span className="flex items-center gap-1.5 truncate">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span className="truncate">Live GPS Locked: [{selectedCoordinates[0].toFixed(4)}, {selectedCoordinates[1].toFixed(4)}]</span>
+                  </span>
+                  <span className="text-[10px] font-black uppercase text-emerald-700 bg-white px-2 py-0.5 rounded-md border border-emerald-200 shadow-2xs shrink-0">
+                    Ready for Navigation
+                  </span>
+                </div>
+              )}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

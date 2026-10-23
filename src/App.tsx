@@ -35,6 +35,7 @@ import { BottomNav, AppNavTab } from './components/Navigation/BottomNav';
 import { MapView } from './components/Map/MapView';
 import { DayPlanView } from './components/DayPlan/DayPlanView';
 import { JobList } from './components/Jobs/JobList';
+import { ContactsView } from './components/Contacts/ContactsView';
 import { StatsOverview } from './components/Dashboard/StatsOverview';
 import { JobDetailModal } from './components/Jobs/JobDetailModal';
 import { JobFormModal } from './components/Jobs/JobFormModal';
@@ -708,6 +709,14 @@ export function App() {
             }}
             onOpenImport={() => setIsImportModalOpen(true)}
             onImportWorkOrder={handleImportWorkOrderFromPdf}
+            onOpenContacts={() => setActiveTab('contacts')}
+          />
+        )}
+
+        {activeTab === 'contacts' && (
+          <ContactsView
+            jobs={jobs}
+            onOpenJob={handleOpenFullJob}
           />
         )}
 

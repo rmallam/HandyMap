@@ -116,6 +116,9 @@ export interface Job {
   tenant2Name?: string;
   tenant2Phone?: string;
   tenant2Email?: string;
+  ownerName?: string;
+  ownerPhone?: string;
+  ownerEmail?: string;
 
   quote?: JobQuote;
   photos: JobPhoto[];

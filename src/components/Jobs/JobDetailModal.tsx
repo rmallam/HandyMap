@@ -721,7 +721,7 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
         saveOrUpdateAgent({
           agencyName: editRealEstateAgency.trim(),
           agentName: editRealEstateAgentName.trim() || 'Property Manager',
-          agentPhone: editRealEstateAgentPhone.trim() || '0412 888 901',
+          agentPhone: editRealEstateAgentPhone.trim(),
           agentEmail: editRealEstateAgentEmail.trim() || undefined
         });
       }

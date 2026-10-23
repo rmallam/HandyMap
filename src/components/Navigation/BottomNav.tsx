@@ -1,8 +1,8 @@
 import React from 'react';
-import { Map, ClipboardList, CalendarDays, BarChart3 } from 'lucide-react';
+import { Map, ClipboardList, CalendarDays, BarChart3, Users } from 'lucide-react';
 import { triggerHapticFeedback } from '../../services/nativeMobile';
 
-export type AppNavTab = 'map' | 'jobs' | 'day_plan' | 'stats' | 'route' | 'schedule';
+export type AppNavTab = 'map' | 'jobs' | 'day_plan' | 'contacts' | 'stats' | 'route' | 'schedule';
 
 interface BottomNavProps {
   activeTab: AppNavTab;
@@ -40,6 +40,13 @@ export const BottomNav: React.FC<BottomNavProps> = ({
       icon: CalendarDays,
       badge: hasActiveRoute ? '⚡' : null,
       badgeColor: 'bg-blue-600 text-white'
+    },
+    {
+      id: 'contacts' as const,
+      label: 'Contacts',
+      icon: Users,
+      badge: null,
+      badgeColor: ''
     },
     {
       id: 'stats' as const,

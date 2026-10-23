@@ -16,6 +16,8 @@ interface AddressAutocompleteProps {
   placeholder?: string;
   className?: string;
   currentLocation?: [number, number];
+  isLinked?: boolean;
+  coordinates?: [number, number] | null;
 }
 
 interface Suggestion {
@@ -43,7 +45,9 @@ export const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
   onAddressSelect,
   placeholder = 'Search street address or place...',
   className = '',
-  currentLocation = [-37.9175, 144.7492] // Point Cook default
+  currentLocation = [-37.9175, 144.7492], // Point Cook default
+  isLinked = false,
+  coordinates
 }) => {
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -365,7 +369,13 @@ export const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
   return (
     <div ref={containerRef} className="relative w-full">
       <div className="relative">
-        <MapPin className="w-4 h-4 text-blue-600 absolute left-3 top-3 pointer-events-none" />
+        {isLinked ? (
+          <div className="absolute left-2.5 top-2.5 flex items-center justify-center w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 shadow-2xs pointer-events-none ring-1 ring-emerald-300">
+            <Check className="w-3.5 h-3.5 stroke-[3]" />
+          </div>
+        ) : (
+          <MapPin className="w-4 h-4 text-blue-600 absolute left-3 top-3 pointer-events-none" />
+        )}
 
         <input
           type="text"
@@ -377,7 +387,7 @@ export const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
           autoComplete="off"
-          className={`w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-16 py-2.5 text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none transition text-xs ${className}`}
+          className={`w-full ${isLinked ? 'bg-emerald-50/40 border-emerald-300' : 'bg-slate-50 border-slate-200'} border rounded-xl pl-9 pr-16 py-2.5 text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none transition text-xs ${className}`}
         />
 
         <div className="absolute right-2.5 top-2.5 flex items-center gap-1">
