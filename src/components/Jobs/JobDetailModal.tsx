@@ -1221,6 +1221,58 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                   </div>
                 </div>
 
+                {/* Property / Job Address & Suburb (Moved to the Top for Quick & Easy Access) */}
+                <div className="bg-white rounded-2xl border border-blue-200/90 p-3.5 shadow-2xs space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+                      <MapPin className="w-3.5 h-3.5 text-blue-600 stroke-[2.5]" />
+                      <span>Property / Street Address *</span>
+                    </label>
+                    {editCoordinates ? (
+                      <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200 flex items-center gap-1">
+                        <Check className="w-3 h-3 stroke-[2.5]" />
+                        <span>GPS Pin Linked: [{editCoordinates[0].toFixed(3)}, {editCoordinates[1].toFixed(3)}]</span>
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
+                        Type address to link GPS pin
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="sm:col-span-2">
+                      <AddressAutocomplete
+                        value={editAddress}
+                        onChange={setEditAddress}
+                        onAddressSelect={(res: AddressResult) => {
+                          setEditAddress(res.address);
+                          if (res.suburb) setEditSuburb(res.suburb);
+                          if (res.coordinates) setEditCoordinates(res.coordinates);
+                        }}
+                        currentLocation={currentLocation}
+                        isLinked={Boolean(editCoordinates)}
+                        coordinates={editCoordinates}
+                      />
+                    </div>
+
+                    <div>
+                      <select
+                        value={editSuburb}
+                        onChange={e => setEditSuburb(e.target.value)}
+                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-900 font-semibold focus:border-blue-500 outline-none"
+                      >
+                        {SUBURBS_LIST.map(sub => (
+                          <option key={sub} value={sub}>{sub}</option>
+                        ))}
+                        {!SUBURBS_LIST.includes(editSuburb) && editSuburb && (
+                          <option value={editSuburb}>{editSuburb}</option>
+                        )}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                   <div>
                     <label className="text-[10px] font-black uppercase tracking-wider text-slate-500 block mb-1">
@@ -1771,42 +1823,6 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                     </button>
                   </div>
                 )}
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div className="sm:col-span-2">
-                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-500 block mb-1">
-                      Street Address
-                    </label>
-                    <AddressAutocomplete
-                      value={editAddress}
-                      onChange={setEditAddress}
-                      onAddressSelect={(res: AddressResult) => {
-                        setEditAddress(res.address);
-                        if (res.suburb) setEditSuburb(res.suburb);
-                        if (res.coordinates) setEditCoordinates(res.coordinates);
-                      }}
-                      currentLocation={currentLocation}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-500 block mb-1">
-                      Suburb
-                    </label>
-                    <select
-                      value={editSuburb}
-                      onChange={e => setEditSuburb(e.target.value)}
-                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-900 font-semibold focus:border-blue-500 outline-none"
-                    >
-                      {SUBURBS_LIST.map(sub => (
-                        <option key={sub} value={sub}>{sub}</option>
-                      ))}
-                      {!SUBURBS_LIST.includes(editSuburb) && editSuburb && (
-                        <option value={editSuburb}>{editSuburb}</option>
-                      )}
-                    </select>
-                  </div>
-                </div>
               </div>
             </form>
           ) : null}

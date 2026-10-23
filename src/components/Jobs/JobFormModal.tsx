@@ -1464,10 +1464,74 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
               </div>
             )}
 
+            {/* Street Address & Suburb (Moved to the Top for Quick Access) */}
+            <div className="bg-white rounded-2xl border border-blue-200/90 p-3 sm:p-3.5 shadow-2xs space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-[10px] font-black uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+                  <MapPin className="w-3.5 h-3.5 text-blue-600 stroke-[2.5]" />
+                  <span>Property / Street Address *</span>
+                </label>
+                {selectedCoordinates ? (
+                  <span className="text-[10px] text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200 font-bold flex items-center gap-1">
+                    <Check className="w-3 h-3 stroke-[2.5]" /> Exact GPS Pin Linked
+                  </span>
+                ) : isGeocodingAddress ? (
+                  <span className="text-[10px] text-blue-600 font-bold flex items-center gap-1">
+                    <Loader2 className="w-3 h-3 animate-spin" /> Resolving GPS location...
+                  </span>
+                ) : (
+                  <span className="text-[10px] text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200 font-medium">
+                    Type address to link GPS pin
+                  </span>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                <div className="sm:col-span-2">
+                  <AddressAutocomplete
+                    value={address}
+                    onChange={setAddress}
+                    onAddressSelect={handleAddressSelect}
+                    placeholder="Start typing street address (e.g. 20 Banjo Paterson)..."
+                    currentLocation={currentLocation}
+                    isLinked={Boolean(selectedCoordinates)}
+                    coordinates={selectedCoordinates}
+                  />
+                </div>
+
+                <div>
+                  <select
+                    value={suburb}
+                    onChange={e => setSuburb(e.target.value)}
+                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-900 font-semibold focus:border-blue-500 outline-none"
+                  >
+                    {SUBURBS_LIST.map(sub => (
+                      <option key={sub} value={sub}>{sub}</option>
+                    ))}
+                    {!SUBURBS_LIST.includes(suburb) && suburb && (
+                      <option value={suburb}>{suburb}</option>
+                    )}
+                  </select>
+                </div>
+              </div>
+
+              {selectedCoordinates && (
+                <div className="px-2.5 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200/80 flex items-center justify-between text-xs text-emerald-950 font-bold shadow-2xs">
+                  <span className="flex items-center gap-1.5 truncate text-[11px]">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                    <span className="truncate">Live GPS Locked: [{selectedCoordinates[0].toFixed(4)}, {selectedCoordinates[1].toFixed(4)}]</span>
+                  </span>
+                  <span className="text-[9px] font-black uppercase text-emerald-700 bg-white px-2 py-0.5 rounded-md border border-emerald-200 shadow-2xs shrink-0">
+                    Ready
+                  </span>
+                </div>
+              )}
+            </div>
+
             {/* Client Information Fields (When NOT agency job) */}
             {!isAgencyJob && (
               <>
-                <div ref={customerSectionRef} className="grid grid-cols-1 sm:grid-cols-2 gap-3 relative">
+                <div ref={customerSectionRef} className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 relative">
                   <div className="relative">
                     <label className="text-[10px] font-bold text-slate-600 block mb-1">
                       Client Full Name *
@@ -1528,6 +1592,24 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
                         onChange={e => handleClientPhoneChange(e.target.value)}
                         placeholder="0412 345 678"
                         className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-slate-900 focus:border-blue-500 outline-none font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-600 block mb-1">
+                      Client Email <span className="text-slate-400 font-normal">(Quotes)</span>
+                    </label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                        <Mail className="w-3.5 h-3.5" />
+                      </div>
+                      <input
+                        type="email"
+                        value={clientEmail}
+                        onChange={e => setClientEmail(e.target.value)}
+                        placeholder="e.g. jordan@gmail.com"
+                        className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-slate-900 focus:border-blue-500 outline-none"
                       />
                     </div>
                   </div>
@@ -1676,79 +1758,6 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
                 </div>
               </>
             )}
-
-            <div>
-              <label className="text-[10px] font-bold text-slate-600 block mb-1 flex items-center justify-between">
-                <span>Street Address *</span>
-                {selectedCoordinates ? (
-                  <span className="text-[10px] text-emerald-600 font-black flex items-center gap-1">
-                    <Check className="w-3 h-3 stroke-[3]" /> Exact GPS Pin Linked
-                  </span>
-                ) : isGeocodingAddress ? (
-                  <span className="text-[10px] text-blue-600 font-bold flex items-center gap-1">
-                    <Loader2 className="w-3 h-3 animate-spin" /> Resolving GPS location...
-                  </span>
-                ) : null}
-              </label>
-              <AddressAutocomplete
-                value={address}
-                onChange={setAddress}
-                onAddressSelect={handleAddressSelect}
-                placeholder="Start typing street address (e.g. 20 Banjo Paterson)..."
-                currentLocation={currentLocation}
-                isLinked={Boolean(selectedCoordinates)}
-                coordinates={selectedCoordinates}
-              />
-              {selectedCoordinates && (
-                <div className="mt-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200/80 flex items-center justify-between text-xs text-emerald-950 font-bold shadow-2xs">
-                  <span className="flex items-center gap-1.5 truncate">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <span className="truncate">Live GPS Locked: [{selectedCoordinates[0].toFixed(4)}, {selectedCoordinates[1].toFixed(4)}]</span>
-                  </span>
-                  <span className="text-[10px] font-black uppercase text-emerald-700 bg-white px-2 py-0.5 rounded-md border border-emerald-200 shadow-2xs shrink-0">
-                    Ready for Navigation
-                  </span>
-                </div>
-              )}
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="text-[10px] font-bold text-slate-600 block mb-1">
-                  Suburb *
-                </label>
-                <select
-                  value={suburb}
-                  onChange={e => setSuburb(e.target.value)}
-                  className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-900 font-semibold focus:border-blue-500 outline-none"
-                >
-                  {SUBURBS_LIST.map(sub => (
-                    <option key={sub} value={sub}>{sub}</option>
-                  ))}
-                  {!SUBURBS_LIST.includes(suburb) && suburb && (
-                    <option value={suburb}>{suburb}</option>
-                  )}
-                </select>
-              </div>
-
-              <div>
-                <label className="text-[10px] font-bold text-slate-600 block mb-1">
-                  Client Email <span className="text-slate-400 font-normal">(For Quotes)</span>
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-                    <Mail className="w-3.5 h-3.5" />
-                  </div>
-                  <input
-                    type="email"
-                    value={clientEmail}
-                    onChange={e => setClientEmail(e.target.value)}
-                    placeholder="e.g. jordan@gmail.com"
-                    className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-slate-900 focus:border-blue-500 outline-none"
-                  />
-                </div>
-              </div>
-            </div>
           </div>
 
           {/* SECTION 4: STATUS, PRIORITY & DURATION */}
