@@ -19,6 +19,8 @@ export interface SavedAgent {
   agentName: string;
   agentPhone: string; // Primary Key
   agentEmail?: string;
+  agencyAddress?: string;
+  agencySuburb?: string;
   notes?: string;
   lastUsedAt: string;
   useCount: number;
@@ -292,6 +294,8 @@ export function saveOrUpdateAgent(agent: {
   agentName: string;
   agentPhone: string;
   agentEmail?: string;
+  agencyAddress?: string;
+  agencySuburb?: string;
   notes?: string;
 }): SavedAgent | null {
   if (!agent.agencyName?.trim() && !agent.agentName?.trim()) return null;
@@ -323,6 +327,8 @@ export function saveOrUpdateAgent(agent: {
         agentName: agent.agentName.trim() || existing.agentName,
         agentPhone: agent.agentPhone.trim() || existing.agentPhone,
         agentEmail: agent.agentEmail?.trim() || existing.agentEmail,
+        agencyAddress: agent.agencyAddress?.trim() || existing.agencyAddress,
+        agencySuburb: agent.agencySuburb?.trim() || existing.agencySuburb,
         notes: agent.notes !== undefined ? agent.notes : existing.notes,
         lastUsedAt: now,
         useCount: (existing.useCount || 1) + 1
@@ -337,6 +343,8 @@ export function saveOrUpdateAgent(agent: {
         agentName: agent.agentName.trim(),
         agentPhone: agent.agentPhone.trim(),
         agentEmail: agent.agentEmail?.trim() || '',
+        agencyAddress: agent.agencyAddress?.trim() || '',
+        agencySuburb: agent.agencySuburb?.trim() || '',
         notes: agent.notes || '',
         lastUsedAt: now,
         useCount: 1
@@ -490,26 +498,99 @@ export function saveOrUpdateOwner(owner: {
   }
 }
 
+const DELETED_CONTACTS_KEY = 'handymap_deleted_contacts';
+
+export function getDeletedContactKeys(): Set<string> {
+  try {
+    const raw = localStorage.getItem(DELETED_CONTACTS_KEY);
+    if (!raw) return new Set();
+    const parsed = JSON.parse(raw);
+    return new Set(Array.isArray(parsed) ? parsed : []);
+  } catch {
+    return new Set();
+  }
+}
+
+export function recordDeletedContact(keys: string[]): void {
+  try {
+    const current = getDeletedContactKeys();
+    keys.forEach(k => {
+      if (k && k.trim()) current.add(k.trim().toLowerCase());
+    });
+    localStorage.setItem(DELETED_CONTACTS_KEY, JSON.stringify(Array.from(current)));
+  } catch (e) {
+    console.error('Error persisting deleted contact keys:', e);
+  }
+}
+
 /**
- * Delete contact helpers
+ * Delete contact helpers (with tombstone tracking to prevent accidental resurrection)
  */
 export function deleteAgent(id: string): void {
-  const list = loadSavedAgents().filter(a => a.id !== id);
+  const currentAgents = loadSavedAgents();
+  const target = currentAgents.find(a => a.id === id);
+  if (target) {
+    const keys = [
+      id,
+      normalizePhone(target.agentPhone),
+      `${target.agencyName.toLowerCase()}::${target.agentName.toLowerCase()}`
+    ].filter(Boolean);
+    recordDeletedContact(keys);
+  } else {
+    recordDeletedContact([id]);
+  }
+  const list = currentAgents.filter(a => a.id !== id);
   persistSavedAgents(list);
 }
 
 export function deleteTenant(id: string): void {
-  const list = loadSavedTenants().filter(t => t.id !== id);
+  const currentTenants = loadSavedTenants();
+  const target = currentTenants.find(t => t.id === id);
+  if (target) {
+    const keys = [
+      id,
+      normalizePhone(target.tenantPhone),
+      target.tenantName.toLowerCase().trim()
+    ].filter(Boolean);
+    recordDeletedContact(keys);
+  } else {
+    recordDeletedContact([id]);
+  }
+  const list = currentTenants.filter(t => t.id !== id);
   persistSavedTenants(list);
 }
 
 export function deleteOwner(id: string): void {
-  const list = loadSavedOwners().filter(o => o.id !== id);
+  const currentOwners = loadSavedOwners();
+  const target = currentOwners.find(o => o.id === id);
+  if (target) {
+    const keys = [
+      id,
+      normalizePhone(target.ownerPhone),
+      target.ownerName.toLowerCase().trim()
+    ].filter(Boolean);
+    recordDeletedContact(keys);
+  } else {
+    recordDeletedContact([id]);
+  }
+  const list = currentOwners.filter(o => o.id !== id);
   persistSavedOwners(list);
 }
 
 export function deleteCustomer(id: string): void {
-  const list = loadSavedCustomers().filter(c => c.id !== id);
+  const currentCustomers = loadSavedCustomers();
+  const target = currentCustomers.find(c => c.id === id);
+  if (target) {
+    const keys = [
+      id,
+      normalizePhone(target.phone),
+      target.name.toLowerCase().trim()
+    ].filter(Boolean);
+    recordDeletedContact(keys);
+  } else {
+    recordDeletedContact([id]);
+  }
+  const list = currentCustomers.filter(c => c.id !== id);
   persistSavedCustomers(list);
 }
 
@@ -531,6 +612,7 @@ export function harvestContactsFromJobs(jobs: Job[]): {
   const existingAgents = loadSavedAgents();
   const existingTenants = loadSavedTenants();
   const existingOwners = loadSavedOwners();
+  const deletedKeys = getDeletedContactKeys();
 
   // Maps with phone as Primary Key
   const customerMap = new Map<string, SavedCustomer>();
@@ -567,7 +649,9 @@ export function harvestContactsFromJobs(jobs: Job[]): {
       const cPhone = normalizePhone(job.clientPhone);
       const cKey = (cPhone && cPhone.length >= 8) ? cPhone : job.clientName.toLowerCase().trim();
 
-      if (!customerMap.has(cKey)) {
+      if (deletedKeys.has(cKey) || (cPhone && deletedKeys.has(cPhone)) || deletedKeys.has(job.clientName.toLowerCase().trim())) {
+        // Skip explicitly deleted customer
+      } else if (!customerMap.has(cKey)) {
         const newCust: SavedCustomer = {
           id: `cust-h-${job.id}`,
           name: job.clientName.trim(),
@@ -597,8 +681,16 @@ export function harvestContactsFromJobs(jobs: Job[]): {
       const aEmail = job.realEstateAgentEmail?.trim() || '';
       const cleanPhone = normalizePhone(aPhone);
       const aKey = (cleanPhone && cleanPhone.length >= 8) ? cleanPhone : aName.toLowerCase();
+      const agencyAgentKey = `${aAgency.toLowerCase()}::${aName.toLowerCase()}`;
 
-      if (!agentMap.has(aKey)) {
+      if (
+        (cleanPhone && deletedKeys.has(cleanPhone)) ||
+        deletedKeys.has(aKey) ||
+        deletedKeys.has(agencyAgentKey) ||
+        deletedKeys.has(`agent-h-${job.id}`)
+      ) {
+        // Skip explicitly deleted agent
+      } else if (!agentMap.has(aKey)) {
         const newAgent: SavedAgent = {
           id: `agent-h-${job.id}`,
           agencyName: aAgency,
@@ -629,7 +721,14 @@ export function harvestContactsFromJobs(jobs: Job[]): {
       const tPhone = normalizePhone(tenant1Phone);
       const tKey = (tPhone && tPhone.length >= 8) ? tPhone : tenant1.toLowerCase().trim();
 
-      if (!tenantMap.has(tKey)) {
+      if (
+        (tPhone && deletedKeys.has(tPhone)) ||
+        deletedKeys.has(tKey) ||
+        deletedKeys.has(tenant1.toLowerCase().trim()) ||
+        deletedKeys.has(`tenant-h-${job.id}`)
+      ) {
+        // Skip explicitly deleted tenant
+      } else if (!tenantMap.has(tKey)) {
         const newTenant: SavedTenant = {
           id: `tenant-h-${job.id}`,
           tenantName: tenant1.trim(),

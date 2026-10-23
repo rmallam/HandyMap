@@ -224,8 +224,27 @@ export async function parseSpreadsheetFile(file: File): Promise<{
           const category = normalizeCategory(findValue(row, ['category', 'trade', 'servicetype', 'type', 'service']) || rawNotes || rawTitle);
           const description = rawNotes || rawTitle;
 
-          const isAgencyJob = Boolean(realEstateAgency && realEstateAgency.trim().length > 0);
+          const isAgencyJob = Boolean(
+            findValue(row, ['isagencyjob', 'agencyjob']) === 'YES' ||
+            findValue(row, ['isagencyjob', 'agencyjob']) === true ||
+            (realEstateAgency && realEstateAgency.trim().length > 0)
+          );
           const estimatedDurationMinutes = parseInt(findValue(row, ['duration', 'durationminutes', 'estimatedduration', 'time', 'estimatedmins']) || '60', 10);
+
+          // Extra fields: Quote/Invoice Ref IDs, Budget NTE, Tenants, Owner & Appointment
+          const parsedQuoteNumber = findValue(row, ['quotenumber', 'quote#', 'quoteno', 'qte']);
+          const parsedInvoiceNumber = findValue(row, ['invoicenumber', 'invoice#', 'invno', 'inv']);
+          const parsedNteLimitRaw = findValue(row, ['approvedbudget', 'ntelimit', 'budget', 'limit', 'quotelimit']);
+          const parsedNteLimit = parsedNteLimitRaw !== undefined && !isNaN(parseFloat(parsedNteLimitRaw)) ? parseFloat(parsedNteLimitRaw) : undefined;
+          const parsedAppointmentTime = findValue(row, ['scheduledappointmentdate&time', 'appointmenttime', 'scheduledvisit', 'scheduledtime', 'scheduleddate']);
+          const parsedOwnerName = findValue(row, ['propertyowner/landlord', 'ownername', 'landlordname', 'owner', 'landlord']);
+
+          const parsedTenant1Name = findValue(row, ['tenant1name', 'tenant1', 'tenantname']) || tenantName;
+          const parsedTenant1Phone = findValue(row, ['tenant1phone', 'tenantphone']) || tenantPhone;
+          const parsedTenant1Email = findValue(row, ['tenant1email', 'tenantemail']);
+          const parsedTenant2Name = findValue(row, ['tenant2name', 'tenant2']);
+          const parsedTenant2Phone = findValue(row, ['tenant2phone']);
+          const parsedTenant2Email = findValue(row, ['tenant2email']);
 
           const parsedTasks: JobTask[] = [];
           if (description) {
@@ -244,7 +263,9 @@ export async function parseSpreadsheetFile(file: File): Promise<{
 
           const newJob: Job = {
             id: `job-imp-${timestamp}-${index + 1}`,
-            jobNumber: String(workOrderNumber || `JOB-${Math.floor(1000 + Math.random() * 9000)}`),
+            jobNumber: String(workOrderNumber || findValue(row, ['jobnumber', 'job#', 'jobid']) || `JOB-${Math.floor(1000 + Math.random() * 9000)}`),
+            quoteNumber: parsedQuoteNumber ? String(parsedQuoteNumber) : undefined,
+            invoiceNumber: parsedInvoiceNumber ? String(parsedInvoiceNumber) : undefined,
             title: String(finalTitle),
             clientName: String(clientName),
             clientPhone: String(clientPhone),
@@ -258,7 +279,9 @@ export async function parseSpreadsheetFile(file: File): Promise<{
             description: String(description),
             tasks: parsedTasks,
             quoteRequestedDate: new Date().toISOString(),
+            appointmentTime: parsedAppointmentTime ? String(parsedAppointmentTime) : undefined,
             estimatedDurationMinutes: isNaN(estimatedDurationMinutes) ? 60 : estimatedDurationMinutes,
+            nteLimit: parsedNteLimit,
             
             isAgencyJob,
             realEstateAgency: realEstateAgency || undefined,
@@ -266,8 +289,16 @@ export async function parseSpreadsheetFile(file: File): Promise<{
             realEstateAgentPhone: realEstateAgentPhone || undefined,
             realEstateAgentEmail: realEstateAgentEmail || undefined,
             workOrderNumber: workOrderNumber || undefined,
-            tenantName: tenantName || undefined,
-            tenantPhone: tenantPhone || undefined,
+
+            tenantName: parsedTenant1Name || undefined,
+            tenantPhone: parsedTenant1Phone || undefined,
+            tenant1Name: parsedTenant1Name || undefined,
+            tenant1Phone: parsedTenant1Phone || undefined,
+            tenant1Email: parsedTenant1Email || undefined,
+            tenant2Name: parsedTenant2Name || undefined,
+            tenant2Phone: parsedTenant2Phone || undefined,
+            tenant2Email: parsedTenant2Email || undefined,
+            ownerName: parsedOwnerName || undefined,
 
             photos: [],
             timeLogs: [],

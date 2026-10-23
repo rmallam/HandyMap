@@ -92,6 +92,7 @@ interface JobDetailModalProps {
   onClose: () => void;
   onUpdateJob: (updatedJob: Job) => void;
   onDeleteJob: (jobId: string) => void;
+  onDuplicateJob?: (sourceJob: Job) => void;
 }
 
 const CATEGORIES: JobCategory[] = [
@@ -130,7 +131,8 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
   currentLocation,
   onClose,
   onUpdateJob,
-  onDeleteJob
+  onDeleteJob,
+  onDuplicateJob
 }) => {
   if (!job) return null;
 
@@ -926,6 +928,21 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                 </button>
               )}
 
+              {onDuplicateJob && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    triggerHapticFeedback('medium');
+                    onDuplicateJob(job);
+                  }}
+                  className="px-2.5 py-1.5 rounded-xl text-xs font-bold bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 shadow-2xs flex items-center gap-1 transition shrink-0 active:scale-95"
+                  title="Duplicate or Copy this Job"
+                >
+                  <Copy className="w-3.5 h-3.5 text-blue-600" />
+                  <span className="hidden xs:inline">Duplicate</span>
+                </button>
+              )}
+
               <button
                 type="button"
                 onClick={() => setIsEditing(true)}
@@ -1142,81 +1159,99 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
 
               {/* Group 1: Title & ID */}
               <div className="bg-slate-50/80 rounded-2xl border border-slate-200/80 p-3.5 space-y-3">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div className="sm:col-span-2">
-                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-500 block mb-1">
-                      Job Title *
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={editTitle}
-                      onChange={e => setEditTitle(e.target.value)}
-                      placeholder="Job summary title..."
-                      className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2 text-slate-900 font-semibold focus:border-blue-500 outline-none"
-                    />
-                  </div>
+                {/* Row 1: Full-width Job Title */}
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-wider text-slate-600 block mb-1">
+                    Job Title *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={editTitle}
+                    onChange={e => setEditTitle(e.target.value)}
+                    placeholder="Job summary title (e.g. Repair leaking vanity tap)..."
+                    className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-slate-900 font-bold text-sm sm:text-base focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition shadow-2xs"
+                  />
+                </div>
 
-                  <div>
-                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-500 block mb-1">
-                      Job / Quote / Invoice Ref Numbers
+                {/* Row 2: Spacious Job, Quote, and Invoice Reference Text Boxes */}
+                <div className="bg-white rounded-xl border border-slate-200/90 p-3 space-y-2 shadow-2xs">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                      <Tag className="w-3.5 h-3.5 text-blue-600" />
+                      <span>Job, Quote & Invoice Reference Numbers</span>
                     </label>
-                    <div className="grid grid-cols-3 gap-2">
-                      <div>
-                        <div className="text-[9px] font-bold text-slate-400 mb-0.5">Job #</div>
-                        <div className="flex items-center rounded-xl border border-slate-200 bg-white overflow-hidden focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500">
-                          <span className="px-2 py-1.5 text-xs font-mono font-bold text-slate-400 bg-slate-50 border-r border-slate-200 select-none">
-                            J-
-                          </span>
-                          <input
-                            type="text"
-                            value={stripIdPrefix(editJobNumber, 'J')}
-                            onChange={e => setEditJobNumber(stripIdPrefix(e.target.value, 'J'))}
-                            placeholder="1001"
-                            className="w-full bg-transparent px-2 py-1.5 text-slate-900 font-mono text-xs font-bold outline-none"
-                          />
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-[9px] font-bold text-slate-400 mb-0.5">Quote #</div>
-                        <div className="flex items-center rounded-xl border border-slate-200 bg-white overflow-hidden focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500">
-                          <span className="px-2 py-1.5 text-xs font-mono font-bold text-slate-400 bg-slate-50 border-r border-slate-200 select-none">
-                            Q-
-                          </span>
-                          <input
-                            type="text"
-                            value={stripIdPrefix(editQuoteNumber, 'Q')}
-                            onChange={e => setEditQuoteNumber(stripIdPrefix(e.target.value, 'Q'))}
-                            placeholder="1001"
-                            className="w-full bg-transparent px-2 py-1.5 text-slate-900 font-mono text-xs font-bold outline-none"
-                          />
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-[9px] font-bold text-slate-400 mb-0.5">Invoice #</div>
-                        <div className="flex items-center rounded-xl border border-slate-200 bg-white overflow-hidden focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500">
-                          <span className="px-2 py-1.5 text-xs font-mono font-bold text-slate-400 bg-slate-50 border-r border-slate-200 select-none">
-                            I-
-                          </span>
-                          <input
-                            type="text"
-                            value={stripIdPrefix(editInvoiceNumber, 'I')}
-                            onChange={e => setEditInvoiceNumber(stripIdPrefix(e.target.value, 'I'))}
-                            placeholder="1001"
-                            className="w-full bg-transparent px-2 py-1.5 text-slate-900 font-mono text-xs font-bold outline-none"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1.5 mt-1 text-[10px] text-slate-400 font-mono">
-                      <span>Display:</span>
-                      <span className="font-bold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200/60 truncate">
+                    <div className="flex items-center gap-1.5 text-[11px] text-slate-400 font-mono">
+                      <span>Display ID:</span>
+                      <span className="font-bold text-slate-800 bg-slate-100 px-2 py-0.5 rounded-lg border border-slate-200/80 text-xs">
                         {buildCompositeJobId(
                           editJobNumber ? ensurePrefix(editJobNumber, 'J-') : '',
                           editQuoteNumber ? ensurePrefix(editQuoteNumber, 'Q-') : '',
                           editInvoiceNumber ? ensurePrefix(editInvoiceNumber, 'I-') : ''
                         ) || job.jobNumber}
                       </span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-0.5">
+                    {/* Job Number Field */}
+                    <div>
+                      <div className="text-[10px] font-black uppercase text-blue-700 mb-1 flex items-center justify-between">
+                        <span>Job Number</span>
+                        <span className="text-[9px] font-mono text-slate-400 font-bold">Prefix: J-</span>
+                      </div>
+                      <div className="flex items-center rounded-xl border border-slate-300 bg-white overflow-hidden shadow-2xs focus-within:border-blue-600 focus-within:ring-2 focus-within:ring-blue-100 transition">
+                        <span className="px-3.5 py-2.5 text-xs sm:text-sm font-mono font-black text-blue-700 bg-blue-50/80 border-r border-slate-200 select-none">
+                          J-
+                        </span>
+                        <input
+                          type="text"
+                          value={stripIdPrefix(editJobNumber, 'J')}
+                          onChange={e => setEditJobNumber(stripIdPrefix(e.target.value, 'J'))}
+                          placeholder="1001"
+                          className="w-full bg-transparent px-3 py-2.5 text-slate-900 font-mono text-sm sm:text-base font-black outline-none placeholder:text-slate-300 placeholder:font-normal"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Quote Number Field */}
+                    <div>
+                      <div className="text-[10px] font-black uppercase text-purple-700 mb-1 flex items-center justify-between">
+                        <span>Quote Number</span>
+                        <span className="text-[9px] font-mono text-slate-400 font-bold">Prefix: Q-</span>
+                      </div>
+                      <div className="flex items-center rounded-xl border border-slate-300 bg-white overflow-hidden shadow-2xs focus-within:border-purple-600 focus-within:ring-2 focus-within:ring-purple-100 transition">
+                        <span className="px-3.5 py-2.5 text-xs sm:text-sm font-mono font-black text-purple-700 bg-purple-50/80 border-r border-slate-200 select-none">
+                          Q-
+                        </span>
+                        <input
+                          type="text"
+                          value={stripIdPrefix(editQuoteNumber, 'Q')}
+                          onChange={e => setEditQuoteNumber(stripIdPrefix(e.target.value, 'Q'))}
+                          placeholder="1001"
+                          className="w-full bg-transparent px-3 py-2.5 text-slate-900 font-mono text-sm sm:text-base font-black outline-none placeholder:text-slate-300 placeholder:font-normal"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Invoice Number Field */}
+                    <div>
+                      <div className="text-[10px] font-black uppercase text-emerald-700 mb-1 flex items-center justify-between">
+                        <span>Invoice Number</span>
+                        <span className="text-[9px] font-mono text-slate-400 font-bold">Prefix: I-</span>
+                      </div>
+                      <div className="flex items-center rounded-xl border border-slate-300 bg-white overflow-hidden shadow-2xs focus-within:border-emerald-600 focus-within:ring-2 focus-within:ring-emerald-100 transition">
+                        <span className="px-3.5 py-2.5 text-xs sm:text-sm font-mono font-black text-emerald-700 bg-emerald-50/80 border-r border-slate-200 select-none">
+                          I-
+                        </span>
+                        <input
+                          type="text"
+                          value={stripIdPrefix(editInvoiceNumber, 'I')}
+                          onChange={e => setEditInvoiceNumber(stripIdPrefix(e.target.value, 'I'))}
+                          placeholder="1001"
+                          className="w-full bg-transparent px-3 py-2.5 text-slate-900 font-mono text-sm sm:text-base font-black outline-none placeholder:text-slate-300 placeholder:font-normal"
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>

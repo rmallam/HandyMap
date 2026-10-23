@@ -39,11 +39,15 @@ import {
   Sparkles,
   RefreshCw,
   Clock,
-  Briefcase
+  Briefcase,
+  FileSpreadsheet,
+  Upload
 } from 'lucide-react';
 import { formatPhoneNumber, cleanPhoneNumber, getPhoneDigitCount } from '../../utils/phoneUtils';
 import { buildWhatsAppLink, buildSmsLink } from '../../utils/helpers';
 import { triggerHapticFeedback } from '../../services/nativeMobile';
+import { exportContactsToExcel } from '../../services/excelDataService';
+import { ImportContactsModal } from './ImportContactsModal';
 
 export type ContactTabType = 'agents' | 'tenants' | 'owners' | 'customers';
 
@@ -63,8 +67,9 @@ export const ContactsView: React.FC<ContactsViewProps> = ({ jobs, onOpenJob }) =
   const [owners, setOwners] = useState<SavedOwner[]>([]);
   const [customers, setCustomers] = useState<SavedCustomer[]>([]);
 
-  // Modal State for Add / Edit
+  // Modal State for Add / Edit & Excel Import
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [editingType, setEditingType] = useState<ContactTabType>('agents');
   const [editingId, setEditingId] = useState<string | null>(null);
 
@@ -80,7 +85,6 @@ export const ContactsView: React.FC<ContactsViewProps> = ({ jobs, onOpenJob }) =
 
   // Reload contacts on mount and after changes
   const reloadContacts = () => {
-    harvestContactsFromJobs(jobs);
     setAgents(loadSavedAgents());
     setTenants(loadSavedTenants());
     setOwners(loadSavedOwners());
@@ -88,6 +92,12 @@ export const ContactsView: React.FC<ContactsViewProps> = ({ jobs, onOpenJob }) =
   };
 
   useEffect(() => {
+    const existingA = loadSavedAgents();
+    const existingT = loadSavedTenants();
+    const existingC = loadSavedCustomers();
+    if (existingA.length === 0 && existingT.length === 0 && existingC.length === 0 && jobs.length > 0) {
+      harvestContactsFromJobs(jobs);
+    }
     reloadContacts();
   }, [jobs]);
 
@@ -306,13 +316,21 @@ export const ContactsView: React.FC<ContactsViewProps> = ({ jobs, onOpenJob }) =
       return;
     }
 
-    if (type === 'agents') deleteAgent(id);
-    else if (type === 'tenants') deleteTenant(id);
-    else if (type === 'owners') deleteOwner(id);
-    else deleteCustomer(id);
+    if (type === 'agents') {
+      deleteAgent(id);
+      setAgents(prev => prev.filter(a => a.id !== id));
+    } else if (type === 'tenants') {
+      deleteTenant(id);
+      setTenants(prev => prev.filter(t => t.id !== id));
+    } else if (type === 'owners') {
+      deleteOwner(id);
+      setOwners(prev => prev.filter(o => o.id !== id));
+    } else {
+      deleteCustomer(id);
+      setCustomers(prev => prev.filter(c => c.id !== id));
+    }
 
     triggerHapticFeedback('success');
-    reloadContacts();
   };
 
   // Count active jobs for a contact
@@ -339,14 +357,42 @@ export const ContactsView: React.FC<ContactsViewProps> = ({ jobs, onOpenJob }) =
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={() => handleOpenCreateModal(activeTab)}
-          className="shrink-0 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-extrabold text-xs shadow-xs transition"
-        >
-          <Plus className="w-4 h-4 stroke-[2.5]" />
-          <span>Add Contact</span>
-        </button>
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 flex-wrap justify-end">
+          <button
+            type="button"
+            onClick={() => {
+              triggerHapticFeedback('light');
+              exportContactsToExcel();
+            }}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white hover:bg-slate-100 border border-slate-200/90 text-slate-700 font-bold text-xs shadow-2xs active:scale-95 transition"
+            title="Export all contacts to Excel (.xlsx)"
+          >
+            <FileSpreadsheet className="w-4 h-4 text-emerald-600 stroke-[2.2]" />
+            <span className="hidden sm:inline">Export Excel</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              triggerHapticFeedback('light');
+              setIsImportModalOpen(true);
+            }}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white hover:bg-slate-100 border border-slate-200/90 text-slate-700 font-bold text-xs shadow-2xs active:scale-95 transition"
+            title="Import contacts from Excel or CSV"
+          >
+            <Upload className="w-4 h-4 text-blue-600 stroke-[2.2]" />
+            <span className="hidden sm:inline">Import</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleOpenCreateModal(activeTab)}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-extrabold text-xs shadow-xs transition"
+          >
+            <Plus className="w-4 h-4 stroke-[2.5]" />
+            <span>Add Contact</span>
+          </button>
+        </div>
       </div>
 
       {/* Tabs Row */}
@@ -1107,6 +1153,16 @@ export const ContactsView: React.FC<ContactsViewProps> = ({ jobs, onOpenJob }) =
           </div>
         </div>
       )}
+
+      {/* Bulk Excel / CSV Contacts Import Modal */}
+      <ImportContactsModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        onSuccess={() => {
+          reloadContacts();
+          setIsImportModalOpen(false);
+        }}
+      />
     </div>
   );
 };

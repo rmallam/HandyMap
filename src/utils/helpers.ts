@@ -448,3 +448,24 @@ export function formatJobDisplayId(job: {
   return job.jobNumber || '';
 }
 
+/**
+ * Calculates the next sequential Job Number based on existing jobs (e.g. J-1046)
+ */
+export function generateNextJobNumber(jobs: { jobNumber?: string }[]): string {
+  let maxNum = 1000;
+  if (Array.isArray(jobs)) {
+    jobs.forEach(j => {
+      if (!j.jobNumber) return;
+      const match = j.jobNumber.match(/\d+/);
+      if (match) {
+        const num = parseInt(match[0], 10);
+        if (!isNaN(num) && num > maxNum) {
+          maxNum = num;
+        }
+      }
+    });
+  }
+  return `J-${maxNum + 1}`;
+}
+
+

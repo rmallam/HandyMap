@@ -49,13 +49,15 @@ import {
   Clock,
   UploadCloud,
   Loader2,
-  FileUp
+  FileUp,
+  Copy
 } from 'lucide-react';
 import {
   extractTextFromPdfFile,
   parseWorkOrderText,
   ParsedWorkOrder
 } from '../../services/workOrderParser';
+import { exportJobsToExcel } from '../../services/excelDataService';
 
 interface JobListProps {
   jobs: Job[];
@@ -63,6 +65,7 @@ interface JobListProps {
   reminders?: ReminderItem[];
   onSelectJob: (job: Job) => void;
   onAddNewJob: () => void;
+  onDuplicateJob?: (job: Job) => void;
   onOpenImport?: () => void;
   onImportWorkOrder?: (parsed: ParsedWorkOrder, filename: string) => void;
   // Shared Operational Filter Props
@@ -86,6 +89,7 @@ export const JobList: React.FC<JobListProps> = ({
   reminders = [],
   onSelectJob,
   onAddNewJob,
+  onDuplicateJob,
   onOpenImport,
   onImportWorkOrder,
   statusFilter: propStatusFilter,
@@ -305,6 +309,19 @@ export const JobList: React.FC<JobListProps> = ({
 
         {/* Quick Action Buttons */}
         <div className="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={() => {
+              triggerHapticFeedback('light');
+              exportJobsToExcel(jobs);
+            }}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white hover:bg-slate-100 text-slate-700 border border-slate-200/90 font-bold text-xs shadow-2xs active:scale-95 transition"
+            title="Export all jobs to Excel (.xlsx)"
+          >
+            <FileSpreadsheet className="w-4 h-4 text-emerald-600 stroke-[2.2]" />
+            <span className="hidden sm:inline">Export Excel</span>
+          </button>
+
           <button
             onClick={() => {
               triggerHapticFeedback('light');
@@ -1377,6 +1394,21 @@ export const JobList: React.FC<JobListProps> = ({
                       >
                         <Navigation2 className="w-3 h-3" />
                       </a>
+
+                      {onDuplicateJob && (
+                        <button
+                          type="button"
+                          onClick={e => {
+                            e.stopPropagation();
+                            triggerHapticFeedback('medium');
+                            onDuplicateJob(job);
+                          }}
+                          className="w-7 h-7 flex items-center justify-center rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition active:scale-95 shadow-2xs"
+                          title="Duplicate / Copy this Job"
+                        >
+                          <Copy className="w-3 h-3 text-slate-600" />
+                        </button>
+                      )}
 
                       {(job.status === 'completed' || job.status === 'invoiced') && (
                         <button

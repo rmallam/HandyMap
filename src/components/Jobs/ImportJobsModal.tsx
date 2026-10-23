@@ -22,18 +22,21 @@ import {
   downloadSampleExcelTemplate,
   downloadSampleCsvTemplate
 } from '../../services/excelImporter';
+import { exportJobsToExcel } from '../../services/excelDataService';
 import { triggerHapticFeedback } from '../../services/nativeMobile';
 
 interface ImportJobsModalProps {
   isOpen: boolean;
   onClose: () => void;
   onImportJobs: (newJobs: Job[]) => Promise<void> | void;
+  jobs?: Job[];
 }
 
 export const ImportJobsModal: React.FC<ImportJobsModalProps> = ({
   isOpen,
   onClose,
-  onImportJobs
+  onImportJobs,
+  jobs = []
 }) => {
   const [file, setFile] = useState<File | null>(null);
   const [parsedJobs, setParsedJobs] = useState<Job[]>([]);
@@ -239,7 +242,22 @@ export const ImportJobsModal: React.FC<ImportJobsModalProps> = ({
                   </p>
                 </div>
 
-                <div className="flex items-center gap-2 w-full sm:w-auto">
+                <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap">
+                  {jobs && jobs.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        triggerHapticFeedback('light');
+                        exportJobsToExcel(jobs);
+                      }}
+                      className="flex-1 sm:flex-none px-3.5 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-800 font-extrabold text-xs shadow-xs transition flex items-center justify-center gap-1.5 active:scale-95"
+                      title="Export all current jobs to Excel"
+                    >
+                      <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-700" />
+                      <span>Export All Jobs ({jobs.length})</span>
+                    </button>
+                  )}
+
                   <button
                     type="button"
                     onClick={() => {
@@ -249,7 +267,7 @@ export const ImportJobsModal: React.FC<ImportJobsModalProps> = ({
                     className="flex-1 sm:flex-none px-3.5 py-2 rounded-xl bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 font-extrabold text-xs shadow-xs transition flex items-center justify-center gap-1.5 active:scale-95"
                   >
                     <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
-                    <span>Excel (.xlsx)</span>
+                    <span>Template (.xlsx)</span>
                   </button>
 
                   <button

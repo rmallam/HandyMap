@@ -99,6 +99,7 @@ export interface Job {
   quoteRequestedDate: string;
   appointmentTime?: string; // e.g. "2026-09-22T14:30:00"
   estimatedDurationMinutes: number;
+  nteLimit?: number; // Pre-approved budget or NTE limit
   
   // Real Estate Agency & Property Management details
   isAgencyJob?: boolean;

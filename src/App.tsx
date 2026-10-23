@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Job, JobStatus, OptimizedRoute, HandymanProfile, RouteFilterType } from './types';
-import { calculateDistanceKm, DateFilterType } from './utils/helpers';
+import { calculateDistanceKm, DateFilterType, generateNextJobNumber } from './utils/helpers';
 import { loadJobs, saveJobs, loadProfile, saveProfile, resetToDemoData } from './services/storage';
 import { INITIAL_JOBS, DEFAULT_PROFILE } from './data/mockJobs';
 import {
@@ -346,6 +346,40 @@ export function App() {
     if (isSupabaseConfigured && currentUserId) {
       upsertJobInSupabase(newJob, currentUserId);
     }
+  };
+
+  const handleDuplicateJob = async (sourceJob: Job) => {
+    const now = new Date();
+    const nextJobNumber = generateNextJobNumber(jobs);
+    const newId = `job-${Date.now()}`;
+
+    const duplicatedJob: Job = {
+      ...sourceJob,
+      id: newId,
+      jobNumber: nextJobNumber,
+      quoteNumber: undefined,
+      invoiceNumber: undefined,
+      title: `${sourceJob.title} (Copy)`,
+      status: 'quote_requested',
+      appointmentTime: undefined,
+      quoteRequestedDate: now.toISOString(),
+      photos: [],
+      timeLogs: [],
+      createdAt: now.toISOString(),
+      updatedAt: now.toISOString()
+    };
+
+    const nextJobs = [duplicatedJob, ...jobs];
+    handleUpdateJobsList(nextJobs);
+    setSelectedJob(duplicatedJob);
+    setIsJobDetailOpen(true);
+
+    if (isSupabaseConfigured && currentUserId) {
+      upsertJobInSupabase(duplicatedJob, currentUserId);
+    }
+
+    triggerHapticFeedback('success');
+    return duplicatedJob;
   };
 
   const handleBatchImportJobs = async (importedJobs: Job[]) => {
@@ -708,6 +742,7 @@ export function App() {
               setInitialWorkOrder(null);
               setIsNewJobOpen(true);
             }}
+            onDuplicateJob={handleDuplicateJob}
             onOpenImport={() => setIsImportModalOpen(true)}
             onImportWorkOrder={handleImportWorkOrderFromPdf}
             onOpenContacts={() => setActiveTab('contacts')}
@@ -739,6 +774,7 @@ export function App() {
           onClose={() => setIsJobDetailOpen(false)}
           onUpdateJob={handleUpdateSingleJob}
           onDeleteJob={handleDeleteJob}
+          onDuplicateJob={handleDuplicateJob}
         />
       )}
 
@@ -759,6 +795,7 @@ export function App() {
         isOpen={isImportModalOpen}
         onClose={() => setIsImportModalOpen(false)}
         onImportJobs={handleBatchImportJobs}
+        jobs={jobs}
       />
 
       {/* Handyman Business Profile & ABN Invoicing Modal */}
