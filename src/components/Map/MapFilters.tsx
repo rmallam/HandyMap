@@ -912,18 +912,18 @@ export const MapFilters: React.FC<MapFiltersProps> = ({
               <button
                 onClick={() => {
                   triggerHapticFeedback('light');
-                  onSelectDate('today');
+                  onSelectDate('last_week');
                 }}
                 className={`px-2.5 py-1 rounded-xl text-xs font-black transition active:scale-95 flex items-center gap-1.5 ${
-                  selectedDate === 'today'
+                  selectedDate === 'last_week'
                     ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-sm'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                 }`}
               >
-                <span>Today</span>
+                <span>Last Week</span>
                 <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
-                  selectedDate === 'today' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'
-                }`}>{dateCounts.today}</span>
+                  selectedDate === 'last_week' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'
+                }`}>{dateCounts.last_week}</span>
               </button>
               <button
                 onClick={() => {
@@ -940,6 +940,22 @@ export const MapFilters: React.FC<MapFiltersProps> = ({
                 <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
                   selectedDate === 'yesterday' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'
                 }`}>{dateCounts.yesterday}</span>
+              </button>
+              <button
+                onClick={() => {
+                  triggerHapticFeedback('light');
+                  onSelectDate('today');
+                }}
+                className={`px-2.5 py-1 rounded-xl text-xs font-black transition active:scale-95 flex items-center gap-1.5 ${
+                  selectedDate === 'today'
+                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                }`}
+              >
+                <span>Today</span>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                  selectedDate === 'today' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'
+                }`}>{dateCounts.today}</span>
               </button>
               <button
                 onClick={() => {
@@ -972,22 +988,6 @@ export const MapFilters: React.FC<MapFiltersProps> = ({
                 <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
                   selectedDate === 'this_week' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'
                 }`}>{dateCounts.this_week}</span>
-              </button>
-              <button
-                onClick={() => {
-                  triggerHapticFeedback('light');
-                  onSelectDate('last_week');
-                }}
-                className={`px-2.5 py-1 rounded-xl text-xs font-black transition active:scale-95 flex items-center gap-1.5 ${
-                  selectedDate === 'last_week'
-                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                }`}
-              >
-                <span>Last Week</span>
-                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
-                  selectedDate === 'last_week' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'
-                }`}>{dateCounts.last_week}</span>
               </button>
               <button
                 onClick={() => {

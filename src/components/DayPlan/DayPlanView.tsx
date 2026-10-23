@@ -426,19 +426,38 @@ export const DayPlanView: React.FC<DayPlanViewProps> = ({
         <button
           onClick={() => {
             triggerHapticFeedback('light');
-            setDateFilter('today');
+            setDateFilter('all');
           }}
-          className={`flex-1 min-w-[70px] py-1.5 px-2.5 rounded-xl text-xs font-black transition active:scale-95 flex items-center justify-center gap-1 whitespace-nowrap ${
-            dateFilter === 'today'
+          className={`flex-1 min-w-[60px] py-1.5 px-2.5 rounded-xl text-xs font-black transition active:scale-95 flex items-center justify-center gap-1 whitespace-nowrap ${
+            dateFilter === 'all'
+              ? 'bg-slate-900 text-white shadow-xs'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+          }`}
+        >
+          <span>All</span>
+          <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+            dateFilter === 'all' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
+          }`}>
+            {dateCounts.all}
+          </span>
+        </button>
+
+        <button
+          onClick={() => {
+            triggerHapticFeedback('light');
+            setDateFilter('last_week');
+          }}
+          className={`flex-1 min-w-[75px] py-1.5 px-2.5 rounded-xl text-xs font-black transition active:scale-95 flex items-center justify-center gap-1 whitespace-nowrap ${
+            dateFilter === 'last_week'
               ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-xs'
               : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
           }`}
         >
-          <span>Today</span>
+          <span>Last Week</span>
           <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
-            dateFilter === 'today' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
+            dateFilter === 'last_week' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
           }`}>
-            {dateCounts.today}
+            {dateCounts.last_week}
           </span>
         </button>
 
@@ -458,6 +477,25 @@ export const DayPlanView: React.FC<DayPlanViewProps> = ({
             dateFilter === 'yesterday' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
           }`}>
             {dateCounts.yesterday}
+          </span>
+        </button>
+
+        <button
+          onClick={() => {
+            triggerHapticFeedback('light');
+            setDateFilter('today');
+          }}
+          className={`flex-1 min-w-[70px] py-1.5 px-2.5 rounded-xl text-xs font-black transition active:scale-95 flex items-center justify-center gap-1 whitespace-nowrap ${
+            dateFilter === 'today'
+              ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-xs'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+          }`}
+        >
+          <span>Today</span>
+          <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+            dateFilter === 'today' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
+          }`}>
+            {dateCounts.today}
           </span>
         </button>
 
@@ -496,44 +534,6 @@ export const DayPlanView: React.FC<DayPlanViewProps> = ({
             dateFilter === 'this_week' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
           }`}>
             {dateCounts.this_week}
-          </span>
-        </button>
-
-        <button
-          onClick={() => {
-            triggerHapticFeedback('light');
-            setDateFilter('last_week');
-          }}
-          className={`flex-1 min-w-[75px] py-1.5 px-2.5 rounded-xl text-xs font-black transition active:scale-95 flex items-center justify-center gap-1 whitespace-nowrap ${
-            dateFilter === 'last_week'
-              ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-xs'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-          }`}
-        >
-          <span>Last Week</span>
-          <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
-            dateFilter === 'last_week' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
-          }`}>
-            {dateCounts.last_week}
-          </span>
-        </button>
-
-        <button
-          onClick={() => {
-            triggerHapticFeedback('light');
-            setDateFilter('all');
-          }}
-          className={`flex-1 min-w-[60px] py-1.5 px-2.5 rounded-xl text-xs font-black transition active:scale-95 flex items-center justify-center gap-1 whitespace-nowrap ${
-            dateFilter === 'all'
-              ? 'bg-slate-900 text-white shadow-xs'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-          }`}
-        >
-          <span>All</span>
-          <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
-            dateFilter === 'all' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
-          }`}>
-            {dateCounts.all}
           </span>
         </button>
       </div>

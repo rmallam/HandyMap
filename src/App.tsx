@@ -595,6 +595,7 @@ export function App() {
         onAddNewJob={() => setIsNewJobOpen(true)}
         onTeleportLocation={handleToggleGpsMode}
         onToggleViewMode={(tab) => setActiveTab(tab)}
+        onOpenContacts={() => setActiveTab('contacts')}
         onOpenReminders={() => setIsRemindersDrawerOpen(true)}
         onOpenProfile={() => setIsProfileModalOpen(true)}
         onOpenImport={() => setIsImportModalOpen(true)}

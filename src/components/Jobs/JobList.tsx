@@ -553,19 +553,19 @@ export const JobList: React.FC<JobListProps> = ({
           <button
             onClick={() => {
               triggerHapticFeedback('light');
-              setDateFilter('today');
+              setDateFilter('last_week');
             }}
             className={`shrink-0 min-h-[34px] px-3 py-1.5 rounded-xl text-xs font-black transition active:scale-95 flex items-center gap-1.5 whitespace-nowrap ${
-              dateFilter === 'today'
+              dateFilter === 'last_week'
                 ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/20'
                 : 'text-slate-600 bg-slate-50/90 hover:text-slate-900 hover:bg-slate-100 border border-slate-200/70'
             }`}
           >
-            <span>Today</span>
+            <span>Last Week</span>
             <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
-              dateFilter === 'today' ? 'bg-white/20 text-white' : 'bg-slate-200/80 text-slate-700'
+              dateFilter === 'last_week' ? 'bg-white/20 text-white' : 'bg-slate-200/80 text-slate-700'
             }`}>
-              {dateCounts.today}
+              {dateCounts.last_week}
             </span>
           </button>
 
@@ -585,6 +585,25 @@ export const JobList: React.FC<JobListProps> = ({
               dateFilter === 'yesterday' ? 'bg-white/20 text-white' : 'bg-slate-200/80 text-slate-700'
             }`}>
               {dateCounts.yesterday}
+            </span>
+          </button>
+
+          <button
+            onClick={() => {
+              triggerHapticFeedback('light');
+              setDateFilter('today');
+            }}
+            className={`shrink-0 min-h-[34px] px-3 py-1.5 rounded-xl text-xs font-black transition active:scale-95 flex items-center gap-1.5 whitespace-nowrap ${
+              dateFilter === 'today'
+                ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/20'
+                : 'text-slate-600 bg-slate-50/90 hover:text-slate-900 hover:bg-slate-100 border border-slate-200/70'
+            }`}
+          >
+            <span>Today</span>
+            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+              dateFilter === 'today' ? 'bg-white/20 text-white' : 'bg-slate-200/80 text-slate-700'
+            }`}>
+              {dateCounts.today}
             </span>
           </button>
 
@@ -623,25 +642,6 @@ export const JobList: React.FC<JobListProps> = ({
               dateFilter === 'this_week' ? 'bg-white/20 text-white' : 'bg-slate-200/80 text-slate-700'
             }`}>
               {dateCounts.this_week}
-            </span>
-          </button>
-
-          <button
-            onClick={() => {
-              triggerHapticFeedback('light');
-              setDateFilter('last_week');
-            }}
-            className={`shrink-0 min-h-[34px] px-3 py-1.5 rounded-xl text-xs font-black transition active:scale-95 flex items-center gap-1.5 whitespace-nowrap ${
-              dateFilter === 'last_week'
-                ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/20'
-                : 'text-slate-600 bg-slate-50/90 hover:text-slate-900 hover:bg-slate-100 border border-slate-200/70'
-            }`}
-          >
-            <span>Last Week</span>
-            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
-              dateFilter === 'last_week' ? 'bg-white/20 text-white' : 'bg-slate-200/80 text-slate-700'
-            }`}>
-              {dateCounts.last_week}
             </span>
           </button>
 

@@ -15,7 +15,8 @@ import {
   Cloud,
   FileSpreadsheet,
   Sparkles,
-  RefreshCw
+  RefreshCw,
+  Users
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -27,7 +28,8 @@ interface HeaderProps {
   currentUserEmail?: string | null;
   onAddNewJob: () => void;
   onTeleportLocation: () => void;
-  onToggleViewMode: (tab: 'map' | 'jobs') => void;
+  onToggleViewMode: (tab: any) => void;
+  onOpenContacts?: () => void;
   onOpenReminders?: () => void;
   onOpenProfile?: () => void;
   onOpenImport?: () => void;
@@ -47,6 +49,7 @@ export const Header: React.FC<HeaderProps> = ({
   onAddNewJob,
   onTeleportLocation,
   onToggleViewMode,
+  onOpenContacts,
   onOpenReminders,
   onOpenProfile,
   onOpenImport,
@@ -79,9 +82,13 @@ export const Header: React.FC<HeaderProps> = ({
     return 'HM';
   };
 
-  const handleSegmentClick = (tab: 'map' | 'jobs') => {
+  const handleSegmentClick = (tab: 'map' | 'jobs' | 'contacts') => {
     triggerHapticFeedback('light');
-    onToggleViewMode(tab);
+    if (tab === 'contacts' && onOpenContacts) {
+      onOpenContacts();
+    } else {
+      onToggleViewMode(tab);
+    }
   };
 
   return (
@@ -116,40 +123,50 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       </div>
 
-      {/* Center: Apple-style Segmented Map / List Toggle (Shown on Map and Jobs view) */}
-      {(activeTab === 'map' || activeTab === 'jobs') ? (
-        <div className="flex items-center bg-slate-100/90 p-1 rounded-2xl border border-slate-200/80 shadow-inner">
-          <button
-            onClick={() => handleSegmentClick('map')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all duration-200 active:scale-95 ${
-              activeTab === 'map'
-                ? 'bg-white text-slate-900 shadow-sm shadow-slate-900/10 ring-1 ring-black/5'
-                : 'text-slate-500 hover:text-slate-900'
-            }`}
-            title="Switch to Map View"
-          >
-            <Map className="w-3.5 h-3.5 stroke-[2.2]" />
-            <span>Map</span>
-          </button>
+      {/* Center: Apple-style Segmented Nav (Map | List | Directory) */}
+      <div className="flex items-center bg-slate-100/90 p-1 rounded-2xl border border-slate-200/80 shadow-inner">
+        <button
+          onClick={() => handleSegmentClick('map')}
+          className={`px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all duration-200 active:scale-95 ${
+            activeTab === 'map'
+              ? 'bg-white text-slate-900 shadow-sm shadow-slate-900/10 ring-1 ring-black/5'
+              : 'text-slate-500 hover:text-slate-900'
+          }`}
+          title="Switch to Map View"
+        >
+          <Map className="w-3.5 h-3.5 stroke-[2.2]" />
+          <span>Map</span>
+        </button>
 
-          <button
-            onClick={() => handleSegmentClick('jobs')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all duration-200 active:scale-95 ${
-              activeTab === 'jobs'
-                ? 'bg-white text-slate-900 shadow-sm shadow-slate-900/10 ring-1 ring-black/5'
-                : 'text-slate-500 hover:text-slate-900'
-            }`}
-            title="Switch to Jobs List"
-          >
-            <List className="w-3.5 h-3.5 stroke-[2.2]" />
-            <span>List</span>
-          </button>
-        </div>
-      ) : (
-        <div className="hidden sm:flex items-center gap-1 text-xs font-extrabold text-slate-500 bg-slate-100/80 px-3 py-1.5 rounded-xl border border-slate-200/60">
-          <span className="capitalize">{activeTab} Hub</span>
-        </div>
-      )}
+        <button
+          onClick={() => handleSegmentClick('jobs')}
+          className={`px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all duration-200 active:scale-95 ${
+            activeTab === 'jobs'
+              ? 'bg-white text-slate-900 shadow-sm shadow-slate-900/10 ring-1 ring-black/5'
+              : 'text-slate-500 hover:text-slate-900'
+          }`}
+          title="Switch to Jobs List"
+        >
+          <List className="w-3.5 h-3.5 stroke-[2.2]" />
+          <span>List</span>
+        </button>
+
+        <button
+          onClick={() => {
+            if (onOpenContacts) onOpenContacts();
+            else handleSegmentClick('contacts');
+          }}
+          className={`px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all duration-200 active:scale-95 ${
+            activeTab === 'contacts'
+              ? 'bg-white text-purple-900 shadow-sm shadow-purple-900/10 ring-1 ring-black/5'
+              : 'text-slate-500 hover:text-purple-700'
+          }`}
+          title="Switch to Contacts Directory (Agents, Tenants, Landlords)"
+        >
+          <Users className="w-3.5 h-3.5 text-purple-600 stroke-[2.2]" />
+          <span className="hidden xs:inline">Directory</span>
+        </button>
+      </div>
 
       {/* Right Controls */}
       <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
