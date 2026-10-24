@@ -58,7 +58,7 @@ export const QuickJobSheet: React.FC<QuickJobSheetProps> = ({
   const liveNavUrl = buildLiveNavigationUrl(job.coordinates, job.address);
   const handymanName = profile?.name?.trim() || 'Alex';
   const businessName = profile?.businessName?.trim() || 'Apex Handyman';
-  const defaultSmsMsg = `Hi ${job.clientName}, this is ${handymanName} from ${businessName}. I'm reviewing your request for ${job.title}. When is a good time for me to stop by for the quote?`;
+  const defaultSmsMsg = `Hi ${job.ownerName || job.clientName}, this is ${handymanName} from ${businessName}. I'm reviewing your request for ${job.title}. When is a good time for me to stop by for the quote?`;
   const displayId = formatJobDisplayId(job);
 
   const handleActionTap = (action: () => void) => {
@@ -109,7 +109,7 @@ export const QuickJobSheet: React.FC<QuickJobSheetProps> = ({
             {job.title}
           </h2>
           <div className="mt-1.5 flex items-center justify-between text-xs text-slate-500">
-            <span className="font-extrabold text-slate-900">{job.clientName}</span>
+            <span className="font-extrabold text-slate-900">{job.ownerName || job.clientName}</span>
             <span className="text-slate-700 bg-slate-100 px-2.5 py-0.5 rounded-lg font-bold border border-slate-200/80">
               {job.category}
             </span>
@@ -193,18 +193,18 @@ export const QuickJobSheet: React.FC<QuickJobSheetProps> = ({
         {/* Action Buttons Grid (48px Touch Targets) */}
         <div className="grid grid-cols-4 gap-2 pt-0.5">
           <a
-            href={`tel:${job.clientPhone}`}
+            href={`tel:${job.ownerPhone || job.clientPhone}`}
             className="flex flex-col items-center justify-center p-2.5 min-h-[52px] rounded-2xl bg-slate-50 hover:bg-slate-100 text-slate-800 transition active:scale-95 border border-slate-200/90 shadow-xs"
-            title="Call Client"
+            title="Call Owner"
           >
             <Phone className="w-4 h-4 text-emerald-600" />
             <span className="text-[10px] font-bold mt-1">Call</span>
           </a>
 
           <a
-            href={buildSmsLink(job.clientPhone, defaultSmsMsg)}
+            href={buildSmsLink(job.ownerPhone || job.clientPhone, defaultSmsMsg)}
             className="flex flex-col items-center justify-center p-2.5 min-h-[52px] rounded-2xl bg-slate-50 hover:bg-slate-100 text-slate-800 transition active:scale-95 border border-slate-200/90 shadow-xs"
-            title="Send SMS"
+            title="Send SMS to Owner"
           >
             <MessageSquare className="w-4 h-4 text-blue-600" />
             <span className="text-[10px] font-bold mt-1">SMS</span>

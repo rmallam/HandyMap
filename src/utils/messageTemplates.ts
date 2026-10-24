@@ -49,7 +49,7 @@ export function buildMessageContext(job: Job, profile: HandymanProfile, extra?: 
   const workOrderNumber = job.workOrderNumber ? `WO #${job.workOrderNumber}` : job.jobNumber;
 
   return {
-    clientName: job.clientName,
+    clientName: job.ownerName || job.clientName,
     handymanName,
     businessName,
     jobTitle: job.title,

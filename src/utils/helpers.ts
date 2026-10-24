@@ -241,7 +241,7 @@ export function buildWhatsAppQuoteText(job: Job, profile: HandymanProfile): stri
     ? (job.jobNumber.startsWith('INV') ? job.jobNumber : `INV-${job.jobNumber}`)
     : (quote?.quoteNumber || `QTE-${job.jobNumber}`);
 
-  let text = `👋 *Hi ${job.clientName},*\n\n`;
+  let text = `👋 *Hi ${job.ownerName || job.clientName},*\n\n`;
   text += `Here is your official *${docType}* from *${profile.businessName}*:\n\n`;
   text += `📄 *Ref #:* ${docRef}\n`;
   if (profile.abn) {

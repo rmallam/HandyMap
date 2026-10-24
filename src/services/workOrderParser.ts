@@ -24,6 +24,8 @@ export interface ParsedWorkOrder {
   hasTenant2: boolean;
   keyAccess: string;
   ownerName: string;
+  ownerPhone: string;
+  ownerEmail: string;
   category: JobCategory;
   tasks: string[];
   nteLimit?: number;
@@ -147,6 +149,8 @@ export function parseWorkOrderText(text: string): ParsedWorkOrder {
     hasTenant2: false,
     keyAccess: '',
     ownerName: '',
+    ownerPhone: '',
+    ownerEmail: '',
     category: 'General Repair',
     tasks: [],
     nteLimit: undefined,
@@ -276,8 +280,20 @@ export function parseWorkOrderText(text: string): ParsedWorkOrder {
   }
 
   // 6. Owner
-  const ownerMatch = text.match(/on\s+behalf\s+of\s+the\s+owner\s*-\s*([^\n]+)/i);
-  if (ownerMatch) result.ownerName = ownerMatch[1].trim();
+  const ownerMatch = text.match(/(?:on\s+behalf\s+of\s+the\s+owner\s*-\s*|landlord\s*[:\-]\s*|owner\s*[:\-]\s*)([^\n,]+)/i);
+  if (ownerMatch) {
+    result.ownerName = ownerMatch[1].trim();
+    if (!result.clientName) result.clientName = result.ownerName;
+  }
+  if (!result.ownerName && result.clientName) {
+    result.ownerName = result.clientName;
+  }
+  if (result.clientPhone && !result.ownerPhone) {
+    result.ownerPhone = result.clientPhone;
+  }
+  if (result.clientEmail && !result.ownerEmail) {
+    result.ownerEmail = result.clientEmail;
+  }
 
   // 7. Not-To-Exceed (NTE) / Limit
   const limitMatch = text.match(/(?:limit|maximum|not\s*to\s*exceed|approved\s*up\s*to)\s*[:$]?\s*\$?([0-9]+(?:\.[0-9]{2})?)/i);

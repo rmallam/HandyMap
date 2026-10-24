@@ -136,7 +136,7 @@ export const JobMarker: React.FC<JobMarkerProps> = ({
           <div className="mt-3.5 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
             <div>
               <p className="text-[11px] font-bold text-slate-900">
-                {job.clientName}
+                {job.ownerName || job.clientName}
                 {job.isAgencyJob && job.workOrderNumber && (
                   <span className="block text-[10px] text-purple-700 font-mono font-bold mt-0.5">{job.workOrderNumber}</span>
                 )}

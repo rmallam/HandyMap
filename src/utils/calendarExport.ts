@@ -18,13 +18,13 @@ export function buildGoogleCalendarUrl(job: Job, profile: HandymanProfile): stri
   const startISO = formatGCalDate(validStart);
   const endISO = formatGCalDate(validEnd);
 
-  const title = `🔨 [${job.jobNumber}] ${job.title} - ${job.clientName}`;
+  const title = `🔨 [${job.jobNumber}] ${job.title} - ${job.ownerName || job.clientName}`;
   
   const navUrl = `https://www.google.com/maps/dir/?api=1&destination=${job.coordinates[0]},${job.coordinates[1]}`;
   
   let details = `Handyman Service Booking\n\n`;
   details += `Job ID: ${job.jobNumber}\n`;
-  details += `Client: ${job.clientName} (${job.clientPhone})\n`;
+  details += `Owner: ${job.ownerName || job.clientName} (${job.ownerPhone || job.clientPhone})\n`;
   details += `Address: ${job.address}\n`;
   details += `Category: ${job.category} | Priority: ${job.priority.toUpperCase()}\n\n`;
   if (job.description) {
@@ -59,7 +59,7 @@ export function downloadIcsCalendarFile(job: Job, profile: HandymanProfile): voi
 
   const description = [
     `Job ID: ${job.jobNumber}`,
-    `Client: ${job.clientName} (${job.clientPhone})`,
+    `Owner: ${job.ownerName || job.clientName} (${job.ownerPhone || job.clientPhone})`,
     `Address: ${job.address}`,
     `Category: ${job.category}`,
     `Description: ${job.description.replace(/\n/g, ' ')}`,
@@ -78,7 +78,7 @@ export function downloadIcsCalendarFile(job: Job, profile: HandymanProfile): voi
     `DTSTAMP:${nowISO}`,
     `DTSTART:${startISO}`,
     `DTEND:${endISO}`,
-    `SUMMARY:${job.jobNumber} - ${job.title} (${job.clientName})`,
+    `SUMMARY:${job.jobNumber} - ${job.title} (${job.ownerName || job.clientName})`,
     `DESCRIPTION:${description}`,
     `LOCATION:${job.address}`,
     'STATUS:CONFIRMED',

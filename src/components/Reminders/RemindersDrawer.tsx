@@ -351,7 +351,7 @@ export const RemindersDrawer: React.FC<RemindersDrawerProps> = ({
                   {/* Client & Address Info */}
                   <div className="bg-white/95 rounded-xl p-3 border border-slate-200/80 flex items-center justify-between text-xs shadow-xs">
                     <div>
-                      <p className="font-black text-slate-900">{job.clientName}</p>
+                      <p className="font-black text-slate-900">{job.ownerName || job.clientName}</p>
                       <p className="text-[11px] text-slate-500 truncate max-w-[200px] font-medium">{job.address}</p>
                     </div>
                     <span className="text-[11px] font-bold bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md border border-slate-200/60">

@@ -205,6 +205,7 @@ export const DayPlanView: React.FC<DayPlanViewProps> = ({
         if (!query) return true;
         return (
           j.title.toLowerCase().includes(query) ||
+          (j.ownerName && j.ownerName.toLowerCase().includes(query)) ||
           j.clientName.toLowerCase().includes(query) ||
           j.address.toLowerCase().includes(query) ||
           j.jobNumber.toLowerCase().includes(query) ||
@@ -975,10 +976,10 @@ export const DayPlanView: React.FC<DayPlanViewProps> = ({
                     <span className="truncate font-black text-slate-900 text-xs sm:text-[13px]">{job.address}</span>
                   </div>
 
-                  {/* Client & Price */}
+                  {/* Owner & Price */}
                   <div className="mt-2 pt-2 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
                     <div className="flex items-center gap-1.5 text-slate-600">
-                      <span className="font-bold text-slate-900">{job.clientName}</span>
+                      <span className="font-bold text-slate-900">{job.ownerName || job.clientName}</span>
                       {job.realEstateAgentName && (
                         <span className="text-[11px] text-purple-700 font-semibold truncate">
                           (PM: {job.realEstateAgentName})
@@ -989,19 +990,19 @@ export const DayPlanView: React.FC<DayPlanViewProps> = ({
                     {/* Touch Action Buttons Strip */}
                     <div className="flex items-center gap-1 flex-wrap">
                       <a
-                        href={`tel:${job.clientPhone}`}
+                        href={`tel:${job.ownerPhone || job.clientPhone}`}
                         onClick={() => triggerHapticFeedback('light')}
                         className="p-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 transition active:scale-95"
-                        title="Call Client"
+                        title="Call Owner"
                       >
                         <Phone className="w-3.5 h-3.5 stroke-[2.2]" />
                       </a>
 
                       <a
-                        href={`sms:${job.clientPhone.replace(/[^0-9+]/g, '')}?body=${encodeURIComponent(onMyWaySms)}`}
+                        href={`sms:${(job.ownerPhone || job.clientPhone).replace(/[^0-9+]/g, '')}?body=${encodeURIComponent(onMyWaySms)}`}
                         onClick={() => triggerHapticFeedback('light')}
                         className="p-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 transition active:scale-95"
-                        title="Send On My Way SMS"
+                        title="Send On My Way SMS to Owner"
                       >
                         <MessageSquare className="w-3.5 h-3.5 stroke-[2.2]" />
                       </a>
@@ -1088,7 +1089,7 @@ export const DayPlanView: React.FC<DayPlanViewProps> = ({
                 >
                   <div className="min-w-0 flex-1">
                     <p className="font-bold text-slate-900 truncate">{ujob.title}</p>
-                    <p className="text-[11px] font-black text-slate-900 truncate">{ujob.address} • <span className="font-semibold text-slate-600">{ujob.clientName}</span></p>
+                    <p className="text-[11px] font-black text-slate-900 truncate">{ujob.address} • <span className="font-semibold text-slate-600">{ujob.ownerName || ujob.clientName}</span></p>
                   </div>
                   <button
                     onClick={() => handleAddJobToDay(ujob)}
@@ -1135,7 +1136,7 @@ export const DayPlanView: React.FC<DayPlanViewProps> = ({
                   type="text"
                   value={addJobSearchQuery}
                   onChange={e => setAddJobSearchQuery(e.target.value)}
-                  placeholder="Search by client, address, trade, or agency..."
+                  placeholder="Search by owner, address, trade, or agency..."
                   className="w-full bg-white border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs font-semibold text-slate-900 placeholder:text-slate-400 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/10"
                 />
               </div>
@@ -1178,7 +1179,7 @@ export const DayPlanView: React.FC<DayPlanViewProps> = ({
                           )}
                         </div>
                         <h4 className="font-extrabold text-xs text-slate-900 truncate">{j.title}</h4>
-                        <p className="text-[11px] text-slate-500 truncate mt-0.5">{j.address} • {j.clientName}</p>
+                        <p className="text-[11px] text-slate-500 truncate mt-0.5">{j.address} • {j.ownerName || j.clientName}</p>
                       </div>
 
                       <button

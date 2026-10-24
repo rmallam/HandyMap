@@ -768,14 +768,19 @@ export function harvestContactsFromJobs(jobs: Job[]): {
     }
 
     // 4. Property Owners / Landlords
-    if (job.ownerName && job.ownerName.trim().length > 1) {
-      const oKey = job.ownerName.toLowerCase().trim();
+    const effOwnerName = job.ownerName?.trim() || (!job.isAgencyJob ? job.clientName?.trim() : undefined);
+    const effOwnerPhone = job.ownerPhone?.trim() || (!job.isAgencyJob ? job.clientPhone?.trim() : undefined);
+    const effOwnerEmail = job.ownerEmail?.trim() || (!job.isAgencyJob ? job.clientEmail?.trim() : undefined);
+
+    if (effOwnerName && effOwnerName.length > 1) {
+      const oPhoneClean = normalizePhone(effOwnerPhone);
+      const oKey = (oPhoneClean && oPhoneClean.length >= 8) ? oPhoneClean : effOwnerName.toLowerCase().trim();
       if (!ownerMap.has(oKey)) {
         ownerMap.set(oKey, {
           id: `owner-h-${job.id}`,
-          ownerName: job.ownerName.trim(),
-          ownerPhone: '',
-          ownerEmail: '',
+          ownerName: effOwnerName,
+          ownerPhone: effOwnerPhone || '',
+          ownerEmail: effOwnerEmail || '',
           propertyAddress: job.address?.trim() || '',
           suburb: job.suburb?.trim() || 'Point Cook',
           agencyName: job.realEstateAgency?.trim() || '',
@@ -785,7 +790,10 @@ export function harvestContactsFromJobs(jobs: Job[]): {
       } else {
         const existing = ownerMap.get(oKey)!;
         existing.useCount = (existing.useCount || 1) + 1;
+        if (!existing.ownerPhone && effOwnerPhone) existing.ownerPhone = effOwnerPhone;
+        if (!existing.ownerEmail && effOwnerEmail) existing.ownerEmail = effOwnerEmail;
         if (!existing.propertyAddress && job.address) existing.propertyAddress = job.address;
+        if (!existing.agencyName && job.realEstateAgency) existing.agencyName = job.realEstateAgency;
       }
     }
   });
@@ -885,4 +893,34 @@ export function findAgentsByAgency(agencyName: string): SavedAgent[] {
   if (!clean) return [];
   const list = loadSavedAgents();
   return list.filter(a => a.agencyName.toLowerCase() === clean || a.agencyName.toLowerCase().includes(clean));
+}
+
+/**
+ * Search saved owners by name, phone, email, or property address
+ */
+export function searchSavedOwners(query: string, limit = 5): SavedOwner[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return [];
+  const list = loadSavedOwners();
+  const cleanQPhone = normalizePhone(q);
+
+  return list
+    .filter(o => {
+      const nameMatch = o.ownerName.toLowerCase().includes(q);
+      const phoneMatch = cleanQPhone && normalizePhone(o.ownerPhone).includes(cleanQPhone);
+      const emailMatch = o.ownerEmail && o.ownerEmail.toLowerCase().includes(q);
+      const addressMatch = o.propertyAddress && o.propertyAddress.toLowerCase().includes(q);
+      return nameMatch || phoneMatch || emailMatch || addressMatch;
+    })
+    .slice(0, limit);
+}
+
+/**
+ * Match a phone number directly to see if this owner already exists
+ */
+export function findOwnerByPhone(phone: string): SavedOwner | null {
+  const cleanPhone = normalizePhone(phone);
+  if (!cleanPhone || cleanPhone.length < 8) return null;
+  const list = loadSavedOwners();
+  return list.find(o => normalizePhone(o.ownerPhone) === cleanPhone) || null;
 }

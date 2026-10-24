@@ -46,15 +46,20 @@ import {
 import {
   loadSavedCustomers,
   loadSavedAgents,
+  loadSavedOwners,
   searchSavedCustomers,
   searchSavedAgents,
+  searchSavedOwners,
   findCustomerByPhone,
   findAgentByPhone,
+  findOwnerByPhone,
   findAgentsByAgency,
   saveOrUpdateCustomer,
   saveOrUpdateAgent,
+  saveOrUpdateOwner,
   SavedCustomer,
-  SavedAgent
+  SavedAgent,
+  SavedOwner
 } from '../../services/contactDirectory';
 
 interface JobFormModalProps {
@@ -90,9 +95,9 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
   if (!isOpen) return null;
 
   const [title, setTitle] = useState('');
-  const [clientName, setClientName] = useState('');
-  const [clientPhone, setClientPhone] = useState('');
-  const [clientEmail, setClientEmail] = useState('');
+  const [ownerName, setOwnerName] = useState('');
+  const [ownerPhone, setOwnerPhone] = useState('');
+  const [ownerEmail, setOwnerEmail] = useState('');
   const [address, setAddress] = useState('');
   const [suburb, setSuburb] = useState('Point Cook');
   const [selectedCoordinates, setSelectedCoordinates] = useState<[number, number] | null>(null);
@@ -175,9 +180,12 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
     if (parsed.realEstateEmail) setRealEstateAgentEmail(parsed.realEstateEmail);
     if (parsed.address) setAddress(parsed.address);
     if (parsed.suburb) setSuburb(parsed.suburb);
-    if (parsed.clientName) setClientName(parsed.clientName);
-    if (parsed.clientPhone) setClientPhone(parsed.clientPhone);
-    if (parsed.clientEmail) setClientEmail(parsed.clientEmail);
+    if (parsed.ownerName) setOwnerName(parsed.ownerName);
+    else if (parsed.clientName) setOwnerName(parsed.clientName);
+    if (parsed.ownerPhone) setOwnerPhone(parsed.ownerPhone);
+    else if (parsed.clientPhone) setOwnerPhone(parsed.clientPhone);
+    if (parsed.ownerEmail) setOwnerEmail(parsed.ownerEmail);
+    else if (parsed.clientEmail) setOwnerEmail(parsed.clientEmail);
     if (parsed.tenant1Name) setTenant1Name(parsed.tenant1Name);
     if (parsed.tenant1Phone) setTenant1Phone(parsed.tenant1Phone);
     if (parsed.tenant1Email) setTenant1Email(parsed.tenant1Email);
@@ -289,9 +297,9 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
         handleApplyParsedWorkOrder(initialWorkOrder.parsed, initialWorkOrder.filename);
       } else {
         setTitle('');
-        setClientName('');
-        setClientPhone('');
-        setClientEmail('');
+        setOwnerName('');
+        setOwnerPhone('');
+        setOwnerEmail('');
         setAddress('');
         setSuburb('Point Cook');
         setSelectedCoordinates(null);
@@ -347,9 +355,9 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
     );
   };
 
-  // Client Name change with autocomplete search
-  const handleClientNameChange = (val: string) => {
-    setClientName(val);
+  // Owner Name change with autocomplete search
+  const handleOwnerNameChange = (val: string) => {
+    setOwnerName(val);
     if (val.trim().length >= 2) {
       const matches = searchSavedCustomers(val, 4);
       setCustomerSuggestions(matches);
@@ -360,15 +368,19 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
     }
   };
 
-  // Client Phone change with smart customer auto-match and strict 10-digit formatting
-  const handleClientPhoneChange = (val: string) => {
+  // Owner Phone change with smart customer/owner auto-match and strict 10-digit formatting
+  const handleOwnerPhoneChange = (val: string) => {
     const formatted = formatPhoneNumber(val);
-    setClientPhone(formatted);
+    setOwnerPhone(formatted);
     setPhoneValidationError(null);
     const digits = cleanPhoneNumber(formatted);
     if (digits.length >= 8) {
-      const found = findCustomerByPhone(digits);
-      if (found && found.name.toLowerCase() !== clientName.trim().toLowerCase()) {
+      const foundOwner = findOwnerByPhone(digits);
+      const found = foundOwner 
+        ? { id: foundOwner.id, name: foundOwner.ownerName, phone: foundOwner.ownerPhone || '', email: foundOwner.ownerEmail, address: foundOwner.propertyAddress, suburb: foundOwner.suburb, coordinates: [0, 0] as [number, number], lastUsedAt: foundOwner.lastUsedAt, useCount: foundOwner.useCount }
+        : findCustomerByPhone(digits);
+
+      if (found && found.name.toLowerCase() !== ownerName.trim().toLowerCase()) {
         setMatchedCustomerByPhone(found);
       } else {
         setMatchedCustomerByPhone(null);
@@ -378,15 +390,15 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
     }
   };
 
-  // Apply selected customer
+  // Apply selected customer/owner
   const handleSelectCustomer = (cust: SavedCustomer) => {
     triggerHapticFeedback('success');
-    setClientName(cust.name);
-    setClientPhone(cust.phone);
-    if (cust.email) setClientEmail(cust.email);
+    setOwnerName(cust.name);
+    setOwnerPhone(cust.phone);
+    if (cust.email) setOwnerEmail(cust.email);
     if (cust.address) setAddress(cust.address);
     if (cust.suburb) setSuburb(cust.suburb);
-    if (cust.coordinates) setSelectedCoordinates(cust.coordinates);
+    if (cust.coordinates && cust.coordinates[0] !== 0) setSelectedCoordinates(cust.coordinates);
     setShowCustomerDropdown(false);
     setShowSavedCustomersList(false);
     setMatchedCustomerByPhone(null);
@@ -510,14 +522,12 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    const effectiveClientName = isAgencyJob
-      ? (tenant1Name.trim() || clientName.trim() || realEstateAgentName.trim() || realEstateAgency.trim() || 'Tenant')
-      : clientName.trim();
-    if (!title.trim() || !effectiveClientName) return;
+    const effectiveOwnerName = ownerName.trim() || (isAgencyJob ? (tenant1Name.trim() || realEstateAgentName.trim() || realEstateAgency.trim() || 'Owner') : '');
+    if (!title.trim() || (!effectiveOwnerName && !isAgencyJob)) return;
 
     // Validate 10-digit Australian phone numbers
-    if (clientPhone.trim() && cleanPhoneNumber(clientPhone).length !== 10) {
-      setPhoneValidationError('Client phone must be exactly 10 digits (e.g. 0412 345 678).');
+    if (ownerPhone.trim() && cleanPhoneNumber(ownerPhone).length !== 10) {
+      setPhoneValidationError('Owner phone must be exactly 10 digits (e.g. 0412 345 678).');
       triggerHapticFeedback('error');
       return;
     }
@@ -579,16 +589,26 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
       });
     }
 
-    const finalClientPhone = clientPhone.trim() || (isAgencyJob ? tenant1Phone.trim() : '0412 555 019');
-    const finalClientEmail = clientEmail.trim() || (isAgencyJob ? tenant1Email.trim() : `${effectiveClientName.toLowerCase().replace(/\s+/g, '.')}@gmail.com`);
+    const finalOwnerPhone = ownerPhone.trim() || (isAgencyJob ? tenant1Phone.trim() : '0412 555 019');
+    const finalOwnerEmail = ownerEmail.trim() || (isAgencyJob ? tenant1Email.trim() : `${(effectiveOwnerName || 'owner').toLowerCase().replace(/\s+/g, '.')}@gmail.com`);
     const finalAddress = address.trim() || `${suburb} VIC 3030`;
 
     // Persist to Contact Directory (Zero-risk, background safe)
     try {
+      if (ownerName.trim()) {
+        saveOrUpdateOwner({
+          ownerName: ownerName.trim(),
+          ownerPhone: finalOwnerPhone,
+          ownerEmail: finalOwnerEmail,
+          propertyAddress: finalAddress,
+          suburb,
+          agencyName: isAgencyJob ? realEstateAgency.trim() : undefined
+        });
+      }
       saveOrUpdateCustomer({
-        name: effectiveClientName,
-        phone: finalClientPhone,
-        email: finalClientEmail,
+        name: effectiveOwnerName,
+        phone: finalOwnerPhone,
+        email: finalOwnerEmail,
         address: finalAddress,
         suburb,
         coordinates
@@ -637,9 +657,12 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
       quoteNumber: finalQuoteNum || undefined,
       invoiceNumber: finalInvoiceNum || undefined,
       title: title.trim(),
-      clientName: effectiveClientName,
-      clientPhone: finalClientPhone,
-      clientEmail: finalClientEmail,
+      ownerName: ownerName.trim() || (isAgencyJob ? undefined : effectiveOwnerName),
+      ownerPhone: ownerPhone.trim() || (isAgencyJob ? undefined : finalOwnerPhone),
+      ownerEmail: ownerEmail.trim() || (isAgencyJob ? undefined : finalOwnerEmail),
+      clientName: effectiveOwnerName,
+      clientPhone: finalOwnerPhone,
+      clientEmail: finalOwnerEmail,
       address: finalAddress,
       suburb,
       coordinates,
@@ -660,9 +683,9 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
       realEstateAgentPhone: isAgencyJob ? realEstateAgentPhone.trim() : undefined,
       realEstateAgentEmail: isAgencyJob && realEstateAgentEmail.trim() ? realEstateAgentEmail.trim() : undefined,
       workOrderNumber: isAgencyJob && workOrderNumber.trim() ? workOrderNumber.trim() : undefined,
-      tenantName: (tenant1Name.trim() || (!isAgencyJob ? undefined : effectiveClientName)) || undefined,
-      tenantPhone: (tenant1Phone.trim() || (isAgencyJob ? finalClientPhone : undefined)) || undefined,
-      tenantEmail: (tenant1Email.trim() || (isAgencyJob ? finalClientEmail : undefined)) || undefined,
+      tenantName: (tenant1Name.trim() || (!isAgencyJob ? undefined : effectiveOwnerName)) || undefined,
+      tenantPhone: (tenant1Phone.trim() || (isAgencyJob ? finalOwnerPhone : undefined)) || undefined,
+      tenantEmail: (tenant1Email.trim() || (isAgencyJob ? finalOwnerEmail : undefined)) || undefined,
       tenant1Name: tenant1Name.trim() || undefined,
       tenant1Phone: tenant1Phone.trim() || undefined,
       tenant1Email: tenant1Email.trim() || undefined,
@@ -1028,7 +1051,7 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
                 rows={2}
                 value={description}
                 onChange={e => setDescription(e.target.value)}
-                placeholder="Details of client request, parts required, or site access instructions..."
+                placeholder="Details of owner request, parts required, or site access instructions..."
                 className="w-full bg-white border border-slate-200 rounded-xl p-3 text-slate-900 text-xs placeholder:text-slate-400 focus:border-blue-500 outline-none resize-none transition"
               />
             </div>
@@ -1403,17 +1426,64 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
                       </div>
                     </div>
                   )}
+                  {/* Property Owner / Landlord (Optional for Agency jobs) */}
+                  <div className="bg-white/95 rounded-2xl p-3 border border-purple-100 space-y-2.5 shadow-xs">
+                    <span className="text-[10px] font-black uppercase text-purple-800 tracking-wide block">
+                      Property Owner / Landlord (Optional)
+                    </span>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-700 block mb-1">
+                          Owner Name
+                        </label>
+                        <input
+                          type="text"
+                          value={ownerName}
+                          onChange={e => handleOwnerNameChange(e.target.value)}
+                          placeholder="e.g. Robert Smith"
+                          className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-900 text-xs font-semibold focus:border-purple-500 outline-none"
+                        />
+                      </div>
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="text-[10px] font-bold text-slate-700">
+                            Owner Phone
+                          </label>
+                          {renderPhoneBadge(ownerPhone)}
+                        </div>
+                        <input
+                          type="tel"
+                          value={ownerPhone}
+                          onChange={e => handleOwnerPhoneChange(e.target.value)}
+                          placeholder="0412 345 678"
+                          className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-900 text-xs font-mono font-semibold focus:border-purple-500 outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-700 block mb-1">
+                          Owner Email
+                        </label>
+                        <input
+                          type="email"
+                          value={ownerEmail}
+                          onChange={e => setOwnerEmail(e.target.value)}
+                          placeholder="robert@example.com"
+                          className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-900 text-xs focus:border-purple-500 outline-none"
+                        />
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
           </div>
 
-          {/* SECTION 3: SITE LOCATION & CLIENT DETAILS */}
+          {/* SECTION 3: SITE LOCATION & OWNER DETAILS */}
           <div className="bg-slate-50/80 rounded-2xl border border-slate-200/80 p-3.5 sm:p-4 space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
                 <MapPin className="w-3.5 h-3.5 text-blue-600" />
-                {isAgencyJob ? 'Job Site Address & Location' : 'Client & Site Location'}
+                {isAgencyJob ? 'Job Site Address & Location' : 'Property Owner & Site Location'}
               </span>
 
               {!isAgencyJob && savedCustomers.length > 0 && (
@@ -1426,7 +1496,7 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
                   className="text-[10px] font-bold text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 border border-blue-200/70 px-2 py-0.5 rounded-lg flex items-center gap-1 transition"
                 >
                   <Users className="w-3 h-3" />
-                  <span>Saved Clients ({savedCustomers.length})</span>
+                  <span>Saved Owners ({savedCustomers.length})</span>
                 </button>
               )}
             </div>
@@ -1528,13 +1598,13 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
               )}
             </div>
 
-            {/* Client Information Fields (When NOT agency job) */}
+            {/* Owner Information Fields (When NOT agency job) */}
             {!isAgencyJob && (
               <>
                 <div ref={customerSectionRef} className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 relative">
                   <div className="relative">
                     <label className="text-[10px] font-bold text-slate-600 block mb-1">
-                      Client Full Name *
+                      Owner Name *
                     </label>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
@@ -1544,14 +1614,14 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
                         ref={customerInputRef}
                         type="text"
                         required
-                        value={clientName}
-                        onChange={e => handleClientNameChange(e.target.value)}
+                        value={ownerName}
+                        onChange={e => handleOwnerNameChange(e.target.value)}
                         placeholder="e.g., Jordan Miller"
                         className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-slate-900 font-semibold focus:border-blue-500 outline-none"
                       />
                     </div>
 
-                    {/* Autocomplete Dropdown for Client Name */}
+                    {/* Autocomplete Dropdown for Owner Name */}
                     {showCustomerDropdown && customerSuggestions.length > 0 && (
                       <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-blue-200 rounded-2xl shadow-xl z-50 overflow-hidden divide-y divide-slate-100 animate-in fade-in">
                         {customerSuggestions.map(cust => (
@@ -1578,9 +1648,9 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
                   <div>
                     <div className="flex items-center justify-between mb-1">
                       <label className="text-[10px] font-bold text-slate-600">
-                        Client Phone (AU)
+                        Owner Phone (AU)
                       </label>
-                      {renderPhoneBadge(clientPhone)}
+                      {renderPhoneBadge(ownerPhone)}
                     </div>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
@@ -1588,8 +1658,8 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
                       </div>
                       <input
                         type="tel"
-                        value={clientPhone}
-                        onChange={e => handleClientPhoneChange(e.target.value)}
+                        value={ownerPhone}
+                        onChange={e => handleOwnerPhoneChange(e.target.value)}
                         placeholder="0412 345 678"
                         className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-slate-900 focus:border-blue-500 outline-none font-mono"
                       />
@@ -1598,7 +1668,7 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
 
                   <div>
                     <label className="text-[10px] font-bold text-slate-600 block mb-1">
-                      Client Email <span className="text-slate-400 font-normal">(Quotes)</span>
+                      Owner Email <span className="text-slate-400 font-normal">(Quotes & Invoices)</span>
                     </label>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
@@ -1606,8 +1676,8 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
                       </div>
                       <input
                         type="email"
-                        value={clientEmail}
-                        onChange={e => setClientEmail(e.target.value)}
+                        value={ownerEmail}
+                        onChange={e => setOwnerEmail(e.target.value)}
                         placeholder="e.g. jordan@gmail.com"
                         className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-slate-900 focus:border-blue-500 outline-none"
                       />
@@ -1621,7 +1691,7 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
                     <div className="min-w-0">
                       <div className="font-bold text-emerald-950 text-xs flex items-center gap-1">
                         <Sparkles className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                        <span className="truncate">Existing Customer: {matchedCustomerByPhone.name}</span>
+                        <span className="truncate">Existing Owner: {matchedCustomerByPhone.name}</span>
                       </div>
                       <div className="text-[11px] text-emerald-700 truncate">
                         {matchedCustomerByPhone.address} ({matchedCustomerByPhone.suburb})

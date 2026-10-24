@@ -50,10 +50,13 @@ export function exportJobsToExcel(jobs: Job[], customFilename?: string): void {
       'Created Date': j.createdAt ? `${formatDate(j.createdAt)} ${formatTime(j.createdAt)}` : '',
       'Last Updated': j.updatedAt ? `${formatDate(j.updatedAt)} ${formatTime(j.updatedAt)}` : '',
 
-      // Primary Client Contact
-      'Client Name': j.clientName || '',
-      'Client Phone': j.clientPhone || '',
-      'Client Email': j.clientEmail || '',
+      // Owner & Client Details
+      'Owner Name': j.ownerName || j.clientName || '',
+      'Owner Phone': j.ownerPhone || j.clientPhone || '',
+      'Owner Email': j.ownerEmail || j.clientEmail || '',
+      'Client Name': j.clientName || j.ownerName || '',
+      'Client Phone': j.clientPhone || j.ownerPhone || '',
+      'Client Email': j.clientEmail || j.ownerEmail || '',
 
       // Real Estate Agency
       'Is Agency Job': j.isAgencyJob ? 'YES' : 'NO',
@@ -71,7 +74,9 @@ export function exportJobsToExcel(jobs: Job[], customFilename?: string): void {
       'Tenant 2 Email': j.tenant2Email || '',
 
       // Property Owner
-      'Property Owner / Landlord': j.ownerName || '',
+      'Property Owner / Landlord': j.ownerName || j.clientName || '',
+      'Property Owner Phone': j.ownerPhone || j.clientPhone || '',
+      'Property Owner Email': j.ownerEmail || j.clientEmail || '',
 
       // Scope & Tasks
       'Scope Description': j.description || '',

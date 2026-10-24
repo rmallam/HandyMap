@@ -336,7 +336,7 @@ export const QuoteBuilder: React.FC<QuoteBuilderProps> = ({
             </span>
           </div>
           <p className="text-xs text-slate-500 mt-1 font-medium">
-            Client: <strong className="text-slate-900 font-extrabold">{job.clientName}</strong> • {job.address}
+            Owner: <strong className="text-slate-900 font-extrabold">{job.ownerName || job.clientName}</strong> • {job.address}
           </p>
         </div>
 
@@ -679,7 +679,7 @@ export const QuoteBuilder: React.FC<QuoteBuilderProps> = ({
                 </div>
                 <div>
                   <h3 className="text-sm font-black text-slate-900">Cancel Job / Quote Declined</h3>
-                  <p className="text-xs text-slate-500">Didn&apos;t go forward with {job.clientName}?</p>
+                  <p className="text-xs text-slate-500">Didn&apos;t go forward with {job.ownerName || job.clientName}?</p>
                 </div>
               </div>
               <button

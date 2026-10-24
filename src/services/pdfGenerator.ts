@@ -137,10 +137,14 @@ export function generateQuotePDF(job: Job, profile: HandymanProfile): void {
   doc.text('BILL TO / SERVICE LOCATION', margin + 10, clientY);
   clientY += 12;
 
+  const displayOwnerName = job.ownerName || job.clientName;
+  const displayOwnerPhone = job.ownerPhone || job.clientPhone;
+  const displayOwnerEmail = job.ownerEmail || job.clientEmail;
+
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(10);
   doc.setTextColor(darkTextColor[0], darkTextColor[1], darkTextColor[2]);
-  doc.text(job.clientName, margin + 10, clientY);
+  doc.text(displayOwnerName, margin + 10, clientY);
   clientY += 12;
 
   doc.setFont('helvetica', 'normal');
@@ -150,10 +154,10 @@ export function generateQuotePDF(job: Job, profile: HandymanProfile): void {
   doc.text(addressSplit, margin + 10, clientY);
   clientY += addressSplit.length * 10;
 
-  doc.text(`Phone: ${job.clientPhone}`, margin + 10, clientY);
+  doc.text(`Phone: ${displayOwnerPhone}`, margin + 10, clientY);
   clientY += 10;
-  if (job.clientEmail) {
-    doc.text(`Email: ${job.clientEmail}`, margin + 10, clientY);
+  if (displayOwnerEmail) {
+    doc.text(`Email: ${displayOwnerEmail}`, margin + 10, clientY);
   }
 
   // Right Card: PROJECT / AGENCY DETAILS
@@ -412,7 +416,7 @@ export function generateQuotePDF(job: Job, profile: HandymanProfile): void {
   // Right side: Signature / Approval stamp (isolated in right 180pt)
   const sigX = pageWidth - margin - 170;
   const signatureData = job.signature?.dataUrl || quote?.clientSignature;
-  const signatureName = job.signature?.signedBy || quote?.clientSignatureName || job.clientName;
+  const signatureName = job.signature?.signedBy || quote?.clientSignatureName || job.ownerName || job.clientName;
   const signatureDate = job.signature?.signedAt || quote?.signedAt || new Date().toISOString();
 
   if (signatureData) {

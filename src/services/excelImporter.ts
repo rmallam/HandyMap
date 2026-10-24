@@ -115,9 +115,13 @@ export async function parseSpreadsheetFile(file: File): Promise<{
           let rawTitle = String(findValue(row, ['title', 'jobtitle', 'summary', 'task', 'jobname', 'workdescription', 'name']) || '').trim();
           let rawNotes = String(findValue(row, ['notes', 'description', 'desc', 'details', 'scope', 'instructions']) || '').replace(/\r/g, '\n').trim();
           
-          let clientName = String(findValue(row, ['clientname', 'client', 'customer', 'customername', 'contact', 'name', 'landlord']) || '');
-          let clientPhone = String(findValue(row, ['clientphone', 'phone', 'mobile', 'cell', 'contactnumber', 'tel']) || '');
-          let clientEmail = String(findValue(row, ['clientemail', 'email', 'contactemail']) || '');
+          let ownerName = String(findValue(row, ['ownername', 'owner', 'landlord', 'landlordname', 'propertyowner', 'clientname', 'client', 'customer', 'customername', 'contact', 'name']) || '').trim();
+          let ownerPhone = String(findValue(row, ['ownerphone', 'landlordphone', 'clientphone', 'phone', 'mobile', 'cell', 'contactnumber', 'tel']) || '').trim();
+          let ownerEmail = String(findValue(row, ['owneremail', 'landlordemail', 'clientemail', 'email', 'contactemail']) || '').trim();
+
+          let clientName = ownerName || String(findValue(row, ['clientname', 'client', 'customer', 'customername', 'contact', 'name', 'landlord']) || '').trim();
+          let clientPhone = ownerPhone || String(findValue(row, ['clientphone', 'phone', 'mobile', 'cell', 'contactnumber', 'tel']) || '').trim();
+          let clientEmail = ownerEmail || String(findValue(row, ['clientemail', 'email', 'contactemail']) || '').trim();
 
           let address = String(findValue(row, ['address', 'streetaddress', 'street', 'propertyaddress', 'siteaddress', 'location']) || '');
           let suburb = String(findValue(row, ['suburb', 'area', 'locality', 'town', 'city']) || '');
@@ -267,9 +271,12 @@ export async function parseSpreadsheetFile(file: File): Promise<{
             quoteNumber: parsedQuoteNumber ? String(parsedQuoteNumber) : undefined,
             invoiceNumber: parsedInvoiceNumber ? String(parsedInvoiceNumber) : undefined,
             title: String(finalTitle),
-            clientName: String(clientName),
-            clientPhone: String(clientPhone),
-            clientEmail: String(clientEmail),
+            ownerName: ownerName || clientName || undefined,
+            ownerPhone: ownerPhone || clientPhone || undefined,
+            ownerEmail: ownerEmail || clientEmail || undefined,
+            clientName: String(ownerName || clientName),
+            clientPhone: String(ownerPhone || clientPhone),
+            clientEmail: String(ownerEmail || clientEmail),
             address: String(address),
             suburb: String(suburb),
             coordinates: [lat, lng],
@@ -298,7 +305,6 @@ export async function parseSpreadsheetFile(file: File): Promise<{
             tenant2Name: parsedTenant2Name || undefined,
             tenant2Phone: parsedTenant2Phone || undefined,
             tenant2Email: parsedTenant2Email || undefined,
-            ownerName: parsedOwnerName || undefined,
 
             photos: [],
             timeLogs: [],

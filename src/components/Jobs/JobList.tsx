@@ -260,6 +260,9 @@ export const JobList: React.FC<JobListProps> = ({
       const searchLower = searchTerm.toLowerCase().trim();
       const matchesSearch =
         job.title.toLowerCase().includes(searchLower) ||
+        (job.ownerName && job.ownerName.toLowerCase().includes(searchLower)) ||
+        (job.ownerPhone && job.ownerPhone.toLowerCase().includes(searchLower)) ||
+        (job.ownerEmail && job.ownerEmail.toLowerCase().includes(searchLower)) ||
         job.clientName.toLowerCase().includes(searchLower) ||
         job.address.toLowerCase().includes(searchLower) ||
         job.jobNumber.toLowerCase().includes(searchLower) ||
@@ -399,7 +402,7 @@ export const JobList: React.FC<JobListProps> = ({
             type="text"
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
-            placeholder="Search by client, agent, agency, phone, address, or trade..."
+            placeholder="Search by owner, agent, agency, phone, address, or trade..."
             className="w-full bg-white border-2 border-slate-200/90 hover:border-blue-300 focus:border-blue-600 rounded-2xl pl-12 pr-12 py-3 text-sm font-semibold text-slate-900 placeholder:text-slate-400 placeholder:font-normal outline-none shadow-xs hover:shadow-sm focus:shadow-md focus:ring-4 focus:ring-blue-500/10 transition-all"
           />
 
@@ -839,7 +842,7 @@ export const JobList: React.FC<JobListProps> = ({
               >
                 <option value="all">🏢 All Sources</option>
                 <option value="agency_only">🏢 All Agencies ({agencyCount})</option>
-                <option value="direct_only">👤 Direct Clients</option>
+                <option value="direct_only">👤 Direct Owners</option>
                 {dynamicAgencies.length > 0 && (
                   <optgroup label="Agencies">
                     {dynamicAgencies.map((agency) => {
@@ -966,7 +969,7 @@ export const JobList: React.FC<JobListProps> = ({
                   {agencyFilter === 'agency_only'
                     ? 'All Agency Orders'
                     : agencyFilter === 'direct_only'
-                    ? 'Direct Clients'
+                    ? 'Direct Owners'
                     : agencyFilter}
                 </strong>
                 {agentFilter !== 'all' && (
@@ -1322,14 +1325,16 @@ export const JobList: React.FC<JobListProps> = ({
                   )}
                 </div>
 
-                {/* Client & Address row */}
+                {/* Owner & Address row */}
                 <div className="pt-1.5 border-t border-slate-100 flex flex-col gap-1">
                   <div className="flex items-center justify-between text-[11px] gap-2">
                     <div className="flex items-center gap-1.5 text-slate-900 min-w-0 flex-1">
                       <MapPin className="w-3.5 h-3.5 text-blue-600 shrink-0 stroke-[2.5]" />
                       <span className="truncate font-black text-xs sm:text-[13px]">{job.address}</span>
                     </div>
-                    <span className="font-extrabold text-slate-800 shrink-0 truncate max-w-[120px]">{job.clientName}</span>
+                    <span className="font-extrabold text-slate-800 shrink-0 truncate max-w-[120px]" title="Property Owner">
+                      {job.ownerName || job.clientName}
+                    </span>
                   </div>
 
                   {/* Bottom Actions & Price on a single unified line */}
@@ -1351,22 +1356,25 @@ export const JobList: React.FC<JobListProps> = ({
 
                     {/* Direct 1-Tap Action Row */}
                     <div className="flex items-center gap-1 shrink-0">
-                      {job.clientPhone && (
+                      {(job.ownerPhone || job.clientPhone) && (
                         <>
                           <a
-                            href={`tel:${job.clientPhone}`}
+                            href={`tel:${job.ownerPhone || job.clientPhone}`}
                             onClick={e => {
                               e.stopPropagation();
                               triggerHapticFeedback('light');
                             }}
                             className="w-7 h-7 flex items-center justify-center rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200/80 transition active:scale-95 shadow-2xs"
-                            title="Call Client"
+                            title="Call Owner"
                           >
                             <Phone className="w-3 h-3" />
                           </a>
 
                           <a
-                            href={buildWhatsAppLink(job.clientPhone, `Hi ${job.clientName}, regarding your job ${job.title}...`)}
+                            href={buildWhatsAppLink(
+                              job.ownerPhone || job.clientPhone,
+                              `Hi ${job.ownerName || job.clientName}, regarding your job ${job.title}...`
+                            )}
                             target="_blank"
                             rel="noopener noreferrer"
                             onClick={e => {
@@ -1374,7 +1382,7 @@ export const JobList: React.FC<JobListProps> = ({
                               triggerHapticFeedback('light');
                             }}
                             className="w-7 h-7 flex items-center justify-center rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200/80 transition active:scale-95 shadow-2xs"
-                            title="WhatsApp Client"
+                            title="WhatsApp Owner"
                           >
                             <MessageSquare className="w-3 h-3" />
                           </a>
