@@ -673,7 +673,7 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
       tasks: initialTasks,
       quote: initialQuote,
       quoteRequestedDate: new Date().toISOString(),
-      appointmentTime: appointmentTime ? new Date(appointmentTime).toISOString() : undefined,
+      appointmentTime: appointmentTime && !isNaN(new Date(appointmentTime).getTime()) ? new Date(appointmentTime).toISOString() : undefined,
       estimatedDurationMinutes: durationMin,
       
       // Agency details

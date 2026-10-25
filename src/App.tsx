@@ -310,7 +310,14 @@ export function App() {
 
     // Sync to Supabase strictly scoped to current user
     if (isSupabaseConfigured && currentUserId) {
-      upsertJobInSupabase(updatedJob, currentUserId);
+      try {
+        const ok = await upsertJobInSupabase(updatedJob, currentUserId);
+        if (!ok) {
+          console.error('Failed to sync job update to Supabase for job', updatedJob.id);
+        }
+      } catch (err) {
+        console.error('Exception syncing job update to Supabase:', err);
+      }
     }
 
     // If active route contains this job, update its reference
@@ -330,7 +337,11 @@ export function App() {
       setIsJobDetailOpen(false);
     }
     if (isSupabaseConfigured && currentUserId) {
-      deleteJobFromSupabase(jobId, currentUserId);
+      try {
+        await deleteJobFromSupabase(jobId, currentUserId);
+      } catch (err) {
+        console.error('Exception deleting job from Supabase:', err);
+      }
     }
     if (activeRoute) {
       const nextStops = activeRoute.stops.filter(stop => stop.job.id !== jobId);
@@ -344,7 +355,11 @@ export function App() {
     setSelectedJob(newJob);
     setActiveTab('map');
     if (isSupabaseConfigured && currentUserId) {
-      upsertJobInSupabase(newJob, currentUserId);
+      try {
+        await upsertJobInSupabase(newJob, currentUserId);
+      } catch (err) {
+        console.error('Exception creating job in Supabase:', err);
+      }
     }
   };
 
@@ -375,7 +390,11 @@ export function App() {
     setIsJobDetailOpen(true);
 
     if (isSupabaseConfigured && currentUserId) {
-      upsertJobInSupabase(duplicatedJob, currentUserId);
+      try {
+        await upsertJobInSupabase(duplicatedJob, currentUserId);
+      } catch (err) {
+        console.error('Exception duplicating job in Supabase:', err);
+      }
     }
 
     triggerHapticFeedback('success');

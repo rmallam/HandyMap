@@ -321,7 +321,13 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
 
   const handleSaveQuickReschedule = () => {
     triggerHapticFeedback('success');
-    const newAppointment = quickRescheduleTime ? new Date(quickRescheduleTime).toISOString() : undefined;
+    let newAppointment: string | undefined = undefined;
+    if (quickRescheduleTime) {
+      const d = new Date(quickRescheduleTime);
+      if (!isNaN(d.getTime())) {
+        newAppointment = d.toISOString();
+      }
+    }
     onUpdateJob({
       ...job,
       appointmentTime: newAppointment,
@@ -680,6 +686,14 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
     const finalInvoiceNum = editInvoiceNumber ? ensurePrefix(editInvoiceNumber, 'I-') : '';
     const compositeJobNumber = buildCompositeJobId(finalJobNum, finalQuoteNum, finalInvoiceNum) || job.jobNumber;
 
+    let parsedAppointmentTime: string | undefined = undefined;
+    if (editAppointmentTime) {
+      const d = new Date(editAppointmentTime);
+      if (!isNaN(d.getTime())) {
+        parsedAppointmentTime = d.toISOString();
+      }
+    }
+
     const updatedJob: Job = {
       ...job,
       jobNumber: compositeJobNumber,
@@ -699,7 +713,7 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
       address: editAddress.trim() || job.address,
       suburb: editSuburb || job.suburb,
       coordinates: editCoordinates || job.coordinates,
-      appointmentTime: editAppointmentTime ? new Date(editAppointmentTime).toISOString() : undefined,
+      appointmentTime: parsedAppointmentTime,
       estimatedDurationMinutes: Number(editDuration) || 45,
       isAgencyJob: editIsAgencyJob,
       realEstateAgency: editRealEstateAgency.trim() || undefined,
