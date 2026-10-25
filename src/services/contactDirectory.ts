@@ -220,6 +220,7 @@ export function persistSavedOwners(owners: SavedOwner[]): void {
  * Add or update a customer in the saved directory
  */
 export function saveOrUpdateCustomer(cust: {
+  id?: string;
   name: string;
   phone: string;
   email?: string;
@@ -235,17 +236,30 @@ export function saveOrUpdateCustomer(cust: {
     const cleanPhone = normalizePhone(cust.phone);
     const cleanName = cust.name.trim().toLowerCase();
 
-    // Match by normalized phone (if phone exists) or exact name
-    const existingIndex = list.findIndex(c => {
-      const pMatch = cleanPhone && cleanPhone.length >= 8 && normalizePhone(c.phone) === cleanPhone;
-      const nMatch = cleanName && c.name.trim().toLowerCase() === cleanName;
-      return pMatch || nMatch;
-    });
+    // 1. Direct match by ID if provided (editing existing customer)
+    let existingIndex = -1;
+    if (cust.id) {
+      existingIndex = list.findIndex(c => c.id === cust.id);
+    }
+
+    // 2. Otherwise match by normalized phone (if phone exists) or exact name
+    if (existingIndex < 0) {
+      existingIndex = list.findIndex(c => {
+        const pMatch = cleanPhone && cleanPhone.length >= 8 && normalizePhone(c.phone) === cleanPhone;
+        const nMatch = cleanName && c.name.trim().toLowerCase() === cleanName;
+        return pMatch || nMatch;
+      });
+    }
 
     const now = new Date().toISOString();
 
     if (existingIndex >= 0) {
       const existing = list[existingIndex];
+      const oldPhone = normalizePhone(existing.phone);
+      if (oldPhone && oldPhone !== cleanPhone) {
+        recordDeletedContact([oldPhone, existing.name.toLowerCase().trim()]);
+      }
+
       const updated: SavedCustomer = {
         ...existing,
         name: cust.name.trim() || existing.name,
@@ -263,7 +277,7 @@ export function saveOrUpdateCustomer(cust: {
       return updated;
     } else {
       const newCust: SavedCustomer = {
-        id: `cust-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        id: cust.id || `cust-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
         name: cust.name.trim(),
         phone: cust.phone.trim(),
         email: cust.email?.trim() || '',
@@ -290,6 +304,7 @@ export function saveOrUpdateCustomer(cust: {
  * If phone matches an existing agent, their record is updated instead of creating a duplicate!
  */
 export function saveOrUpdateAgent(agent: {
+  id?: string;
   agencyName: string;
   agentName: string;
   agentPhone: string;
@@ -305,21 +320,35 @@ export function saveOrUpdateAgent(agent: {
     const cleanPhone = normalizePhone(agent.agentPhone);
     const cleanName = agent.agentName.trim().toLowerCase();
 
-    // Primary key check:
-    // 1. Phone number match (if phone >= 8 digits)
-    // 2. Otherwise match by Agent Name (case-insensitive)
-    const existingIndex = list.findIndex(a => {
-      const aPhone = normalizePhone(a.agentPhone);
-      if (cleanPhone && cleanPhone.length >= 8 && aPhone && aPhone.length >= 8) {
-        return aPhone === cleanPhone;
-      }
-      return cleanName && a.agentName.trim().toLowerCase() === cleanName;
-    });
+    // 1. Direct match by ID if provided (editing existing agent)
+    let existingIndex = -1;
+    if (agent.id) {
+      existingIndex = list.findIndex(a => a.id === agent.id);
+    }
+
+    // 2. Primary key check:
+    // a. Phone number match (if phone >= 8 digits)
+    // b. Otherwise match by Agent Name (case-insensitive)
+    if (existingIndex < 0) {
+      existingIndex = list.findIndex(a => {
+        const aPhone = normalizePhone(a.agentPhone);
+        if (cleanPhone && cleanPhone.length >= 8 && aPhone && aPhone.length >= 8) {
+          return aPhone === cleanPhone;
+        }
+        return cleanName && a.agentName.trim().toLowerCase() === cleanName;
+      });
+    }
 
     const now = new Date().toISOString();
 
     if (existingIndex >= 0) {
       const existing = list[existingIndex];
+      const oldPhone = normalizePhone(existing.agentPhone);
+      const oldAgencyAgentKey = `${existing.agencyName.toLowerCase()}::${existing.agentName.toLowerCase()}`;
+      if (oldPhone && oldPhone !== cleanPhone) {
+        recordDeletedContact([oldPhone, oldAgencyAgentKey]);
+      }
+
       const updated: SavedAgent = {
         ...existing,
         // Update agency if a non-empty name was provided
@@ -338,7 +367,7 @@ export function saveOrUpdateAgent(agent: {
       return updated;
     } else {
       const newAgent: SavedAgent = {
-        id: `agent-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        id: agent.id || `agent-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
         agencyName: agent.agencyName.trim(),
         agentName: agent.agentName.trim(),
         agentPhone: agent.agentPhone.trim(),
@@ -364,6 +393,7 @@ export function saveOrUpdateAgent(agent: {
  * Primary Key: Phone number (min 8 digits) or tenant name.
  */
 export function saveOrUpdateTenant(tenant: {
+  id?: string;
   tenantName: string;
   tenantPhone: string;
   tenantEmail?: string;
@@ -379,18 +409,32 @@ export function saveOrUpdateTenant(tenant: {
     const cleanPhone = normalizePhone(tenant.tenantPhone);
     const cleanName = tenant.tenantName.trim().toLowerCase();
 
-    const existingIndex = list.findIndex(t => {
-      const tPhone = normalizePhone(t.tenantPhone);
-      if (cleanPhone && cleanPhone.length >= 8 && tPhone && tPhone.length >= 8) {
-        return tPhone === cleanPhone;
-      }
-      return cleanName && t.tenantName.trim().toLowerCase() === cleanName;
-    });
+    // 1. Direct match by ID if provided (editing existing tenant)
+    let existingIndex = -1;
+    if (tenant.id) {
+      existingIndex = list.findIndex(t => t.id === tenant.id);
+    }
+
+    // 2. Otherwise match by phone or name
+    if (existingIndex < 0) {
+      existingIndex = list.findIndex(t => {
+        const tPhone = normalizePhone(t.tenantPhone);
+        if (cleanPhone && cleanPhone.length >= 8 && tPhone && tPhone.length >= 8) {
+          return tPhone === cleanPhone;
+        }
+        return cleanName && t.tenantName.trim().toLowerCase() === cleanName;
+      });
+    }
 
     const now = new Date().toISOString();
 
     if (existingIndex >= 0) {
       const existing = list[existingIndex];
+      const oldPhone = normalizePhone(existing.tenantPhone);
+      if (oldPhone && oldPhone !== cleanPhone) {
+        recordDeletedContact([oldPhone, existing.tenantName.toLowerCase().trim()]);
+      }
+
       const updated: SavedTenant = {
         ...existing,
         tenantName: tenant.tenantName.trim() || existing.tenantName,
@@ -408,7 +452,7 @@ export function saveOrUpdateTenant(tenant: {
       return updated;
     } else {
       const newTenant: SavedTenant = {
-        id: `tenant-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        id: tenant.id || `tenant-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
         tenantName: tenant.tenantName.trim(),
         tenantPhone: tenant.tenantPhone.trim(),
         tenantEmail: tenant.tenantEmail?.trim() || '',
@@ -433,6 +477,7 @@ export function saveOrUpdateTenant(tenant: {
  * Add or update an owner/landlord in the saved directory.
  */
 export function saveOrUpdateOwner(owner: {
+  id?: string;
   ownerName: string;
   ownerPhone?: string;
   ownerEmail?: string;
@@ -448,18 +493,32 @@ export function saveOrUpdateOwner(owner: {
     const cleanPhone = normalizePhone(owner.ownerPhone);
     const cleanName = owner.ownerName.trim().toLowerCase();
 
-    const existingIndex = list.findIndex(o => {
-      const oPhone = normalizePhone(o.ownerPhone);
-      if (cleanPhone && cleanPhone.length >= 8 && oPhone && oPhone.length >= 8) {
-        return oPhone === cleanPhone;
-      }
-      return cleanName && o.ownerName.trim().toLowerCase() === cleanName;
-    });
+    // 1. Direct match by ID if provided (editing existing owner)
+    let existingIndex = -1;
+    if (owner.id) {
+      existingIndex = list.findIndex(o => o.id === owner.id);
+    }
+
+    // 2. Otherwise match by phone or name
+    if (existingIndex < 0) {
+      existingIndex = list.findIndex(o => {
+        const oPhone = normalizePhone(owner.ownerPhone);
+        if (cleanPhone && cleanPhone.length >= 8 && oPhone && oPhone.length >= 8) {
+          return oPhone === cleanPhone;
+        }
+        return cleanName && o.ownerName.trim().toLowerCase() === cleanName;
+      });
+    }
 
     const now = new Date().toISOString();
 
     if (existingIndex >= 0) {
       const existing = list[existingIndex];
+      const oldPhone = normalizePhone(existing.ownerPhone);
+      if (oldPhone && oldPhone !== cleanPhone) {
+        recordDeletedContact([oldPhone, existing.ownerName.toLowerCase().trim()]);
+      }
+
       const updated: SavedOwner = {
         ...existing,
         ownerName: owner.ownerName.trim() || existing.ownerName,
@@ -477,7 +536,7 @@ export function saveOrUpdateOwner(owner: {
       return updated;
     } else {
       const newOwner: SavedOwner = {
-        id: `owner-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        id: owner.id || `owner-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
         ownerName: owner.ownerName.trim(),
         ownerPhone: owner.ownerPhone?.trim() || '',
         ownerEmail: owner.ownerEmail?.trim() || '',
@@ -614,6 +673,12 @@ export function harvestContactsFromJobs(jobs: Job[]): {
   const existingOwners = loadSavedOwners();
   const deletedKeys = getDeletedContactKeys();
 
+  // Track existing IDs so harvested contacts that were modified in-place are never resurrected/duplicated
+  const existingCustIds = new Set(existingCustomers.map(c => c.id));
+  const existingAgentIds = new Set(existingAgents.map(a => a.id));
+  const existingTenantIds = new Set(existingTenants.map(t => t.id));
+  const existingOwnerIds = new Set(existingOwners.map(o => o.id));
+
   // Maps with phone as Primary Key
   const customerMap = new Map<string, SavedCustomer>();
   existingCustomers.forEach(c => {
@@ -648,12 +713,19 @@ export function harvestContactsFromJobs(jobs: Job[]): {
     if (!job.isAgencyJob && job.clientName && job.clientName.trim().length > 1) {
       const cPhone = normalizePhone(job.clientPhone);
       const cKey = (cPhone && cPhone.length >= 8) ? cPhone : job.clientName.toLowerCase().trim();
+      const harvestedId = `cust-h-${job.id}`;
 
-      if (deletedKeys.has(cKey) || (cPhone && deletedKeys.has(cPhone)) || deletedKeys.has(job.clientName.toLowerCase().trim())) {
-        // Skip explicitly deleted customer
+      if (
+        (cPhone && deletedKeys.has(cPhone)) ||
+        deletedKeys.has(cKey) ||
+        deletedKeys.has(job.clientName.toLowerCase().trim()) ||
+        deletedKeys.has(harvestedId) ||
+        existingCustIds.has(harvestedId)
+      ) {
+        // Skip explicitly deleted or already-existing customer
       } else if (!customerMap.has(cKey)) {
         const newCust: SavedCustomer = {
-          id: `cust-h-${job.id}`,
+          id: harvestedId,
           name: job.clientName.trim(),
           phone: job.clientPhone?.trim() || '',
           email: job.clientEmail?.trim() || '',
@@ -664,6 +736,7 @@ export function harvestContactsFromJobs(jobs: Job[]): {
           useCount: 1
         };
         customerMap.set(cKey, newCust);
+        existingCustIds.add(harvestedId);
       } else {
         const existing = customerMap.get(cKey)!;
         existing.useCount = (existing.useCount || 1) + 1;
@@ -682,17 +755,19 @@ export function harvestContactsFromJobs(jobs: Job[]): {
       const cleanPhone = normalizePhone(aPhone);
       const aKey = (cleanPhone && cleanPhone.length >= 8) ? cleanPhone : aName.toLowerCase();
       const agencyAgentKey = `${aAgency.toLowerCase()}::${aName.toLowerCase()}`;
+      const harvestedId = `agent-h-${job.id}`;
 
       if (
         (cleanPhone && deletedKeys.has(cleanPhone)) ||
         deletedKeys.has(aKey) ||
         deletedKeys.has(agencyAgentKey) ||
-        deletedKeys.has(`agent-h-${job.id}`)
+        deletedKeys.has(harvestedId) ||
+        existingAgentIds.has(harvestedId)
       ) {
-        // Skip explicitly deleted agent
+        // Skip explicitly deleted or already-existing agent
       } else if (!agentMap.has(aKey)) {
         const newAgent: SavedAgent = {
-          id: `agent-h-${job.id}`,
+          id: harvestedId,
           agencyName: aAgency,
           agentName: aName,
           agentPhone: aPhone,
@@ -701,15 +776,12 @@ export function harvestContactsFromJobs(jobs: Job[]): {
           useCount: 1
         };
         agentMap.set(aKey, newAgent);
+        existingAgentIds.add(harvestedId);
       } else {
         const existing = agentMap.get(aKey)!;
         existing.useCount = (existing.useCount || 1) + 1;
         if (!existing.agentPhone && aPhone) existing.agentPhone = aPhone;
         if (!existing.agentEmail && aEmail) existing.agentEmail = aEmail;
-        // Prefer fuller agency name
-        if (aAgency.length > existing.agencyName.length && !aAgency.includes('- PC')) {
-          existing.agencyName = aAgency;
-        }
       }
     }
 
@@ -720,17 +792,19 @@ export function harvestContactsFromJobs(jobs: Job[]): {
     if (tenant1 && tenant1.trim().length > 1) {
       const tPhone = normalizePhone(tenant1Phone);
       const tKey = (tPhone && tPhone.length >= 8) ? tPhone : tenant1.toLowerCase().trim();
+      const harvestedId = `tenant-h-${job.id}`;
 
       if (
         (tPhone && deletedKeys.has(tPhone)) ||
         deletedKeys.has(tKey) ||
         deletedKeys.has(tenant1.toLowerCase().trim()) ||
-        deletedKeys.has(`tenant-h-${job.id}`)
+        deletedKeys.has(harvestedId) ||
+        existingTenantIds.has(harvestedId)
       ) {
-        // Skip explicitly deleted tenant
+        // Skip explicitly deleted or already-existing tenant
       } else if (!tenantMap.has(tKey)) {
         const newTenant: SavedTenant = {
-          id: `tenant-h-${job.id}`,
+          id: harvestedId,
           tenantName: tenant1.trim(),
           tenantPhone: tenant1Phone?.trim() || '',
           tenantEmail: tenant1Email?.trim() || '',
@@ -741,6 +815,7 @@ export function harvestContactsFromJobs(jobs: Job[]): {
           useCount: 1
         };
         tenantMap.set(tKey, newTenant);
+        existingTenantIds.add(harvestedId);
       } else {
         const existing = tenantMap.get(tKey)!;
         existing.useCount = (existing.useCount || 1) + 1;
@@ -752,9 +827,11 @@ export function harvestContactsFromJobs(jobs: Job[]): {
     if (job.tenant2Name && job.tenant2Name.trim().length > 1) {
       const tPhone2 = normalizePhone(job.tenant2Phone);
       const tKey2 = (tPhone2 && tPhone2.length >= 8) ? tPhone2 : job.tenant2Name.toLowerCase().trim();
-      if (!tenantMap.has(tKey2)) {
+      const harvestedId2 = `tenant-h2-${job.id}`;
+
+      if (!existingTenantIds.has(harvestedId2) && !tenantMap.has(tKey2)) {
         tenantMap.set(tKey2, {
-          id: `tenant-h2-${job.id}`,
+          id: harvestedId2,
           tenantName: job.tenant2Name.trim(),
           tenantPhone: job.tenant2Phone?.trim() || '',
           tenantEmail: job.tenant2Email?.trim() || '',
@@ -764,6 +841,7 @@ export function harvestContactsFromJobs(jobs: Job[]): {
           lastUsedAt: job.updatedAt || job.createdAt || new Date().toISOString(),
           useCount: 1
         });
+        existingTenantIds.add(harvestedId2);
       }
     }
 
@@ -775,9 +853,19 @@ export function harvestContactsFromJobs(jobs: Job[]): {
     if (effOwnerName && effOwnerName.length > 1) {
       const oPhoneClean = normalizePhone(effOwnerPhone);
       const oKey = (oPhoneClean && oPhoneClean.length >= 8) ? oPhoneClean : effOwnerName.toLowerCase().trim();
-      if (!ownerMap.has(oKey)) {
+      const harvestedId = `owner-h-${job.id}`;
+
+      if (
+        (oPhoneClean && deletedKeys.has(oPhoneClean)) ||
+        deletedKeys.has(oKey) ||
+        deletedKeys.has(effOwnerName.toLowerCase().trim()) ||
+        deletedKeys.has(harvestedId) ||
+        existingOwnerIds.has(harvestedId)
+      ) {
+        // Skip explicitly deleted or already-existing owner
+      } else if (!ownerMap.has(oKey)) {
         ownerMap.set(oKey, {
-          id: `owner-h-${job.id}`,
+          id: harvestedId,
           ownerName: effOwnerName,
           ownerPhone: effOwnerPhone || '',
           ownerEmail: effOwnerEmail || '',
@@ -787,6 +875,7 @@ export function harvestContactsFromJobs(jobs: Job[]): {
           lastUsedAt: job.updatedAt || job.createdAt || new Date().toISOString(),
           useCount: 1
         });
+        existingOwnerIds.add(harvestedId);
       } else {
         const existing = ownerMap.get(oKey)!;
         existing.useCount = (existing.useCount || 1) + 1;

@@ -772,6 +772,7 @@ export function App() {
           <ContactsView
             jobs={jobs}
             onOpenJob={handleOpenFullJob}
+            onUpdateJobsList={handleUpdateJobsList}
           />
         )}
 

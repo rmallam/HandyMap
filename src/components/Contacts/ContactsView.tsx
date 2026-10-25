@@ -54,9 +54,10 @@ export type ContactTabType = 'agents' | 'tenants' | 'owners' | 'customers';
 interface ContactsViewProps {
   jobs: Job[];
   onOpenJob?: (job: Job) => void;
+  onUpdateJobsList?: (jobs: Job[]) => void;
 }
 
-export const ContactsView: React.FC<ContactsViewProps> = ({ jobs, onOpenJob }) => {
+export const ContactsView: React.FC<ContactsViewProps> = ({ jobs, onOpenJob, onUpdateJobsList }) => {
   const [activeTab, setActiveTab] = useState<ContactTabType>('agents');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedAgencyFilter, setSelectedAgencyFilter] = useState('all');
@@ -266,15 +267,43 @@ export const ContactsView: React.FC<ContactsViewProps> = ({ jobs, onOpenJob }) =
         }
       }
 
+      const oldAgent = editingId ? agents.find(a => a.id === editingId) : null;
       saveOrUpdateAgent({
+        id: editingId || undefined,
         agencyName: formAgency.trim(),
         agentName: formName.trim(),
         agentPhone: cleanP,
         agentEmail: formEmail.trim() || undefined,
         notes: formNotes.trim() || undefined
       });
+
+      // Cascade update to matching jobs in active list and sync to cloud
+      if (onUpdateJobsList && oldAgent && jobs && jobs.length > 0) {
+        const oldPhoneClean = normalizePhone(oldAgent.agentPhone);
+        const updatedJobs = jobs.map(j => {
+          const jPhone = normalizePhone(j.realEstateAgentPhone);
+          const isMatch = (oldPhoneClean && jPhone === oldPhoneClean) ||
+            (j.realEstateAgentName?.toLowerCase().trim() === oldAgent.agentName.toLowerCase().trim() &&
+             j.realEstateAgency?.toLowerCase().trim() === oldAgent.agencyName.toLowerCase().trim());
+          if (isMatch) {
+            return {
+              ...j,
+              realEstateAgency: formAgency.trim() || j.realEstateAgency,
+              realEstateAgentName: formName.trim() || j.realEstateAgentName,
+              realEstateAgentPhone: cleanP || j.realEstateAgentPhone,
+              realEstateAgentEmail: formEmail.trim() || j.realEstateAgentEmail,
+              updatedAt: new Date().toISOString()
+            };
+          }
+          return j;
+        });
+        const hasChanges = updatedJobs.some((j, idx) => j !== jobs[idx]);
+        if (hasChanges) onUpdateJobsList(updatedJobs);
+      }
     } else if (editingType === 'tenants') {
+      const oldTenant = editingId ? tenants.find(t => t.id === editingId) : null;
       saveOrUpdateTenant({
+        id: editingId || undefined,
         tenantName: formName.trim(),
         tenantPhone: cleanP || '0400 000 000',
         tenantEmail: formEmail.trim() || undefined,
@@ -283,8 +312,32 @@ export const ContactsView: React.FC<ContactsViewProps> = ({ jobs, onOpenJob }) =
         agencyName: formAgency.trim() || undefined,
         notes: formNotes.trim() || undefined
       });
+
+      if (onUpdateJobsList && oldTenant && jobs && jobs.length > 0) {
+        const oldTPhone = normalizePhone(oldTenant.tenantPhone);
+        const updatedJobs = jobs.map(j => {
+          const isMatch = (oldTPhone && (normalizePhone(j.tenant1Phone) === oldTPhone || normalizePhone(j.tenantPhone) === oldTPhone)) ||
+            ((j.tenant1Name || j.tenantName)?.toLowerCase().trim() === oldTenant.tenantName.toLowerCase().trim());
+          if (isMatch) {
+            return {
+              ...j,
+              tenantName: formName.trim() || j.tenantName,
+              tenantPhone: cleanP || j.tenantPhone,
+              tenant1Name: formName.trim() || j.tenant1Name,
+              tenant1Phone: cleanP || j.tenant1Phone,
+              tenant1Email: formEmail.trim() || j.tenant1Email,
+              updatedAt: new Date().toISOString()
+            };
+          }
+          return j;
+        });
+        const hasChanges = updatedJobs.some((j, idx) => j !== jobs[idx]);
+        if (hasChanges) onUpdateJobsList(updatedJobs);
+      }
     } else if (editingType === 'owners') {
+      const oldOwner = editingId ? owners.find(o => o.id === editingId) : null;
       saveOrUpdateOwner({
+        id: editingId || undefined,
         ownerName: formName.trim(),
         ownerPhone: cleanP || undefined,
         ownerEmail: formEmail.trim() || undefined,
@@ -293,8 +346,33 @@ export const ContactsView: React.FC<ContactsViewProps> = ({ jobs, onOpenJob }) =
         agencyName: formAgency.trim() || undefined,
         notes: formNotes.trim() || undefined
       });
+
+      if (onUpdateJobsList && oldOwner && jobs && jobs.length > 0) {
+        const oldOPhone = normalizePhone(oldOwner.ownerPhone);
+        const updatedJobs = jobs.map(j => {
+          const isMatch = (oldOPhone && (normalizePhone(j.ownerPhone) === oldOPhone || normalizePhone(j.clientPhone) === oldOPhone)) ||
+            ((j.ownerName || j.clientName)?.toLowerCase().trim() === oldOwner.ownerName.toLowerCase().trim());
+          if (isMatch) {
+            return {
+              ...j,
+              ownerName: formName.trim() || j.ownerName,
+              ownerPhone: cleanP || j.ownerPhone,
+              ownerEmail: formEmail.trim() || j.ownerEmail,
+              clientName: formName.trim() || j.clientName,
+              clientPhone: cleanP || j.clientPhone,
+              clientEmail: formEmail.trim() || j.clientEmail,
+              updatedAt: new Date().toISOString()
+            };
+          }
+          return j;
+        });
+        const hasChanges = updatedJobs.some((j, idx) => j !== jobs[idx]);
+        if (hasChanges) onUpdateJobsList(updatedJobs);
+      }
     } else {
+      const oldCust = editingId ? customers.find(c => c.id === editingId) : null;
       saveOrUpdateCustomer({
+        id: editingId || undefined,
         name: formName.trim(),
         phone: cleanP || '0400 000 000',
         email: formEmail.trim() || undefined,
@@ -302,6 +380,29 @@ export const ContactsView: React.FC<ContactsViewProps> = ({ jobs, onOpenJob }) =
         suburb: formSuburb,
         notes: formNotes.trim() || undefined
       });
+
+      if (onUpdateJobsList && oldCust && jobs && jobs.length > 0) {
+        const oldCPhone = normalizePhone(oldCust.phone);
+        const updatedJobs = jobs.map(j => {
+          const isMatch = (oldCPhone && normalizePhone(j.clientPhone) === oldCPhone) ||
+            (j.clientName?.toLowerCase().trim() === oldCust.name.toLowerCase().trim());
+          if (isMatch) {
+            return {
+              ...j,
+              clientName: formName.trim() || j.clientName,
+              clientPhone: cleanP || j.clientPhone,
+              clientEmail: formEmail.trim() || j.clientEmail,
+              ownerName: formName.trim() || j.ownerName,
+              ownerPhone: cleanP || j.ownerPhone,
+              ownerEmail: formEmail.trim() || j.ownerEmail,
+              updatedAt: new Date().toISOString()
+            };
+          }
+          return j;
+        });
+        const hasChanges = updatedJobs.some((j, idx) => j !== jobs[idx]);
+        if (hasChanges) onUpdateJobsList(updatedJobs);
+      }
     }
 
     triggerHapticFeedback('success');
