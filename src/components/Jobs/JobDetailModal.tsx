@@ -16,6 +16,7 @@ import {
   formatDate,
   formatTime
 } from '../../utils/helpers';
+import { getDefaultJobContact } from '../../utils/contactHierarchy';
 import { buildGoogleCalendarUrl, downloadIcsCalendarFile } from '../../utils/calendarExport';
 import { stitchBeforeAndAfterPhotos, processImageFile } from '../../utils/photoStitcher';
 import { generateQuotePDF } from '../../services/pdfGenerator';
@@ -571,6 +572,13 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
 
   const statusCfg = STATUS_CONFIG[job.status];
   const googleNavUrl = buildLiveNavigationUrl(job.coordinates, job.address);
+  const defaultContact = getDefaultJobContact(job);
+  const primaryPhone = defaultContact.phone || job.ownerPhone || job.clientPhone;
+  const hasAlternateOwnerPhone = Boolean(
+    defaultContact.type !== 'owner' &&
+    (job.ownerPhone || job.clientPhone) &&
+    (job.ownerPhone || job.clientPhone) !== primaryPhone
+  );
 
   // Tasks statistics
   const currentTasks = job.tasks || [];
@@ -912,38 +920,54 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                 {job.title}
               </h2>
 
-              {/* Row 3: Owner Name & Address with Copy button */}
-              <div className="flex items-center gap-1.5 text-xs text-slate-600 min-w-0">
-                <span className="font-bold text-slate-900 shrink-0 truncate max-w-[140px]" title="Property Owner">
-                  👤 {job.ownerName || job.clientName}
+              {/* Row 3: Full Address Row with MapPin and Copy button (Completely visible without truncation) */}
+              <div className="flex items-start gap-1.5 text-xs text-slate-900 min-w-0 pt-0.5">
+                <MapPin className="w-3.5 h-3.5 text-blue-600 shrink-0 mt-0.5 stroke-[2.5]" />
+                <span className="text-slate-950 font-black text-xs sm:text-[13px] leading-snug break-words whitespace-normal flex-1 select-text">
+                  {job.address}
                 </span>
-                <span className="text-slate-300 shrink-0">•</span>
-                <div className="flex items-center gap-1 min-w-0 flex-1">
-                  <MapPin className="w-3.5 h-3.5 text-blue-600 shrink-0 stroke-[2.5]" />
-                  <span className="truncate text-slate-950 font-black text-xs sm:text-[13px]">{job.address}</span>
-                  <button
-                    type="button"
-                    onClick={handleCopyAddress}
-                    className="p-1 rounded hover:bg-slate-200 text-slate-400 hover:text-blue-600 transition shrink-0 inline-flex items-center gap-0.5"
-                    title="Copy Address"
-                    aria-label="Copy Address"
-                  >
-                    {isAddressCopied ? (
-                      <Check className="w-3.5 h-3.5 text-emerald-600" />
-                    ) : (
-                      <Copy className="w-3.5 h-3.5" />
-                    )}
-                  </button>
-                  {isAddressCopied && (
-                    <span className="text-[10px] font-bold text-emerald-600 shrink-0 animate-in fade-in">Copied!</span>
+                <button
+                  type="button"
+                  onClick={handleCopyAddress}
+                  className="p-1 rounded hover:bg-slate-200 text-slate-400 hover:text-blue-600 transition shrink-0 inline-flex items-center gap-0.5"
+                  title="Copy Address"
+                  aria-label="Copy Address"
+                >
+                  {isAddressCopied ? (
+                    <Check className="w-3.5 h-3.5 text-emerald-600" />
+                  ) : (
+                    <Copy className="w-3.5 h-3.5" />
                   )}
-                </div>
+                </button>
+                {isAddressCopied && (
+                  <span className="text-[10px] font-bold text-emerald-600 shrink-0 animate-in fade-in">Copied!</span>
+                )}
               </div>
 
-              {/* Row 4: Created Date & Time for future reference */}
-              <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-medium">
-                <Clock className="w-3 h-3 text-slate-400 shrink-0" />
-                <span>Logged {formatDate(job.createdAt || job.quoteRequestedDate)} at {formatTime(job.createdAt || job.quoteRequestedDate)}</span>
+              {/* Row 4: Primary Contact Hierarchy & Logged Date */}
+              <div className="flex items-center gap-2 text-[11px] text-slate-500 flex-wrap">
+                <span className="font-bold text-slate-800 flex items-center gap-1">
+                  👤 {defaultContact.name}
+                  <span className={`text-[9px] font-black px-1.5 py-0.2 rounded border ${
+                    defaultContact.type === 'tenant'
+                      ? 'bg-blue-50 text-blue-700 border-blue-200'
+                      : defaultContact.type === 'agent'
+                      ? 'bg-purple-50 text-purple-700 border-purple-200'
+                      : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                  }`}>
+                    {defaultContact.roleLabel}
+                  </span>
+                </span>
+                {defaultContact.type === 'tenant' && (job.ownerName || job.clientName) && (
+                  <span className="text-slate-400 hidden xs:inline" title="Property Owner">
+                    (Owner: {job.ownerName || job.clientName})
+                  </span>
+                )}
+                <span className="text-slate-300">•</span>
+                <span className="flex items-center gap-1 text-[10px] text-slate-400">
+                  <Clock className="w-3 h-3 text-slate-400" />
+                  Logged {formatDate(job.createdAt || job.quoteRequestedDate)} at {formatTime(job.createdAt || job.quoteRequestedDate)}
+                </span>
               </div>
             </div>
           )}
@@ -998,28 +1022,40 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
           )}
         </div>
 
-        {/* Owner Quick Contact & Calendar Sync Actions (Only shown in view mode) */}
+        {/* Primary Contact Hierarchy & Calendar Sync Actions (Priority: Tenant -> PM -> Owner) */}
         {!isEditing && (
           <div className="px-3 sm:px-4 py-1.5 bg-slate-50 border-b border-slate-200/80 flex items-center gap-1.5 shrink-0 text-xs">
             <a
-              href={`tel:${job.ownerPhone || job.clientPhone}`}
+              href={`tel:${primaryPhone}`}
               className="flex-1 justify-center py-1.5 px-2 rounded-xl bg-white hover:bg-slate-100 text-slate-800 font-semibold flex items-center gap-1 transition border border-slate-200 shadow-2xs"
-              title="Call Owner"
+              title={`Call ${defaultContact.roleLabel} (${defaultContact.name}): ${primaryPhone}`}
             >
               <Phone className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Call Owner</span>
+              <span>Call {defaultContact.type === 'tenant' ? 'Tenant' : defaultContact.type === 'agent' ? 'PM' : 'Owner'}</span>
             </a>
 
             <a
-              href={buildWhatsAppLink(job.ownerPhone || job.clientPhone, quickSmsTemplates[0].text)}
+              href={buildWhatsAppLink(primaryPhone, quickSmsTemplates[0].text)}
               target="_blank"
               rel="noopener noreferrer"
               className="flex-1 justify-center py-1.5 px-2 rounded-xl bg-white hover:bg-slate-100 text-emerald-800 font-semibold flex items-center gap-1 transition border border-slate-200 shadow-2xs"
-              title="WhatsApp Owner"
+              title={`WhatsApp ${defaultContact.roleLabel} (${defaultContact.name})`}
             >
               <Send className="w-3.5 h-3.5 text-emerald-600" />
-              <span>WhatsApp Owner</span>
+              <span>WhatsApp {defaultContact.type === 'tenant' ? 'Tenant' : defaultContact.type === 'agent' ? 'PM' : 'Owner'}</span>
             </a>
+
+            {/* Quick Call Owner button if Tenant is default and Owner has a distinct phone */}
+            {hasAlternateOwnerPhone && (
+              <a
+                href={`tel:${job.ownerPhone || job.clientPhone}`}
+                className="hidden md:flex justify-center py-1.5 px-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-900 font-semibold items-center gap-1 transition border border-emerald-200 shadow-2xs shrink-0"
+                title={`Call Property Owner (${job.ownerName || job.clientName}): ${job.ownerPhone || job.clientPhone}`}
+              >
+                <Phone className="w-3.5 h-3.5 text-emerald-700" />
+                <span>Call Owner</span>
+              </a>
+            )}
 
             <a
               href={googleNavUrl}
@@ -1478,11 +1514,24 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                     Scope Description & Task Details
                   </label>
                   <textarea
-                    rows={3}
                     value={editDescription}
-                    onChange={e => setEditDescription(e.target.value)}
+                    onChange={e => {
+                      setEditDescription(e.target.value);
+                      e.target.style.height = 'auto';
+                      e.target.style.height = `${Math.max(140, e.target.scrollHeight)}px`;
+                    }}
+                    onFocus={e => {
+                      e.target.style.height = 'auto';
+                      e.target.style.height = `${Math.max(140, e.target.scrollHeight)}px`;
+                    }}
+                    ref={el => {
+                      if (el) {
+                        el.style.height = 'auto';
+                        el.style.height = `${Math.max(140, el.scrollHeight)}px`;
+                      }
+                    }}
                     placeholder="Detailed breakdown of repair tasks..."
-                    className="w-full bg-white border border-slate-200 rounded-xl p-3 text-slate-900 focus:border-blue-500 outline-none resize-none"
+                    className="w-full bg-white border border-slate-200 rounded-xl p-3 text-slate-900 text-xs sm:text-sm leading-relaxed focus:border-blue-500 outline-none min-h-[140px] sm:min-h-[180px] max-h-[500px] overflow-y-auto transition-all"
                   />
                 </div>
               </div>
@@ -2052,188 +2101,169 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-2 border-t border-purple-200/80 text-xs">
-                    {/* Property Manager Column */}
-                    <div className="bg-white/90 p-3 rounded-xl border border-purple-100 flex flex-col justify-between gap-2 shadow-xs">
-                      <div>
-                        <p className="text-[10px] uppercase font-bold text-purple-600">Property Manager</p>
-                        <p className="font-bold text-slate-900 mt-0.5">{job.realEstateAgentName || 'Agency PM'}</p>
-                        <p className="text-[11px] text-slate-500 font-mono">{job.realEstateAgentPhone || 'No phone listed'}</p>
-                        {job.realEstateAgentEmail && (
-                          <p className="text-[11px] text-purple-700 font-medium truncate mt-0.5">{job.realEstateAgentEmail}</p>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-1.5 pt-1 flex-wrap">
-                        {job.realEstateAgentPhone && (
-                          <>
-                            <a
-                              href={`tel:${job.realEstateAgentPhone}`}
-                              className="px-2.5 py-1 rounded-lg bg-purple-600 text-white font-bold text-[11px] flex items-center gap-1 shadow-sm active:scale-95 transition"
-                            >
-                              <Phone className="w-3 h-3" /> Call PM
-                            </a>
-                            <a
-                              href={buildSmsLink(
-                                job.realEstateAgentPhone,
-                                getInterpolatedMessage('agencyUpdate', job, profile)
-                              )}
-                              className="px-2.5 py-1 rounded-lg bg-white hover:bg-purple-50 text-purple-900 font-bold text-[11px] border border-purple-200 active:scale-95 transition"
-                            >
-                              <MessageSquare className="w-3 h-3" /> SMS PM
-                            </a>
-                          </>
-                        )}
-                        {job.realEstateAgentEmail && (
+                  <div className="bg-white/90 p-3 rounded-xl border border-purple-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-xs text-xs">
+                    <div>
+                      <p className="text-[10px] uppercase font-bold text-purple-600">Property Manager</p>
+                      <p className="font-bold text-slate-900 mt-0.5">{job.realEstateAgentName || 'Agency PM'}</p>
+                      <p className="text-[11px] text-slate-500 font-mono">{job.realEstateAgentPhone || 'No phone listed'}</p>
+                      {job.realEstateAgentEmail && (
+                        <p className="text-[11px] text-purple-700 font-medium truncate mt-0.5">{job.realEstateAgentEmail}</p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1.5 pt-1 sm:pt-0 flex-wrap shrink-0">
+                      {job.realEstateAgentPhone && (
+                        <>
                           <a
-                            href={`mailto:${job.realEstateAgentEmail}?subject=${encodeURIComponent(`Update on ${job.jobNumber}: ${job.title}`)}`}
-                            className="px-2.5 py-1 rounded-lg bg-white hover:bg-purple-50 text-purple-900 font-bold text-[11px] border border-purple-200 active:scale-95 transition flex items-center gap-1"
+                            href={`tel:${job.realEstateAgentPhone}`}
+                            className="px-2.5 py-1.5 rounded-lg bg-purple-600 text-white font-bold text-[11px] flex items-center gap-1 shadow-sm active:scale-95 transition"
                           >
-                            <Mail className="w-3 h-3" /> Email PM
+                            <Phone className="w-3 h-3" /> Call PM
                           </a>
-                        )}
+                          <a
+                            href={buildSmsLink(
+                              job.realEstateAgentPhone,
+                              getInterpolatedMessage('agencyUpdate', job, profile)
+                            )}
+                            className="px-2.5 py-1.5 rounded-lg bg-white hover:bg-purple-50 text-purple-900 font-bold text-[11px] border border-purple-200 active:scale-95 transition flex items-center gap-1"
+                          >
+                            <MessageSquare className="w-3 h-3" /> SMS PM
+                          </a>
+                        </>
+                      )}
+                      {job.realEstateAgentEmail && (
+                        <a
+                          href={`mailto:${job.realEstateAgentEmail}?subject=${encodeURIComponent(`Update on ${job.jobNumber}: ${job.title}`)}`}
+                          className="px-2.5 py-1.5 rounded-lg bg-white hover:bg-purple-50 text-purple-900 font-bold text-[11px] border border-purple-200 active:scale-95 transition flex items-center gap-1"
+                        >
+                          <Mail className="w-3 h-3" /> Email PM
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* On-Site Tenant & Resident Contact Card (Visible on ALL jobs with tenant details) */}
+              {(() => {
+                const t1Name = job.tenant1Name || job.tenantName || (job.isAgencyJob ? job.clientName : undefined);
+                const t1Phone = job.tenant1Phone || job.tenantPhone || (job.isAgencyJob ? job.clientPhone : undefined);
+                const t1Email = job.tenant1Email || job.tenantEmail;
+                const hasTenant1 = Boolean(t1Name || t1Phone || t1Email);
+                const hasTenant2 = Boolean(job.tenant2Name || job.tenant2Phone || job.tenant2Email);
+                const showTenantSection = hasTenant1 || hasTenant2;
+
+                if (!showTenantSection) return null;
+
+                return (
+                  <div className="bg-blue-50/70 border border-blue-200 rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="p-2 rounded-xl bg-blue-600 text-white shadow-xs">
+                          <Users className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <h3 className="text-xs font-black uppercase tracking-wider text-blue-950">
+                            On-Site Tenant & Resident Access
+                          </h3>
+                          <p className="text-[11px] text-blue-700 font-bold">
+                            Primary Contact for Scheduling, On-Site Access & Key Handover
+                          </p>
+                        </div>
                       </div>
                     </div>
 
-                    {/* Property Owner Column (if known on agency job) */}
-                    {job.ownerName && (
-                      <div className="bg-white/90 p-3 rounded-xl border border-purple-100 flex flex-col justify-between gap-2 shadow-xs">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-blue-200/80 text-xs">
+                      {/* Tenant 1 Primary */}
+                      <div className="bg-white/95 p-3 rounded-xl border border-blue-100 flex flex-col justify-between gap-2 shadow-xs">
                         <div>
-                          <p className="text-[10px] uppercase font-bold text-emerald-600">Property Owner / Landlord</p>
-                          <p className="font-bold text-slate-900 mt-0.5">{job.ownerName}</p>
-                          <p className="text-[11px] text-slate-500 font-mono">{job.ownerPhone || 'No phone listed'}</p>
-                          {job.ownerEmail && (
-                            <p className="text-[10px] text-slate-400 truncate">{job.ownerEmail}</p>
-                          )}
+                          <p className="text-[10px] uppercase font-bold text-blue-600">Tenant 1 (Primary Occupant)</p>
+                          <p className="font-bold text-slate-900 mt-0.5">{t1Name || 'Tenant 1'}</p>
+                          <p className="text-[11px] text-slate-600 font-mono">{t1Phone || 'No phone listed'}</p>
+                          {t1Email && <p className="text-[10px] text-slate-400 truncate">{t1Email}</p>}
                         </div>
                         <div className="flex items-center gap-1.5 pt-1 flex-wrap">
-                          {job.ownerPhone && (
+                          {t1Phone && (
                             <>
                               <a
-                                href={`tel:${job.ownerPhone}`}
-                                className="px-2.5 py-1 rounded-lg bg-emerald-600 text-white font-bold text-[11px] flex items-center gap-1 shadow-sm active:scale-95 transition"
+                                href={`tel:${t1Phone}`}
+                                className="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] flex items-center gap-1 shadow-sm active:scale-95 transition"
                               >
-                                <Phone className="w-3 h-3" /> Call Owner
+                                <Phone className="w-3 h-3" /> Call Tenant
                               </a>
                               <a
                                 href={buildSmsLink(
-                                  job.ownerPhone,
-                                  `Hi ${job.ownerName}, ${profile.name || 'Alex'} from ${profile.businessName || 'Apex Handyman'} regarding ${job.title} at ${job.address}.`
+                                  t1Phone,
+                                  getInterpolatedMessage('tenantArrival', job, profile, { tenantName: t1Name || 'there' })
                                 )}
-                                className="px-2.5 py-1 rounded-lg bg-white hover:bg-emerald-50 text-emerald-900 font-bold text-[11px] border border-emerald-200 active:scale-95 transition"
+                                className="px-2.5 py-1.5 rounded-lg bg-white hover:bg-blue-50 text-blue-900 font-bold text-[11px] border border-blue-200 active:scale-95 transition flex items-center gap-1"
                               >
-                                <MessageSquare className="w-3 h-3" /> SMS Owner
+                                <MessageSquare className="w-3 h-3 text-blue-600" /> SMS Arrival
                               </a>
                             </>
                           )}
-                          {job.ownerEmail && (
+                          {t1Email && (
                             <a
-                              href={`mailto:${job.ownerEmail}?subject=${encodeURIComponent(`Update on ${job.jobNumber}: ${job.title}`)}`}
-                              className="px-2 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[11px] flex items-center gap-1"
+                              href={`mailto:${t1Email}`}
+                              className="px-2 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[11px] flex items-center gap-1"
                             >
                               <Mail className="w-3 h-3" /> Email
                             </a>
                           )}
                         </div>
                       </div>
-                    )}
 
-                    {/* Tenant 1 Column */}
-                    {(() => {
-                      const t1Name = job.tenant1Name || job.tenantName || job.clientName;
-                      const t1Phone = job.tenant1Phone || job.tenantPhone || job.clientPhone;
-                      const t1Email = job.tenant1Email || job.tenantEmail;
-                      return (
-                        <div className="bg-white/90 p-3 rounded-xl border border-purple-100 flex flex-col justify-between gap-2 shadow-xs">
-                          <div>
-                            <p className="text-[10px] uppercase font-bold text-blue-600">Tenant 1 (Primary)</p>
-                            <p className="font-bold text-slate-900 mt-0.5">{t1Name}</p>
-                            <p className="text-[11px] text-slate-500 font-mono">{t1Phone || 'No phone listed'}</p>
-                            {t1Email && <p className="text-[10px] text-slate-400 truncate">{t1Email}</p>}
-                          </div>
-                          <div className="flex items-center gap-1.5 pt-1 flex-wrap">
-                            {t1Phone && (
-                              <>
+                      {/* Tenant 2 Secondary (if present) */}
+                      {hasTenant2 && (() => {
+                        const t2Name = job.tenant2Name || 'Tenant 2';
+                        const t2Phone = job.tenant2Phone;
+                        const t2Email = job.tenant2Email;
+                        return (
+                          <div className="bg-white/95 p-3 rounded-xl border border-indigo-100 flex flex-col justify-between gap-2 shadow-xs">
+                            <div>
+                              <p className="text-[10px] uppercase font-bold text-indigo-600">Tenant 2 (Secondary)</p>
+                              <p className="font-bold text-slate-900 mt-0.5">{t2Name}</p>
+                              <p className="text-[11px] text-slate-600 font-mono">{t2Phone || 'No phone listed'}</p>
+                              {t2Email && <p className="text-[10px] text-slate-400 truncate">{t2Email}</p>}
+                            </div>
+                            <div className="flex items-center gap-1.5 pt-1 flex-wrap">
+                              {t2Phone && (
+                                <>
+                                  <a
+                                    href={`tel:${t2Phone}`}
+                                    className="px-2.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[11px] flex items-center gap-1 shadow-sm active:scale-95 transition"
+                                  >
+                                    <Phone className="w-3 h-3" /> Call
+                                  </a>
+                                  <a
+                                    href={buildSmsLink(
+                                      t2Phone,
+                                      getInterpolatedMessage('tenantArrival', job, profile, { tenantName: t2Name })
+                                    )}
+                                    className="px-2.5 py-1.5 rounded-lg bg-white hover:bg-indigo-50 text-indigo-900 font-bold text-[11px] border border-indigo-200 active:scale-95 transition flex items-center gap-1"
+                                  >
+                                    <MessageSquare className="w-3 h-3 text-indigo-600" /> SMS
+                                  </a>
+                                </>
+                              )}
+                              {t2Email && (
                                 <a
-                                  href={`tel:${t1Phone}`}
-                                  className="px-2.5 py-1 rounded-lg bg-emerald-600 text-white font-bold text-[11px] flex items-center gap-1 shadow-sm active:scale-95 transition"
+                                  href={`mailto:${t2Email}`}
+                                  className="px-2 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[11px] flex items-center gap-1"
                                 >
-                                  <Phone className="w-3 h-3" /> Call
+                                  <Mail className="w-3 h-3" /> Email
                                 </a>
-                                <a
-                                  href={buildSmsLink(
-                                    t1Phone,
-                                    getInterpolatedMessage('tenantArrival', job, profile, { tenantName: t1Name })
-                                  )}
-                                  className="px-2.5 py-1 rounded-lg bg-white hover:bg-slate-50 text-slate-800 font-bold text-[11px] border border-slate-200 active:scale-95 transition"
-                                >
-                                  <MessageSquare className="w-3 h-3" /> SMS Arrival
-                                </a>
-                              </>
-                            )}
-                            {t1Email && (
-                              <a
-                                href={`mailto:${t1Email}`}
-                                className="px-2 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[11px] flex items-center gap-1"
-                              >
-                                <Mail className="w-3 h-3" /> Email
-                              </a>
-                            )}
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      );
-                    })()}
-
-                    {/* Tenant 2 Column (if present) */}
-                    {(job.tenant2Name || job.tenant2Phone || job.tenant2Email) && (() => {
-                      const t2Name = job.tenant2Name || 'Tenant 2';
-                      const t2Phone = job.tenant2Phone;
-                      const t2Email = job.tenant2Email;
-                      return (
-                        <div className="bg-white/90 p-3 rounded-xl border border-purple-100 flex flex-col justify-between gap-2 shadow-xs">
-                          <div>
-                            <p className="text-[10px] uppercase font-bold text-indigo-600">Tenant 2 (Secondary)</p>
-                            <p className="font-bold text-slate-900 mt-0.5">{t2Name}</p>
-                            <p className="text-[11px] text-slate-500 font-mono">{t2Phone || 'No phone listed'}</p>
-                            {t2Email && <p className="text-[10px] text-slate-400 truncate">{t2Email}</p>}
-                          </div>
-                          <div className="flex items-center gap-1.5 pt-1 flex-wrap">
-                            {t2Phone && (
-                              <>
-                                <a
-                                  href={`tel:${t2Phone}`}
-                                  className="px-2.5 py-1 rounded-lg bg-indigo-600 text-white font-bold text-[11px] flex items-center gap-1 shadow-sm active:scale-95 transition"
-                                >
-                                  <Phone className="w-3 h-3" /> Call
-                                </a>
-                                <a
-                                  href={buildSmsLink(
-                                    t2Phone,
-                                    getInterpolatedMessage('tenantArrival', job, profile, { tenantName: t2Name })
-                                  )}
-                                  className="px-2.5 py-1 rounded-lg bg-white hover:bg-slate-50 text-slate-800 font-bold text-[11px] border border-slate-200 active:scale-95 transition"
-                                >
-                                  <MessageSquare className="w-3 h-3" /> SMS Arrival
-                                </a>
-                              </>
-                            )}
-                            {t2Email && (
-                              <a
-                                href={`mailto:${t2Email}`}
-                                className="px-2 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[11px] flex items-center gap-1"
-                              >
-                                <Mail className="w-3 h-3" /> Email
-                              </a>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })()}
+                        );
+                      })()}
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
 
-              {/* Direct Job Property Owner Contact Card (When NOT an Agency Job) */}
-              {!job.isAgencyJob && (
+              {/* Property Owner Contact Card (Direct Customer & Invoicing Contact) */}
+              {(job.ownerName || job.ownerPhone || !job.isAgencyJob) && (
                 <div className="bg-emerald-50/80 border border-emerald-200 rounded-2xl p-4 shadow-sm flex flex-col gap-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">

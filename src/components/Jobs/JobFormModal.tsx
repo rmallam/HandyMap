@@ -1048,11 +1048,24 @@ export const JobFormModal: React.FC<JobFormModalProps> = ({
                 Scope of Work & Notes
               </label>
               <textarea
-                rows={2}
                 value={description}
-                onChange={e => setDescription(e.target.value)}
+                onChange={e => {
+                  setDescription(e.target.value);
+                  e.target.style.height = 'auto';
+                  e.target.style.height = `${Math.max(120, e.target.scrollHeight)}px`;
+                }}
+                onFocus={e => {
+                  e.target.style.height = 'auto';
+                  e.target.style.height = `${Math.max(120, e.target.scrollHeight)}px`;
+                }}
+                ref={el => {
+                  if (el) {
+                    el.style.height = 'auto';
+                    el.style.height = `${Math.max(120, el.scrollHeight)}px`;
+                  }
+                }}
                 placeholder="Details of owner request, parts required, or site access instructions..."
-                className="w-full bg-white border border-slate-200 rounded-xl p-3 text-slate-900 text-xs placeholder:text-slate-400 focus:border-blue-500 outline-none resize-none transition"
+                className="w-full bg-white border border-slate-200 rounded-xl p-3 text-slate-900 text-xs sm:text-sm leading-relaxed placeholder:text-slate-400 focus:border-blue-500 outline-none min-h-[120px] sm:min-h-[160px] max-h-[460px] overflow-y-auto transition-all"
               />
             </div>
           </div>

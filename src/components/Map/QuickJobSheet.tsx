@@ -10,6 +10,7 @@ import {
   formatJobDisplayId,
   getRelativeJobDateLabel
 } from '../../utils/helpers';
+import { getDefaultJobContact } from '../../utils/contactHierarchy';
 import { triggerHapticFeedback } from '../../services/nativeMobile';
 import {
   X,
@@ -22,7 +23,8 @@ import {
   Sparkles,
   MapPin,
   Calendar,
-  Building2
+  Building2,
+  User
 } from 'lucide-react';
 
 interface QuickJobSheetProps {
@@ -45,6 +47,7 @@ export const QuickJobSheet: React.FC<QuickJobSheetProps> = ({
 }) => {
   if (!job) return null;
 
+  const defaultContact = getDefaultJobContact(job);
   const statusCfg = STATUS_CONFIG[job.status];
   const distanceKm = Math.round(
     calculateDistanceKm(
@@ -58,7 +61,7 @@ export const QuickJobSheet: React.FC<QuickJobSheetProps> = ({
   const liveNavUrl = buildLiveNavigationUrl(job.coordinates, job.address);
   const handymanName = profile?.name?.trim() || 'Alex';
   const businessName = profile?.businessName?.trim() || 'Apex Handyman';
-  const defaultSmsMsg = `Hi ${job.ownerName || job.clientName}, this is ${handymanName} from ${businessName}. I'm reviewing your request for ${job.title}. When is a good time for me to stop by for the quote?`;
+  const defaultSmsMsg = `Hi ${defaultContact.name}, this is ${handymanName} from ${businessName}. I'm reviewing your request for ${job.title} at ${job.address}. When is a good time for me to stop by?`;
   const displayId = formatJobDisplayId(job);
 
   const handleActionTap = (action: () => void) => {
@@ -103,14 +106,32 @@ export const QuickJobSheet: React.FC<QuickJobSheetProps> = ({
           </button>
         </div>
 
-        {/* Title & Client */}
+        {/* Title & Contact Hierarchy */}
         <div>
           <h2 className="text-base sm:text-lg font-black text-slate-950 leading-tight line-clamp-2">
             {job.title}
           </h2>
-          <div className="mt-1.5 flex items-center justify-between text-xs text-slate-500">
-            <span className="font-extrabold text-slate-900">{job.ownerName || job.clientName}</span>
-            <span className="text-slate-700 bg-slate-100 px-2.5 py-0.5 rounded-lg font-bold border border-slate-200/80">
+          <div className="mt-1.5 flex items-center justify-between text-xs text-slate-500 gap-1.5">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span className="font-extrabold text-slate-900 truncate">
+                {defaultContact.name}
+              </span>
+              <span className={`text-[10px] font-black px-1.5 py-0.2 rounded-md border shrink-0 ${
+                defaultContact.type === 'tenant'
+                  ? 'bg-blue-50 text-blue-700 border-blue-200'
+                  : defaultContact.type === 'agent'
+                  ? 'bg-purple-50 text-purple-700 border-purple-200'
+                  : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+              }`}>
+                {defaultContact.roleLabel}
+              </span>
+              {defaultContact.phone && (
+                <span className="font-mono text-[11px] text-slate-600 shrink-0 hidden xs:inline">
+                  {defaultContact.phone}
+                </span>
+              )}
+            </div>
+            <span className="text-slate-700 bg-slate-100 px-2.5 py-0.5 rounded-lg font-bold border border-slate-200/80 shrink-0">
               {job.category}
             </span>
           </div>
@@ -190,21 +211,23 @@ export const QuickJobSheet: React.FC<QuickJobSheetProps> = ({
           </div>
         )}
 
-        {/* Action Buttons Grid (48px Touch Targets) */}
+        {/* Action Buttons Grid (Primary Contact Hierarchy: Tenant -> Agent -> Owner) */}
         <div className="grid grid-cols-4 gap-2 pt-0.5">
           <a
-            href={`tel:${job.ownerPhone || job.clientPhone}`}
+            href={defaultContact.phone ? `tel:${defaultContact.phone}` : `tel:${job.ownerPhone || job.clientPhone}`}
             className="flex flex-col items-center justify-center p-2.5 min-h-[52px] rounded-2xl bg-slate-50 hover:bg-slate-100 text-slate-800 transition active:scale-95 border border-slate-200/90 shadow-xs"
-            title="Call Owner"
+            title={`Call ${defaultContact.roleLabel} (${defaultContact.name}): ${defaultContact.phone || 'No phone'}`}
           >
             <Phone className="w-4 h-4 text-emerald-600" />
-            <span className="text-[10px] font-bold mt-1">Call</span>
+            <span className="text-[10px] font-bold mt-1">
+              Call {defaultContact.type === 'tenant' ? 'Tenant' : defaultContact.type === 'agent' ? 'PM' : 'Owner'}
+            </span>
           </a>
 
           <a
-            href={buildSmsLink(job.ownerPhone || job.clientPhone, defaultSmsMsg)}
+            href={buildSmsLink(defaultContact.phone || job.ownerPhone || job.clientPhone, defaultSmsMsg)}
             className="flex flex-col items-center justify-center p-2.5 min-h-[52px] rounded-2xl bg-slate-50 hover:bg-slate-100 text-slate-800 transition active:scale-95 border border-slate-200/90 shadow-xs"
-            title="Send SMS to Owner"
+            title={`Send SMS to ${defaultContact.roleLabel} (${defaultContact.name})`}
           >
             <MessageSquare className="w-4 h-4 text-blue-600" />
             <span className="text-[10px] font-bold mt-1">SMS</span>

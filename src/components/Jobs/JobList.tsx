@@ -69,8 +69,9 @@ interface JobListProps {
   onOpenImport?: () => void;
   onImportWorkOrder?: (parsed: ParsedWorkOrder, filename: string) => void;
   // Shared Operational Filter Props
-  statusFilter?: JobStatus | 'all' | 'all_total';
-  onSelectStatus?: (status: JobStatus | 'all' | 'all_total') => void;
+  statusFilter?: JobStatus | 'all' | 'all_total' | JobStatus[];
+  statusFilters?: JobStatus[];
+  onSelectStatus?: (status: JobStatus | 'all' | 'all_total' | JobStatus[]) => void;
   dateFilter?: DateFilterType;
   onSelectDate?: (date: DateFilterType) => void;
   customDateStart?: string;
@@ -93,6 +94,7 @@ export const JobList: React.FC<JobListProps> = ({
   onOpenImport,
   onImportWorkOrder,
   statusFilter: propStatusFilter,
+  statusFilters: propStatusFilters,
   onSelectStatus: propOnSelectStatus,
   dateFilter: propDateFilter,
   onSelectDate: propOnSelectDate,
@@ -135,7 +137,7 @@ export const JobList: React.FC<JobListProps> = ({
       if (quickPdfInputRef.current) quickPdfInputRef.current.value = '';
     }
   };
-  const [internalStatusFilter, setInternalStatusFilter] = useState<JobStatus | 'all' | 'all_total'>('all');
+  const [internalStatusFilter, setInternalStatusFilter] = useState<JobStatus | 'all' | 'all_total' | JobStatus[]>('all');
   const [internalDateFilter, setInternalDateFilter] = useState<DateFilterType>('all');
   const [internalDateStart, setInternalDateStart] = useState<string>('');
   const [internalDateEnd, setInternalDateEnd] = useState<string>('');
@@ -144,6 +146,31 @@ export const JobList: React.FC<JobListProps> = ({
 
   const statusFilter = propStatusFilter !== undefined ? propStatusFilter : internalStatusFilter;
   const setStatusFilter = propOnSelectStatus || setInternalStatusFilter;
+
+  const activeStatuses: JobStatus[] = Array.isArray(propStatusFilters)
+    ? propStatusFilters
+    : Array.isArray(statusFilter)
+    ? statusFilter
+    : (statusFilter && statusFilter !== 'all' && statusFilter !== 'all_total')
+    ? [statusFilter as JobStatus]
+    : [];
+
+  const isAllOpenSelected = activeStatuses.length === 0 && statusFilter !== 'all_total';
+  const isStatusSelected = (st: JobStatus) => activeStatuses.includes(st);
+
+  const handleStatusClick = (st: JobStatus | 'all') => {
+    triggerHapticFeedback('light');
+    if (st === 'all') {
+      setStatusFilter('all');
+      return;
+    }
+    if (activeStatuses.includes(st)) {
+      const next = activeStatuses.filter(s => s !== st);
+      setStatusFilter(next.length === 0 ? 'all' : next);
+    } else {
+      setStatusFilter([...activeStatuses, st]);
+    }
+  };
 
   const dateFilter = propDateFilter !== undefined ? propDateFilter : internalDateFilter;
   const setDateFilter = propOnSelectDate || setInternalDateFilter;
@@ -206,12 +233,10 @@ export const JobList: React.FC<JobListProps> = ({
   // 1. Status & Agency & Agent baseline (Used for dynamic date counts)
   const statusAndAgencyJobs = jobs.filter(job => {
     let matchesStatus = true;
-    if (statusFilter === 'all') {
-      matchesStatus = job.status !== 'invoiced' && job.status !== 'cancelled';
-    } else if (statusFilter === 'all_total') {
-      matchesStatus = true;
+    if (activeStatuses.length === 0) {
+      matchesStatus = statusFilter === 'all_total' ? true : (job.status !== 'invoiced' && job.status !== 'cancelled');
     } else {
-      matchesStatus = job.status === statusFilter;
+      matchesStatus = activeStatuses.includes(job.status);
     }
 
     let matchesAgency = true;
@@ -431,15 +456,12 @@ export const JobList: React.FC<JobListProps> = ({
         </div>
       </div>
 
-      {/* Status Filter Pills */}
+      {/* Status Filter Pills (Supports Multi-Selection) */}
       <div className="shrink-0 flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1 mb-3 min-h-[46px]">
           <button
-            onClick={() => {
-              triggerHapticFeedback('light');
-              setStatusFilter('all');
-            }}
+            onClick={() => handleStatusClick('all')}
             className={`shrink-0 min-h-[36px] px-3.5 py-1.5 rounded-2xl text-xs font-black whitespace-nowrap transition-all border ${
-              statusFilter === 'all'
+              isAllOpenSelected
                 ? 'bg-slate-900 text-white border-slate-900 shadow-md shadow-slate-900/20'
                 : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200/80 shadow-xs'
             }`}
@@ -447,12 +469,9 @@ export const JobList: React.FC<JobListProps> = ({
             All Open ({activeJobsCount})
           </button>
           <button
-            onClick={() => {
-              triggerHapticFeedback('light');
-              setStatusFilter('quote_requested');
-            }}
+            onClick={() => handleStatusClick('quote_requested')}
             className={`shrink-0 min-h-[36px] px-3.5 py-1.5 rounded-2xl text-xs font-black whitespace-nowrap transition-all border ${
-              statusFilter === 'quote_requested'
+              isStatusSelected('quote_requested')
                 ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-white border-amber-500 shadow-md shadow-amber-500/20'
                 : 'bg-amber-50/80 text-amber-800 border-amber-200 hover:bg-amber-100 shadow-xs'
             }`}
@@ -460,12 +479,9 @@ export const JobList: React.FC<JobListProps> = ({
             Needs Quote ({quoteReqCount})
           </button>
           <button
-            onClick={() => {
-              triggerHapticFeedback('light');
-              setStatusFilter('in_progress');
-            }}
+            onClick={() => handleStatusClick('in_progress')}
             className={`shrink-0 min-h-[36px] px-3.5 py-1.5 rounded-2xl text-xs font-black whitespace-nowrap transition-all border ${
-              statusFilter === 'in_progress'
+              isStatusSelected('in_progress')
                 ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white border-emerald-500 shadow-md shadow-emerald-500/20'
                 : 'bg-emerald-50/80 text-emerald-800 border-emerald-200 hover:bg-emerald-100 shadow-xs'
             }`}
@@ -473,12 +489,9 @@ export const JobList: React.FC<JobListProps> = ({
             In Progress ({inProgressCount})
           </button>
           <button
-            onClick={() => {
-              triggerHapticFeedback('light');
-              setStatusFilter('quoted');
-            }}
+            onClick={() => handleStatusClick('quoted')}
             className={`shrink-0 min-h-[36px] px-3.5 py-1.5 rounded-2xl text-xs font-black whitespace-nowrap transition-all border ${
-              statusFilter === 'quoted'
+              isStatusSelected('quoted')
                 ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white border-purple-500 shadow-md shadow-purple-500/20'
                 : 'bg-purple-50/80 text-purple-800 border-purple-200 hover:bg-purple-100 shadow-xs'
             }`}
@@ -487,12 +500,9 @@ export const JobList: React.FC<JobListProps> = ({
           </button>
           {urgentCount > 0 && (
             <button
-              onClick={() => {
-                triggerHapticFeedback('light');
-                setStatusFilter('urgent');
-              }}
+              onClick={() => handleStatusClick('urgent')}
               className={`shrink-0 min-h-[36px] px-3.5 py-1.5 rounded-2xl text-xs font-black whitespace-nowrap transition-all border ${
-                statusFilter === 'urgent'
+                isStatusSelected('urgent')
                   ? 'bg-gradient-to-r from-red-600 to-rose-600 text-white border-red-500 shadow-md shadow-red-500/20'
                   : 'bg-red-50/80 text-red-700 border-red-200 hover:bg-red-100 shadow-xs'
               }`}
@@ -501,12 +511,9 @@ export const JobList: React.FC<JobListProps> = ({
             </button>
           )}
           <button
-            onClick={() => {
-              triggerHapticFeedback('light');
-              setStatusFilter('completed');
-            }}
+            onClick={() => handleStatusClick('completed')}
             className={`shrink-0 min-h-[36px] px-3.5 py-1.5 rounded-2xl text-xs font-bold whitespace-nowrap transition-all border ${
-              statusFilter === 'completed'
+              isStatusSelected('completed')
                 ? 'bg-slate-700 text-white border-slate-800 shadow-md'
                 : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 shadow-xs'
             }`}
@@ -514,12 +521,9 @@ export const JobList: React.FC<JobListProps> = ({
             Completed ({completedCount})
           </button>
           <button
-            onClick={() => {
-              triggerHapticFeedback('light');
-              setStatusFilter('invoiced');
-            }}
+            onClick={() => handleStatusClick('invoiced')}
             className={`shrink-0 min-h-[36px] px-3.5 py-1.5 rounded-2xl text-xs font-bold whitespace-nowrap transition-all border ${
-              statusFilter === 'invoiced'
+              isStatusSelected('invoiced')
                 ? 'bg-gradient-to-r from-blue-600 to-indigo-700 text-white border-blue-600 shadow-md shadow-blue-500/20'
                 : 'bg-blue-50 text-blue-900 border-blue-200 hover:bg-blue-100 shadow-xs'
             }`}
@@ -528,12 +532,9 @@ export const JobList: React.FC<JobListProps> = ({
           </button>
           {cancelledCount > 0 && (
             <button
-              onClick={() => {
-                triggerHapticFeedback('light');
-                setStatusFilter('cancelled');
-              }}
+              onClick={() => handleStatusClick('cancelled')}
               className={`shrink-0 min-h-[36px] px-3.5 py-1.5 rounded-2xl text-xs font-bold whitespace-nowrap transition-all border ${
-                statusFilter === 'cancelled'
+                isStatusSelected('cancelled')
                   ? 'bg-gradient-to-r from-rose-600 to-red-600 text-white border-rose-600 shadow-md shadow-rose-500/20'
                   : 'bg-rose-50/80 text-rose-700 border-rose-200 hover:bg-rose-100 shadow-xs'
               }`}

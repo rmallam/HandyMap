@@ -1,9 +1,8 @@
 import React from 'react';
-import { Marker, Popup } from 'react-leaflet';
+import { Marker } from 'react-leaflet';
 import L from 'leaflet';
 import { Job, RouteStop } from '../../types';
-import { STATUS_CONFIG, formatCurrency, formatJobDisplayId, getRelativeJobDateLabel } from '../../utils/helpers';
-import { Phone, ArrowRight, Clock, MapPin, Building2, Calendar } from 'lucide-react';
+import { STATUS_CONFIG, formatJobDisplayId } from '../../utils/helpers';
 import { triggerHapticFeedback } from '../../services/nativeMobile';
 
 interface JobMarkerProps {
@@ -11,15 +10,14 @@ interface JobMarkerProps {
   routeStop?: RouteStop;
   isSelected?: boolean;
   onSelect: (job: Job) => void;
-  onOpenFull: (job: Job) => void;
+  onOpenFull?: (job: Job) => void;
 }
 
 export const JobMarker: React.FC<JobMarkerProps> = ({
   job,
   routeStop,
   isSelected,
-  onSelect,
-  onOpenFull
+  onSelect
 }) => {
   const statusCfg = STATUS_CONFIG[job.status];
   const isUrgent = job.status === 'urgent' || job.priority === 'urgent';
@@ -86,91 +84,7 @@ export const JobMarker: React.FC<JobMarkerProps> = ({
           onSelect(job);
         }
       }}
-    >
-      <Popup className="custom-leaflet-popup">
-        <div className="p-4 min-w-[260px] text-slate-900 bg-white/95 backdrop-blur-xl rounded-[24px] shadow-2xl border border-slate-200/90 ring-1 ring-black/5">
-          <div className="flex items-center justify-between gap-1.5 mb-2 flex-wrap">
-            <div className="flex items-center gap-1.5 flex-wrap">
-              {displayId && (
-                <span className="font-mono text-[10px] font-black text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200/90 shadow-2xs shrink-0">
-                  {displayId}
-                </span>
-              )}
-              <span
-                className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full border shadow-xs ${statusCfg.bgClass} ${statusCfg.textClass} ${statusCfg.borderClass}`}
-              >
-                {statusCfg.shortLabel}
-              </span>
-            </div>
-            {job.isAgencyJob && job.realEstateAgency && (
-              <span className="text-[10px] font-extrabold text-purple-900 bg-purple-100/80 border border-purple-200 px-2.5 py-0.5 rounded-full flex items-center gap-1 shadow-xs ml-auto">
-                🏢 {job.realEstateAgency.split(' ')[0]}
-              </span>
-            )}
-            {routeStop && (
-              <span className="text-xs font-black text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded-lg flex items-center gap-1 border border-blue-200/60 shadow-xs">
-                <Clock className="w-3 h-3 text-blue-600" /> Stop #{routeStop.stopOrder}
-              </span>
-            )}
-          </div>
-
-          <h3 className="font-black text-sm text-slate-950 line-clamp-1 leading-snug">{job.title}</h3>
-          
-          <div className="text-xs sm:text-[13px] font-black text-slate-900 mt-1 flex items-center gap-1.5 leading-snug">
-            <MapPin className="w-3.5 h-3.5 text-blue-600 shrink-0 stroke-[2.5]" />
-            <span className="truncate">{job.address}</span>
-          </div>
-
-          {job.appointmentTime && (
-            <div className="mt-2 px-2.5 py-1 rounded-xl bg-blue-50/90 border border-blue-200/90 text-[11px] font-bold text-blue-950 flex items-center justify-between gap-1 shadow-2xs">
-              <div className="flex items-center gap-1.5 min-w-0 truncate">
-                <Calendar className="w-3 h-3 text-blue-600 shrink-0 stroke-[2.4]" />
-                <span className="truncate font-black">{getRelativeJobDateLabel(job.appointmentTime)}</span>
-              </div>
-              <span className="text-[9px] font-black uppercase tracking-wider text-blue-700 bg-white px-1.5 py-0.2 rounded border border-blue-200 shrink-0">
-                Scheduled
-              </span>
-            </div>
-          )}
-
-          <div className="mt-3.5 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
-            <div>
-              <p className="text-[11px] font-bold text-slate-900">
-                {job.ownerName || job.clientName}
-                {job.isAgencyJob && job.workOrderNumber && (
-                  <span className="block text-[10px] text-purple-700 font-mono font-bold mt-0.5">{job.workOrderNumber}</span>
-                )}
-              </p>
-              {job.quote && (
-                <p className="text-xs text-emerald-700 font-black mt-0.5">
-                  {formatCurrency(job.quote.totalAmount)}
-                </p>
-              )}
-            </div>
-
-            <div className="flex items-center gap-1.5">
-              <a
-                href={`tel:${job.clientPhone}`}
-                className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition active:scale-95 border border-slate-200/60"
-                title="Call Client"
-                onClick={e => e.stopPropagation()}
-              >
-                <Phone className="w-3.5 h-3.5 text-emerald-600" />
-              </a>
-              <button
-                onClick={() => {
-                  triggerHapticFeedback('light');
-                  onOpenFull(job);
-                }}
-                className="px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-black flex items-center gap-1 text-xs shadow-md transition active:scale-95"
-              >
-                Details <ArrowRight className="w-3 h-3 stroke-[2.5]" />
-              </button>
-            </div>
-          </div>
-        </div>
-      </Popup>
-    </Marker>
+    />
   );
 };
 

@@ -8,14 +8,15 @@ import { triggerHapticFeedback } from '../../services/nativeMobile';
 
 interface MapFiltersProps {
   jobs: Job[];
-  selectedStatus: JobStatus | 'all' | 'all_total';
+  selectedStatus?: JobStatus | 'all' | 'all_total' | JobStatus[];
+  selectedStatuses?: JobStatus[];
   selectedSuburb?: string;
   selectedAgency?: string;
   selectedAgent?: string;
   selectedDate?: DateFilterType;
   customDateStart?: string;
   customDateEnd?: string;
-  onSelectStatus: (status: JobStatus | 'all' | 'all_total') => void;
+  onSelectStatus: (status: JobStatus | 'all' | 'all_total' | JobStatus[]) => void;
   onSelectSuburb?: (suburb: string) => void;
   onSelectAgency?: (agency: string) => void;
   onSelectAgent?: (agent: string) => void;
@@ -31,7 +32,8 @@ interface MapFiltersProps {
 
 export const MapFilters: React.FC<MapFiltersProps> = ({
   jobs,
-  selectedStatus,
+  selectedStatus = 'all',
+  selectedStatuses,
   selectedSuburb = 'all',
   selectedAgency = 'all',
   selectedAgent = 'all',
@@ -53,6 +55,32 @@ export const MapFilters: React.FC<MapFiltersProps> = ({
 }) => {
   const [showAgencyMenu, setShowAgencyMenu] = useState(false);
   const [isMobileFilterDrawerOpen, setIsMobileFilterDrawerOpen] = useState(false);
+
+  // Normalize multi-status selection
+  const activeStatuses: JobStatus[] = Array.isArray(selectedStatuses)
+    ? selectedStatuses
+    : Array.isArray(selectedStatus)
+    ? selectedStatus
+    : (selectedStatus && selectedStatus !== 'all' && selectedStatus !== 'all_total')
+    ? [selectedStatus as JobStatus]
+    : [];
+
+  const isAllOpenSelected = activeStatuses.length === 0 && selectedStatus !== 'all_total';
+  const isStatusSelected = (st: JobStatus) => activeStatuses.includes(st);
+
+  const handleStatusClick = (st: JobStatus | 'all') => {
+    triggerHapticFeedback('light');
+    if (st === 'all') {
+      onSelectStatus('all');
+      return;
+    }
+    if (activeStatuses.includes(st)) {
+      const next = activeStatuses.filter(s => s !== st);
+      onSelectStatus(next.length === 0 ? 'all' : next);
+    } else {
+      onSelectStatus([...activeStatuses, st]);
+    }
+  };
 
   // Counts by status
   const activeJobsCount = jobs.filter(j => j.status !== 'invoiced' && j.status !== 'cancelled').length;
@@ -107,7 +135,7 @@ export const MapFilters: React.FC<MapFiltersProps> = ({
 
   // Calculate active filter count for mobile badge
   let activeFiltersCount = 0;
-  if (selectedStatus !== 'all') activeFiltersCount++;
+  if (!isAllOpenSelected) activeFiltersCount++;
   if (selectedSuburb !== 'all') activeFiltersCount++;
   if (selectedAgency !== 'all') activeFiltersCount++;
   if (selectedAgent && selectedAgent !== 'all') activeFiltersCount++;
@@ -115,9 +143,9 @@ export const MapFilters: React.FC<MapFiltersProps> = ({
 
   // Calculate visible matching jobs count
   const matchingJobsCount = jobs.filter(job => {
-    const matchesStatus = (selectedStatus === 'all' || selectedStatus === 'all_total')
-      ? (selectedStatus === 'all' ? (job.status !== 'invoiced' && job.status !== 'cancelled') : true)
-      : job.status === selectedStatus;
+    const matchesStatus = (activeStatuses.length === 0)
+      ? (selectedStatus === 'all_total' ? true : (job.status !== 'invoiced' && job.status !== 'cancelled'))
+      : activeStatuses.includes(job.status);
     const matchesSuburb = selectedSuburb === 'all' || extractSuburb(job) === selectedSuburb;
     let matchesAgency = true;
     if (selectedAgency === 'agency_only') {
@@ -166,9 +194,8 @@ export const MapFilters: React.FC<MapFiltersProps> = ({
       parts.push(dateLabels[selectedDate] || selectedDate);
     }
     if (selectedSuburb !== 'all') parts.push(selectedSuburb);
-    if (selectedStatus !== 'all') {
-      const statusLabels: Record<string, string> = {
-        all_total: 'All (Incl. Paid)',
+    if (activeStatuses.length > 0) {
+      const statusLabels: Record<JobStatus, string> = {
         quote_requested: 'Needs Quote',
         in_progress: 'In Progress',
         quoted: 'Quoted',
@@ -177,7 +204,15 @@ export const MapFilters: React.FC<MapFiltersProps> = ({
         invoiced: 'Paid Archive',
         cancelled: 'Cancelled'
       };
-      parts.push(statusLabels[selectedStatus] || selectedStatus);
+      if (activeStatuses.length === 1) {
+        parts.push(statusLabels[activeStatuses[0]] || activeStatuses[0]);
+      } else if (activeStatuses.length === 2) {
+        parts.push(`${statusLabels[activeStatuses[0]]} + ${statusLabels[activeStatuses[1]]}`);
+      } else {
+        parts.push(`${activeStatuses.length} Statuses`);
+      }
+    } else if (selectedStatus === 'all_total') {
+      parts.push('All (Incl. Paid)');
     }
     if (selectedAgency !== 'all') {
       parts.push(selectedAgency === 'agency_only' ? 'Agencies' : selectedAgency === 'direct_only' ? 'Direct' : selectedAgency.split(' ')[0]);
@@ -459,16 +494,23 @@ export const MapFilters: React.FC<MapFiltersProps> = ({
                 </div>
               )}
 
-              {/* Section 1: Job Status */}
+              {/* Section 1: Job Status (Supports Multi-Selection) */}
               <div>
-                <label className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400 block mb-2.5">
-                  Job Status
-                </label>
+                <div className="flex items-center justify-between mb-2.5">
+                  <label className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400 block">
+                    Job Status
+                  </label>
+                  {activeStatuses.length > 0 && (
+                    <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+                      {activeStatuses.length} Active
+                    </span>
+                  )}
+                </div>
                 <div className="grid grid-cols-2 gap-2">
                   <button
-                    onClick={() => onSelectStatus('all')}
+                    onClick={() => handleStatusClick('all')}
                     className={`py-2.5 px-3 rounded-xl font-bold flex items-center justify-between border transition ${
-                      selectedStatus === 'all'
+                      isAllOpenSelected
                         ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
                         : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
                     }`}
@@ -478,9 +520,9 @@ export const MapFilters: React.FC<MapFiltersProps> = ({
                   </button>
 
                   <button
-                    onClick={() => onSelectStatus('quote_requested')}
+                    onClick={() => handleStatusClick('quote_requested')}
                     className={`py-2.5 px-3 rounded-xl font-bold flex items-center justify-between border transition ${
-                      selectedStatus === 'quote_requested'
+                      isStatusSelected('quote_requested')
                         ? 'bg-amber-500 text-white border-amber-600 shadow-sm'
                         : 'bg-amber-50/70 text-amber-800 border-amber-200 hover:bg-amber-100'
                     }`}
@@ -493,9 +535,9 @@ export const MapFilters: React.FC<MapFiltersProps> = ({
                   </button>
 
                   <button
-                    onClick={() => onSelectStatus('in_progress')}
+                    onClick={() => handleStatusClick('in_progress')}
                     className={`py-2.5 px-3 rounded-xl font-bold flex items-center justify-between border transition ${
-                      selectedStatus === 'in_progress'
+                      isStatusSelected('in_progress')
                         ? 'bg-emerald-600 text-white border-emerald-700 shadow-sm'
                         : 'bg-emerald-50/70 text-emerald-800 border-emerald-200 hover:bg-emerald-100'
                     }`}
@@ -508,9 +550,9 @@ export const MapFilters: React.FC<MapFiltersProps> = ({
                   </button>
 
                   <button
-                    onClick={() => onSelectStatus('quoted')}
+                    onClick={() => handleStatusClick('quoted')}
                     className={`py-2.5 px-3 rounded-xl font-bold flex items-center justify-between border transition ${
-                      selectedStatus === 'quoted'
+                      isStatusSelected('quoted')
                         ? 'bg-purple-600 text-white border-purple-700 shadow-sm'
                         : 'bg-purple-50/70 text-purple-800 border-purple-200 hover:bg-purple-100'
                     }`}
@@ -524,9 +566,9 @@ export const MapFilters: React.FC<MapFiltersProps> = ({
 
                   {urgentCount > 0 && (
                     <button
-                      onClick={() => onSelectStatus('urgent')}
+                      onClick={() => handleStatusClick('urgent')}
                       className={`py-2.5 px-3 rounded-xl font-bold flex items-center justify-between border transition ${
-                        selectedStatus === 'urgent'
+                        isStatusSelected('urgent')
                           ? 'bg-red-600 text-white border-red-700 shadow-sm'
                           : 'bg-red-50/70 text-red-800 border-red-200 hover:bg-red-100'
                       }`}
@@ -540,9 +582,9 @@ export const MapFilters: React.FC<MapFiltersProps> = ({
                   )}
 
                   <button
-                    onClick={() => onSelectStatus('completed')}
+                    onClick={() => handleStatusClick('completed')}
                     className={`py-2.5 px-3 rounded-xl font-bold flex items-center justify-between border transition ${
-                      selectedStatus === 'completed'
+                      isStatusSelected('completed')
                         ? 'bg-slate-700 text-white border-slate-800 shadow-sm'
                         : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
                     }`}
@@ -553,9 +595,9 @@ export const MapFilters: React.FC<MapFiltersProps> = ({
 
                   {invoicedCount > 0 && (
                     <button
-                      onClick={() => onSelectStatus('invoiced')}
+                      onClick={() => handleStatusClick('invoiced')}
                       className={`py-2.5 px-3 rounded-xl font-bold flex items-center justify-between border transition ${
-                        selectedStatus === 'invoiced'
+                        isStatusSelected('invoiced')
                           ? 'bg-blue-600 text-white border-blue-700 shadow-sm'
                           : 'bg-blue-50/60 text-blue-800 border-blue-200 hover:bg-blue-100'
                       }`}
@@ -567,9 +609,9 @@ export const MapFilters: React.FC<MapFiltersProps> = ({
 
                   {cancelledCount > 0 && (
                     <button
-                      onClick={() => onSelectStatus('cancelled')}
+                      onClick={() => handleStatusClick('cancelled')}
                       className={`py-2.5 px-3 rounded-xl font-bold flex items-center justify-between border transition ${
-                        selectedStatus === 'cancelled'
+                        isStatusSelected('cancelled')
                           ? 'bg-rose-600 text-white border-rose-700 shadow-sm'
                           : 'bg-rose-50/60 text-rose-800 border-rose-200 hover:bg-rose-100'
                       }`}
@@ -752,12 +794,12 @@ export const MapFilters: React.FC<MapFiltersProps> = ({
       <div className="hidden sm:flex absolute top-3 left-3 right-3 z-20 flex-col gap-2 pointer-events-none">
         {/* Row 1: Status Filter Pills + Primary Action Buttons */}
         <div className="flex items-center justify-between gap-2.5">
-          {/* Status Pills Container */}
+          {/* Status Pills Container (Supports Multi-Selection) */}
           <div className="pointer-events-auto flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1.5 px-2 bg-white/90 backdrop-blur-xl rounded-2xl border border-slate-200/90 shadow-lg shadow-slate-900/5 flex-1">
             <button
-              onClick={() => onSelectStatus('all')}
+              onClick={() => handleStatusClick('all')}
               className={`px-3 py-1.5 rounded-xl text-xs font-black whitespace-nowrap transition-all flex items-center gap-1.5 ${
-                selectedStatus === 'all'
+                isAllOpenSelected
                   ? 'bg-slate-900 text-white shadow-md'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/80'
               }`}
@@ -766,9 +808,9 @@ export const MapFilters: React.FC<MapFiltersProps> = ({
             </button>
 
             <button
-              onClick={() => onSelectStatus('quote_requested')}
+              onClick={() => handleStatusClick('quote_requested')}
               className={`px-3 py-1.5 rounded-xl text-xs font-black whitespace-nowrap transition-all flex items-center gap-1.5 border ${
-                selectedStatus === 'quote_requested'
+                isStatusSelected('quote_requested')
                   ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-white border-amber-500 shadow-md shadow-amber-500/20'
                   : 'text-amber-800 bg-amber-50/80 border-amber-200 hover:bg-amber-100'
               }`}
@@ -778,9 +820,9 @@ export const MapFilters: React.FC<MapFiltersProps> = ({
             </button>
 
             <button
-              onClick={() => onSelectStatus('in_progress')}
+              onClick={() => handleStatusClick('in_progress')}
               className={`px-3 py-1.5 rounded-xl text-xs font-black whitespace-nowrap transition-all flex items-center gap-1.5 border ${
-                selectedStatus === 'in_progress'
+                isStatusSelected('in_progress')
                   ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white border-emerald-500 shadow-md shadow-emerald-500/20'
                   : 'text-emerald-800 bg-emerald-50/80 border-emerald-200 hover:bg-emerald-100'
               }`}
@@ -790,9 +832,9 @@ export const MapFilters: React.FC<MapFiltersProps> = ({
             </button>
 
             <button
-              onClick={() => onSelectStatus('quoted')}
+              onClick={() => handleStatusClick('quoted')}
               className={`px-3 py-1.5 rounded-xl text-xs font-black whitespace-nowrap transition-all flex items-center gap-1.5 border ${
-                selectedStatus === 'quoted'
+                isStatusSelected('quoted')
                   ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white border-purple-500 shadow-md shadow-purple-500/20'
                   : 'text-purple-800 bg-purple-50/80 border-purple-200 hover:bg-purple-100'
               }`}
@@ -803,9 +845,9 @@ export const MapFilters: React.FC<MapFiltersProps> = ({
 
             {urgentCount > 0 && (
               <button
-                onClick={() => onSelectStatus('urgent')}
+                onClick={() => handleStatusClick('urgent')}
                 className={`px-3 py-1.5 rounded-xl text-xs font-black whitespace-nowrap transition-all flex items-center gap-1.5 border ${
-                  selectedStatus === 'urgent'
+                  isStatusSelected('urgent')
                     ? 'bg-gradient-to-r from-red-600 to-rose-600 text-white border-red-500 shadow-md shadow-red-500/20'
                     : 'text-red-700 bg-red-50/80 border-red-200 hover:bg-red-100'
                 }`}
@@ -816,9 +858,9 @@ export const MapFilters: React.FC<MapFiltersProps> = ({
             )}
 
             <button
-              onClick={() => onSelectStatus('completed')}
+              onClick={() => handleStatusClick('completed')}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 border ${
-                selectedStatus === 'completed'
+                isStatusSelected('completed')
                   ? 'bg-slate-700 text-white border-slate-800 shadow-md'
                   : 'text-slate-600 bg-slate-50/80 border-slate-200 hover:bg-slate-100'
               }`}
@@ -829,9 +871,9 @@ export const MapFilters: React.FC<MapFiltersProps> = ({
 
             {invoicedCount > 0 && (
               <button
-                onClick={() => onSelectStatus('invoiced')}
+                onClick={() => handleStatusClick('invoiced')}
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 border ${
-                  selectedStatus === 'invoiced'
+                  isStatusSelected('invoiced')
                     ? 'bg-gradient-to-r from-blue-600 to-indigo-700 text-white border-blue-600 shadow-md shadow-blue-500/20'
                     : 'text-blue-800 bg-blue-50/80 border-blue-200 hover:bg-blue-100'
                 }`}
@@ -843,9 +885,9 @@ export const MapFilters: React.FC<MapFiltersProps> = ({
 
             {cancelledCount > 0 && (
               <button
-                onClick={() => onSelectStatus('cancelled')}
+                onClick={() => handleStatusClick('cancelled')}
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 border ${
-                  selectedStatus === 'cancelled'
+                  isStatusSelected('cancelled')
                     ? 'bg-gradient-to-r from-rose-600 to-red-600 text-white border-rose-600 shadow-md shadow-rose-500/20'
                     : 'text-rose-800 bg-rose-50/80 border-rose-200 hover:bg-rose-100'
                 }`}

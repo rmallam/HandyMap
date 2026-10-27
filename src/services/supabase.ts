@@ -1,5 +1,5 @@
 import { createClient, User, Session } from '@supabase/supabase-js';
-import { Job, HandymanProfile } from '../types';
+import { Job, JobStatus, HandymanProfile } from '../types';
 import { DEFAULT_PROFILE, INITIAL_JOBS } from '../data/mockJobs';
 
 const supabaseUrl = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_URL) || '';
@@ -289,6 +289,7 @@ export function mapRowToJob(row: any): Job {
   let nteLimit: number | undefined = undefined;
   let signature: any = undefined;
   let beforeAfterImage: string | undefined = undefined;
+  let statusOverride: JobStatus | undefined = undefined;
 
   const cleanNotes = rawNotes.filter((n: any) => {
     if (typeof n !== 'string') return true;
@@ -341,6 +342,13 @@ export function mapRowToJob(row: any): Job {
       }
       return false;
     }
+    if (n.startsWith('__STATUS_OVERRIDE__:')) {
+      const parsedStatus = n.slice('__STATUS_OVERRIDE__:'.length).trim() as JobStatus;
+      if (parsedStatus) {
+        statusOverride = parsedStatus;
+      }
+      return false;
+    }
     return true;
   });
 
@@ -363,7 +371,7 @@ export function mapRowToJob(row: any): Job {
     address: row.address,
     suburb: row.suburb || 'Point Cook',
     coordinates: [Number(row.latitude) || 0, Number(row.longitude) || 0],
-    status: row.status,
+    status: statusOverride || row.status,
     priority: row.priority,
     category: row.category,
     description: row.description || '',
@@ -408,8 +416,14 @@ export function mapJobToRow(job: Job, userId: string): any {
     !n.startsWith('__TENANTS_V2__:') &&
     !n.startsWith('__OWNER_V1__:') &&
     !n.startsWith('__TASKS_V1__:') &&
-    !n.startsWith('__EXTRAS_V1__:')
+    !n.startsWith('__EXTRAS_V1__:') &&
+    !n.startsWith('__STATUS_OVERRIDE__:')
   );
+
+  // If status is cancelled, tag it in internal notes so remote DB constraint fallback never mutates it
+  if (job.status === 'cancelled') {
+    filteredNotes.push('__STATUS_OVERRIDE__:cancelled');
+  }
 
   const hasTenantDetails = job.tenant1Name || job.tenant1Phone || job.tenant1Email || job.tenant2Name || job.tenant2Phone || job.tenant2Email;
   if (hasTenantDetails) {
@@ -538,6 +552,13 @@ export async function upsertJobInSupabase(job: Job, userId: string): Promise<boo
       // 2. Status constraint check error (23514)
       if (error.code === '23514' || error.message.includes('status')) {
         console.warn('Supabase status check constraint detected. Retrying with completed status fallback.');
+        const originalStatus = job.status;
+        if (!Array.isArray(row.internal_notes)) {
+          row.internal_notes = [];
+        }
+        if (!row.internal_notes.some((n: string) => typeof n === 'string' && n.startsWith('__STATUS_OVERRIDE__:'))) {
+          row.internal_notes.push(`__STATUS_OVERRIDE__:${originalStatus}`);
+        }
         row.status = 'completed';
         attempts++;
         continue;
@@ -583,6 +604,21 @@ export async function batchUpsertJobsInSupabase(jobsList: Job[], userId: string)
           attempts++;
           continue;
         }
+      }
+
+      if (error.code === '23514' || error.message.includes('status')) {
+        console.warn('Supabase batch status check constraint detected. Retrying with fallback status.');
+        rows.forEach((r, idx) => {
+          if (r.status === 'cancelled') {
+            if (!Array.isArray(r.internal_notes)) r.internal_notes = [];
+            if (!r.internal_notes.some((n: string) => typeof n === 'string' && n.startsWith('__STATUS_OVERRIDE__:'))) {
+              r.internal_notes.push('__STATUS_OVERRIDE__:cancelled');
+            }
+            r.status = 'completed';
+          }
+        });
+        attempts++;
+        continue;
       }
 
       console.error('Supabase batch upsert unrecoverable error:', error.message, error);

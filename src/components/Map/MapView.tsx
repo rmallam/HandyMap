@@ -18,7 +18,8 @@ interface MapViewProps {
   recenterTrigger?: number;
   activeRoute: OptimizedRoute | null;
   selectedJob: Job | null;
-  selectedStatus: JobStatus | 'all' | 'all_total';
+  selectedStatus?: JobStatus | 'all' | 'all_total' | JobStatus[];
+  selectedStatuses?: JobStatus[];
   selectedDate?: DateFilterType;
   customDateStart?: string;
   customDateEnd?: string;
@@ -27,7 +28,7 @@ interface MapViewProps {
   selectedSuburb?: string;
   isOptimizing: boolean;
   onSelectJob: (job: Job | null) => void;
-  onSelectStatus: (status: JobStatus | 'all' | 'all_total') => void;
+  onSelectStatus: (status: JobStatus | 'all' | 'all_total' | JobStatus[]) => void;
   onSelectDate?: (date: DateFilterType) => void;
   onSelectDateRange?: (startDate: string, endDate: string) => void;
   onSelectAgency?: (agency: string) => void;
@@ -131,7 +132,8 @@ export const MapView: React.FC<MapViewProps> = ({
   recenterTrigger,
   activeRoute,
   selectedJob,
-  selectedStatus,
+  selectedStatus = 'all',
+  selectedStatuses,
   selectedDate: propDate,
   customDateStart: propCustomDateStart,
   customDateEnd: propCustomDateEnd,
@@ -178,12 +180,20 @@ export const MapView: React.FC<MapViewProps> = ({
     setSelectedDate('date_range');
   });
 
+  const activeStatuses: JobStatus[] = Array.isArray(selectedStatuses)
+    ? selectedStatuses
+    : Array.isArray(selectedStatus)
+    ? selectedStatus
+    : (selectedStatus && selectedStatus !== 'all' && selectedStatus !== 'all_total')
+    ? [selectedStatus as JobStatus]
+    : [];
+
   // Filter jobs by status, suburb, agency, agent, and date
   const visibleJobs = jobs.filter(job => {
     // When 'all' is selected, exclude paid & invoiced jobs and cancelled jobs to keep the active map uncluttered
-    const matchesStatus = (selectedStatus === 'all' || selectedStatus === 'all_total')
-      ? (selectedStatus === 'all' ? (job.status !== 'invoiced' && job.status !== 'cancelled') : true)
-      : job.status === selectedStatus;
+    const matchesStatus = (activeStatuses.length === 0)
+      ? (selectedStatus === 'all_total' ? true : (job.status !== 'invoiced' && job.status !== 'cancelled'))
+      : activeStatuses.includes(job.status);
 
     const matchesSuburb = selectedSuburb === 'all' || extractSuburb(job) === selectedSuburb;
     
@@ -220,7 +230,7 @@ export const MapView: React.FC<MapViewProps> = ({
     return matchesStatus && matchesSuburb && matchesAgency && matchesAgent && matchesDate;
   });
 
-  const filterKey = `${selectedStatus}_${selectedAgency}_${selectedAgent}_${selectedDate}_${selectedSuburb}`;
+  const filterKey = `${activeStatuses.sort().join(',')}_${selectedStatus}_${selectedAgency}_${selectedAgent}_${selectedDate}_${selectedSuburb}`;
 
   // Map route stop index by job ID
   const routeStopMap = new Map();
@@ -236,6 +246,7 @@ export const MapView: React.FC<MapViewProps> = ({
       <MapFilters
         jobs={jobs}
         selectedStatus={selectedStatus}
+        selectedStatuses={activeStatuses}
         selectedSuburb={selectedSuburb}
         selectedAgency={selectedAgency}
         selectedAgent={selectedAgent}

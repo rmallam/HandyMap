@@ -63,8 +63,37 @@ export function App() {
 
   // Navigation & Active View state
   const [activeTab, setActiveTab] = useState<AppNavTab>('map');
-  // Shared Operational Filter state across Map & Job List
-  const [selectedStatus, setSelectedStatus] = useState<JobStatus | 'all' | 'all_total'>('all');
+  // Shared Operational Filter state across Map & Job List (Supports Multi-Status)
+  const [selectedStatuses, setSelectedStatuses] = useState<JobStatus[]>([]);
+  const [selectedStatusTotal, setSelectedStatusTotal] = useState<boolean>(false);
+
+  const handleSelectStatus = (status: JobStatus | 'all' | 'all_total' | JobStatus[]) => {
+    if (Array.isArray(status)) {
+      setSelectedStatuses(status);
+      setSelectedStatusTotal(false);
+      return;
+    }
+    if (status === 'all') {
+      setSelectedStatuses([]);
+      setSelectedStatusTotal(false);
+      return;
+    }
+    if (status === 'all_total') {
+      setSelectedStatuses([]);
+      setSelectedStatusTotal(true);
+      return;
+    }
+    setSelectedStatusTotal(false);
+    setSelectedStatuses(prev => {
+      if (prev.includes(status)) {
+        return prev.filter(s => s !== status);
+      } else {
+        return [...prev, status];
+      }
+    });
+  };
+
+  const selectedStatus = selectedStatusTotal ? 'all_total' : (selectedStatuses.length === 0 ? 'all' : selectedStatuses);
   const [selectedDate, setSelectedDate] = useState<DateFilterType>('all');
   const [customDateStart, setCustomDateStart] = useState<string>('');
   const [customDateEnd, setCustomDateEnd] = useState<string>('');
@@ -699,6 +728,7 @@ export function App() {
             activeRoute={activeRoute}
             selectedJob={selectedJob}
             selectedStatus={selectedStatus}
+            selectedStatuses={selectedStatuses}
             selectedDate={selectedDate}
             customDateStart={customDateStart}
             customDateEnd={customDateEnd}
@@ -707,7 +737,7 @@ export function App() {
             selectedSuburb={selectedSuburb}
             isOptimizing={isOptimizing}
             onSelectJob={setSelectedJob}
-            onSelectStatus={setSelectedStatus}
+            onSelectStatus={handleSelectStatus}
             onSelectDate={setSelectedDate}
             onSelectDateRange={handleSelectDateRange}
             onSelectAgency={setSelectedAgency}
@@ -746,7 +776,8 @@ export function App() {
             profile={profile}
             reminders={reminders}
             statusFilter={selectedStatus}
-            onSelectStatus={setSelectedStatus}
+            statusFilters={selectedStatuses}
+            onSelectStatus={handleSelectStatus}
             dateFilter={selectedDate}
             onSelectDate={setSelectedDate}
             customDateStart={customDateStart}
