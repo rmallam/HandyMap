@@ -673,3 +673,62 @@ export async function seedJobsToSupabaseIfEmpty(initialJobs: Job[], userId: stri
     console.warn('Supabase seed exception:', err);
   }
 }
+
+/**
+ * Uploads a job image (Blob or base64 Data URL) to Supabase Storage bucket 'job-photos'
+ * Returns the public CDN URL on success, or null on failure (allowing graceful offline fallback)
+ */
+export async function uploadJobImageToStorage(
+  dataUrlOrBlob: string | Blob,
+  jobId: string,
+  prefix: string = 'photo'
+): Promise<string | null> {
+  if (!supabase) return null;
+  try {
+    let blob: Blob;
+    let mime = 'image/jpeg';
+
+    if (typeof dataUrlOrBlob === 'string') {
+      if (!dataUrlOrBlob.startsWith('data:image/')) {
+        // Already a public URL
+        return dataUrlOrBlob;
+      }
+      const parts = dataUrlOrBlob.split(',');
+      mime = parts[0].match(/:(.*?);/)?.[1] || 'image/jpeg';
+      const bstr = atob(parts[1]);
+      let n = bstr.length;
+      const u8arr = new Uint8Array(n);
+      while (n--) {
+        u8arr[n] = bstr.charCodeAt(n);
+      }
+      blob = new Blob([u8arr], { type: mime });
+    } else {
+      blob = dataUrlOrBlob;
+      mime = blob.type || 'image/jpeg';
+    }
+
+    const ext = mime.includes('png') ? 'png' : 'jpg';
+    const filePath = `jobs/${jobId}/${prefix}_${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${ext}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('job-photos')
+      .upload(filePath, blob, {
+        contentType: mime,
+        upsert: true
+      });
+
+    if (uploadError) {
+      console.warn('Storage upload error:', uploadError.message);
+      return null;
+    }
+
+    const { data: publicUrlData } = supabase.storage
+      .from('job-photos')
+      .getPublicUrl(filePath);
+
+    return publicUrlData?.publicUrl || null;
+  } catch (err) {
+    console.warn('Failed to upload image to Supabase storage:', err);
+    return null;
+  }
+}

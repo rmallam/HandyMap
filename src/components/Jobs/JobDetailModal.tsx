@@ -19,6 +19,7 @@ import {
 import { getDefaultJobContact } from '../../utils/contactHierarchy';
 import { buildGoogleCalendarUrl, downloadIcsCalendarFile } from '../../utils/calendarExport';
 import { stitchBeforeAndAfterPhotos, processImageFile } from '../../utils/photoStitcher';
+import { uploadJobImageToStorage } from '../../services/supabase';
 import { generateQuotePDF } from '../../services/pdfGenerator';
 import { triggerHapticFeedback } from '../../services/nativeMobile';
 import { SignaturePadModal } from '../Common/SignaturePadModal';
@@ -178,9 +179,19 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
     try {
       setIsProcessingImage(true);
       const dataUrl = await processImageFile(file, 1280, 0.85);
+      let photoUrl = dataUrl;
+      try {
+        const remoteUrl = await uploadJobImageToStorage(dataUrl, job.id, type);
+        if (remoteUrl) {
+          photoUrl = remoteUrl;
+        }
+      } catch (uploadErr) {
+        console.warn('Storage upload fallback to dataUrl:', uploadErr);
+      }
+
       const newPhoto: JobPhoto = {
         id: `p-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-        url: dataUrl,
+        url: photoUrl,
         caption: customCaption || photoCaptionInput.trim() || (type === 'before' ? 'Before Work' : type === 'after' ? 'After Completion' : 'Site Assessment'),
         type: type,
         uploadedAt: new Date().toISOString()
@@ -546,10 +557,20 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
           businessName: profile.businessName
         }
       );
-      setStitchedPhotoUrl(dataUrl);
+      let stitchedUrl = dataUrl;
+      try {
+        const remoteUrl = await uploadJobImageToStorage(dataUrl, job.id, 'stitch');
+        if (remoteUrl) {
+          stitchedUrl = remoteUrl;
+        }
+      } catch (uploadErr) {
+        console.warn('Stitched photo upload fallback to dataUrl:', uploadErr);
+      }
+
+      setStitchedPhotoUrl(stitchedUrl);
       onUpdateJob({
         ...job,
-        beforeAfterImage: dataUrl,
+        beforeAfterImage: stitchedUrl,
         updatedAt: new Date().toISOString()
       });
     } catch (err) {

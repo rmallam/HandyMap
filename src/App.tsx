@@ -7,6 +7,7 @@ import {
   isSupabaseConfigured,
   supabase,
   fetchJobsFromSupabase,
+  mapRowToJob,
   upsertJobInSupabase,
   batchUpsertJobsInSupabase,
   deleteJobFromSupabase,
@@ -225,7 +226,7 @@ export function App() {
           setProfile(localProfile);
         }
 
-        // Realtime Postgres Changes Subscription (Uses currentUserIdRef to avoid stale closure)
+        // Realtime Postgres Changes Subscription: Efficiently patches local state without full re-fetch
         const channel = supabase
           .channel('public:jobs')
           .on(
@@ -233,8 +234,28 @@ export function App() {
             { event: '*', schema: 'public', table: 'jobs' },
             async (payload: any) => {
               const uid = currentUserIdRef.current;
-              // Refresh if the change belongs to the current user
-              if (uid && (!payload.new?.user_id || payload.new.user_id === uid || payload.old?.user_id === uid)) {
+              // Check if event belongs to current user
+              const matchesUser = !uid || !payload.new?.user_id || payload.new.user_id === uid || payload.old?.user_id === uid;
+              if (!matchesUser) return;
+
+              if (payload.eventType === 'DELETE' && payload.old?.id) {
+                setJobs(prev => {
+                  const updated = prev.filter(j => j.id !== payload.old.id);
+                  saveJobs(updated);
+                  return updated;
+                });
+              } else if (payload.new && payload.new.id) {
+                const mappedJob = mapRowToJob(payload.new);
+                setJobs(prev => {
+                  const exists = prev.some(j => j.id === mappedJob.id);
+                  const updated = exists
+                    ? prev.map(j => (j.id === mappedJob.id ? mappedJob : j))
+                    : [mappedJob, ...prev];
+                  saveJobs(updated);
+                  return updated;
+                });
+              } else if (uid) {
+                // Fallback only if payload data is missing
                 const refreshed = await fetchJobsFromSupabase(uid);
                 if (refreshed) {
                   setJobs(refreshed);
@@ -245,15 +266,22 @@ export function App() {
           )
           .subscribe();
 
-        // Auto-refresh when user switches back to browser tab (Essential for mobile browsers)
+        // Throttled refresh when user switches back to browser tab (Avoids burning egress on every tab switch)
+        let lastFullSyncTime = Date.now();
+        const SYNC_THROTTLE_MS = 5 * 60 * 1000; // 5 minutes throttle
+
         const handleVisibilityOrFocus = async () => {
           if (document.visibilityState === 'visible') {
             const uid = currentUserIdRef.current;
             if (uid) {
-              const refreshed = await fetchJobsFromSupabase(uid);
-              if (refreshed) {
-                setJobs(refreshed);
-                saveJobs(refreshed);
+              const now = Date.now();
+              if (now - lastFullSyncTime >= SYNC_THROTTLE_MS) {
+                lastFullSyncTime = now;
+                const refreshed = await fetchJobsFromSupabase(uid);
+                if (refreshed) {
+                  setJobs(refreshed);
+                  saveJobs(refreshed);
+                }
               }
             } else {
               const sess = await getCurrentSession();
@@ -267,17 +295,21 @@ export function App() {
         window.addEventListener('visibilitychange', handleVisibilityOrFocus);
         window.addEventListener('focus', handleVisibilityOrFocus);
 
-        // Background polling every 20 seconds while tab is active for instant laptop/phone parity
+        // Fallback safety sync every 10 minutes (only if active)
         const pollTimer = setInterval(() => {
           if (document.visibilityState === 'visible' && currentUserIdRef.current) {
-            fetchJobsFromSupabase(currentUserIdRef.current).then(refreshed => {
-              if (refreshed) {
-                setJobs(refreshed);
-                saveJobs(refreshed);
-              }
-            });
+            const now = Date.now();
+            if (now - lastFullSyncTime >= 10 * 60 * 1000) {
+              lastFullSyncTime = now;
+              fetchJobsFromSupabase(currentUserIdRef.current).then(refreshed => {
+                if (refreshed) {
+                  setJobs(refreshed);
+                  saveJobs(refreshed);
+                }
+              });
+            }
           }
-        }, 20000);
+        }, 60000);
 
         // Auth state listener (Handles direct password login, OTP code, or Magic Link redirect clicks)
         const { data: authListener } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
